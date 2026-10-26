@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="R&D Prime Imóveis — curadoria imobiliária para morar, investir e realizar.">
+  <title>R&D PRIME IMÓVEIS | Curadoria Imobiliária</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="topbar"><div class="container"><span>Curadoria imobiliária residencial e comercial</span><span>Atendimento personalizado · São Paulo, SP</span></div></div>
+  <header class="navbar"><div class="container nav-inner">
+    <a class="brand" href="/"><span class="brand-mark">R&D</span><span><span class="brand-name">R&D PRIME</span><span class="brand-sub">IMÓVEIS · RESIDENCIAL · COMERCIAL</span></span></a>
+    <nav class="nav-links"><a href="#imoveis">Imóveis</a><a href="#segmentos">Segmentos</a><a href="#sobre">Sobre nós</a><a class="button button-dark" href="/login.html">Área do corretor</a></nav>
+  </div></header>
+  <main>
+    <section class="hero"><div class="container"><div class="hero-content">
+      <div class="eyebrow">Excelência em cada escolha</div>
+      <h1>O próximo capítulo da sua história começa aqui.</h1>
+      <p>Uma curadoria imobiliária feita para quem busca mais do que um endereço: busca potencial, qualidade de vida e oportunidades de investimento.</p>
+      <div class="hero-actions"><a class="button button-gold" href="#imoveis">Explorar imóveis ↗</a><a class="button button-outline" href="#contato">Fale com um especialista</a></div>
+    </div></div></section>
+    <div class="container"><form class="search-panel" id="search-form">
+      <div class="field"><label for="categoria">TIPO DE IMÓVEL</label><select id="categoria"><option value="">Todas as categorias</option><option value="residencial">Residencial</option><option value="comercial">Comercial</option><option value="sublocacao">Coworking / Sublocação</option><option value="garagem">Vagas de garagem</option><option value="lancamento">Lançamentos</option></select></div>
+      <div class="field"><label for="finalidade">FINALIDADE</label><select id="finalidade"><option value="">Todas</option><option value="venda">Comprar</option><option value="locacao">Alugar</option><option value="temporada">Temporada</option></select></div>
+      <div class="field"><label for="localizacao">LOCALIZAÇÃO</label><input id="localizacao" placeholder="Bairro ou cidade"></div>
+      <div class="field"><label for="preco-max">PREÇO MÁXIMO (R$)</label><input id="preco-max" type="number" min="0" placeholder="Sem limite"></div>
+      <button class="button button-gold" type="submit">Buscar imóveis</button>
+    </form></div>
+    <section class="section" id="imoveis"><div class="container">
+      <div class="section-head"><div><div class="eyebrow">Seleção especial</div><h2>Imóveis em destaque</h2><p class="section-intro">Uma seleção de oportunidades escolhidas com atenção aos detalhes.</p></div><a href="/imoveis.html" class="button button-dark">Ver todos os imóveis ↗</a></div>
+      <div id="featured-grid" class="property-grid"><div class="empty-state">Carregando imóveis publicados…</div></div>
+    </div></section>
+    <section class="section section-soft" id="segmentos"><div class="container"><div class="eyebrow">Soluções imobiliárias</div><h2>Um portfólio para diferentes objetivos.</h2><p class="section-intro">Da escolha do novo lar à próxima oportunidade de negócio, conectamos pessoas a espaços com propósito.</p>
+      <div class="feature-grid" style="margin-top:30px">
+        <article class="feature"><div class="feature-icon">⌂</div><h3>Residencial</h3><p>Casas e apartamentos selecionados para viver com conforto e personalidade.</p></article>
+        <article class="feature"><div class="feature-icon">▤</div><h3>Comercial</h3><p>Espaços para empresas, consultórios, escritórios e novos projetos.</p></article>
+        <article class="feature"><div class="feature-icon">◇</div><h3>Investimentos</h3><p>Oportunidades, lançamentos e alternativas para diversificar seu patrimônio.</p></article>
+      </div>
+    </div></section>
+    <section class="section" id="sobre"><div class="container"><div class="cta"><div><div class="eyebrow">R&D Prime Imóveis</div><h2>Seu próximo investimento merece uma boa conversa.</h2><p>Conte com um atendimento próximo para encontrar o imóvel alinhado ao seu momento e aos seus objetivos.</p></div><a class="button button-gold" href="#contato">Fale com nossa equipe ↗</a></div></div></section>
+    <section class="section section-soft" id="contato"><div class="container" style="max-width:760px"><div class="eyebrow">Vamos conversar</div><h2>Encontre o imóvel certo com a nossa equipe.</h2><form id="lead-form" class="panel"><div class="form-grid">
+      <div class="field"><label for="lead-nome">Nome completo</label><input id="lead-nome" name="nome" required maxlength="120" placeholder="Seu nome"></div>
+      <div class="field"><label for="lead-telefone">WhatsApp</label><input id="lead-telefone" name="telefone" required maxlength="40" placeholder="(11) 99999-9999"></div>
+      <div class="field full"><label for="lead-mensagem">O que você procura?</label><textarea id="lead-mensagem" name="mensagem" rows="4" maxlength="2000" placeholder="Conte um pouco sobre o imóvel ideal"></textarea></div>
+      <div class="full"><button class="button button-dark" type="submit">Solicitar contato</button><p id="lead-feedback" class="property-location" aria-live="polite"></p></div>
+    </div></form></div></section>
+  </main>
+  <footer class="footer"><div class="container"><div class="footer-grid"><div><div class="brand"><span class="brand-mark">R&D</span><span><span class="brand-name">R&D PRIME</span><span class="brand-sub" style="color:#aaa">IMÓVEIS</span></span></div><p>Curadoria imobiliária residencial, comercial e de investimentos.</p></div><div><h4>Navegue</h4><p><a href="#imoveis">Imóveis</a><br><a href="#segmentos">Segmentos</a><br><a href="/login.html">Área do corretor</a></p></div><div><h4>Atendimento</h4><p>São Paulo · SP<br>Atendimento mediante agendamento</p></div></div><div class="copyright">© <span id="year"></span> R&D Prime Imóveis. Todos os direitos reservados.</div></div></footer>
+  <a class="whatsapp" id="whatsapp-link" href="https://wa.me/" target="_blank" rel="noopener">WhatsApp ↗</a>
+  <script type="module" src="/js/home.js"></script>
+</body></html>

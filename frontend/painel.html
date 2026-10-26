@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Painel | R&D PRIME</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="admin-layout">
+    <aside class="sidebar">
+      <a class="brand" href="/">
+        <span class="brand-mark">R&amp;D</span>
+        <span>
+          <span class="brand-name">R&amp;D PRIME</span>
+          <span class="brand-sub" style="color:#aaa">PAINEL</span>
+        </span>
+      </a>
+      <nav>
+        <a class="active" href="/painel.html">Visão geral</a>
+        <a href="#imoveis">Imóveis</a>
+        <a href="#novo-imovel" id="novo-imovel-nav">Cadastrar imóvel</a>
+        <a href="/">Ver site público ↗</a>
+        <a href="#" id="logout">Sair</a>
+      </nav>
+    </aside>
+
+    <main class="admin-main">
+      <div class="admin-header">
+        <div>
+          <div class="eyebrow">Gestão imobiliária</div>
+          <div class="admin-title">Visão geral</div>
+          <p id="welcome" class="property-location">Validando sessão…</p>
+        </div>
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+          <a class="button button-gold" id="btn-painel-admin" href="/admin.html" hidden>Painel Admin</a>
+          <button class="button button-dark" id="refresh" type="button">Atualizar dados ↻</button>
+        </div>
+      </div>
+
+      <div id="panel-message" class="notice" role="status" aria-live="polite">
+        Validando autenticação e permissões…
+      </div>
+
+      <div class="stats">
+        <div class="stat"><small>Imóveis publicados</small><strong id="stat-total">—</strong></div>
+        <div class="stat"><small>Publicados</small><strong id="stat-publicados">—</strong></div>
+        <div class="stat"><small>Aguardando aprovação</small><strong id="stat-pendentes">—</strong></div>
+        <div class="stat"><small>Leads recebidos</small><strong id="stat-leads">—</strong></div>
+      </div>
+
+      <section class="panel" id="imoveis">
+        <h3>Carteira de imóveis</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Imóvel</th><th>Categoria</th><th>Finalidade</th><th>Status</th><th>Ação</th></tr></thead>
+            <tbody id="property-table"><tr><td colspan="5">Carregando imóveis…</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel" id="novo-imovel" hidden>
+        <h3>Cadastrar imóvel</h3>
+        <form id="property-form" class="form-grid">
+          <div class="field full"><label for="titulo">Título do anúncio</label><input id="titulo" required maxlength="180" placeholder="Ex.: Apartamento com vista panorâmica"></div>
+          <div class="field"><label for="categoria">Categoria</label><select id="categoria" required><option value="residencial">Residencial</option><option value="comercial">Comercial</option><option value="sublocacao">Sublocação / Coworking</option><option value="garagem">Garagem</option><option value="lancamento">Lançamento</option></select></div>
+          <div class="field"><label for="finalidade">Finalidade</label><select id="finalidade" required><option value="venda">Venda</option><option value="locacao">Locação</option><option value="temporada">Temporada</option></select></div>
+          <div class="field"><label for="preco">Preço (R$)</label><input id="preco" type="number" min="0" step="0.01"></div>
+          <div class="field"><label for="cidade">Cidade</label><input id="cidade" maxlength="100"></div>
+          <div class="field"><label for="estado">UF</label><input id="estado" maxlength="2" placeholder="SP"></div>
+          <div class="field"><label for="bairro">Bairro</label><input id="bairro" maxlength="120"></div>
+          <div class="field"><label for="areaM2">Área (m²)</label><input id="areaM2" type="number" min="0"></div>
+          <div class="field"><label for="quartos">Quartos</label><input id="quartos" type="number" min="0"></div>
+          <div class="field"><label for="suites">Suítes</label><input id="suites" type="number" min="0"></div>
+          <div class="field"><label for="banheiros">Banheiros</label><input id="banheiros" type="number" min="0"></div>
+          <div class="field"><label for="vagas">Vagas</label><input id="vagas" type="number" min="0"></div>
+          <div class="field full"><label for="descricao">Descrição</label><textarea id="descricao" rows="4" maxlength="10000"></textarea></div>
+          <div class="full"><button class="button button-gold" type="submit">Salvar imóvel para aprovação</button></div>
+        </form>
+        <p id="property-feedback" class="property-location" aria-live="polite"></p>
+      </section>
+    </main>
+  </div>
+  <script type="module" src="/js/painel.js"></script>
+</body>
+</html>
