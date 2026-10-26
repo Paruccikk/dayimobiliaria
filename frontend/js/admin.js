@@ -222,7 +222,7 @@ function renderUsers(users) {
   const tbody = $("#usuarios-lista");
 
   if (!users.length) {
-    tbody.innerHTML = '<tr><td colspan="5">Nenhum usuário cadastrado.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6">Nenhum usuário cadastrado.</td></tr>';
     return;
   }
 
@@ -237,6 +237,10 @@ function renderUsers(users) {
 
     const isActive = user.ativo === true && user.status === "ativo";
 
+    const pedido = user.solicitacaoPapel === "corretor"
+      ? "Solicitou corretor"
+      : "Cliente";
+
     return `
       <tr data-user-uid="${escapeHtml(user.uid)}">
         <td>
@@ -244,6 +248,7 @@ function renderUsers(users) {
           <div class="dash-subtitle">${escapeHtml(user.email || "")}</div>
         </td>
         <td>${escapeHtml(user.telefone || "—")}</td>
+        <td>${escapeHtml(pedido)}</td>
         <td><select class="user-role" aria-label="Perfil do usuário">${roleOptions}</select></td>
         <td>${statusPill(isActive ? "ativo" : (user.status || "inativo"))}</td>
         <td>

@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Administração | R&D PRIME IMÓVEIS</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    [hidden] { display: none !important; }
+    body { background:#f5f6f8; }
+    .dashboard-wrap { max-width:1500px; margin:0 auto; padding:24px; }
+    .dash-top { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:24px; }
+    .dash-title { font-size:clamp(1.6rem,3vw,2.25rem); font-weight:750; color:#20242b; }
+    .dash-subtitle { color:#707782; margin-top:6px; }
+    .dash-actions { display:flex; gap:10px; flex-wrap:wrap; }
+    .dash-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; margin-bottom:20px; }
+    .dash-card,.dash-panel { background:#fff; border:1px solid #e7e9ee; border-radius:14px; padding:18px; box-shadow:0 4px 16px rgba(25,35,50,.035); }
+    .dash-card small { display:block; color:#747b86; font-size:.86rem; }
+    .dash-number { display:block; font-size:2rem; line-height:1.25; font-weight:750; margin:10px 0 4px; color:#222832; }
+    .dash-note { color:#858b95; font-size:.8rem; }
+    .dash-panel { margin-bottom:20px; }
+    .dash-panel h2 { font-size:1.12rem; margin:0 0 16px; color:#252a33; }
+    .dash-two-col { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+    .dash-bars { display:grid; gap:13px; }
+    .bar-row { display:grid; grid-template-columns:minmax(95px,130px) 1fr 40px; align-items:center; gap:10px; font-size:.9rem; }
+    .bar-track { height:10px; background:#eef0f3; border-radius:99px; overflow:hidden; }
+    .bar-fill { height:100%; background:#b18a45; border-radius:99px; }
+    .dash-table-wrap { overflow-x:auto; }
+    .dash-table { width:100%; border-collapse:collapse; min-width:720px; }
+    .dash-table th,.dash-table td { text-align:left; padding:12px 10px; border-bottom:1px solid #eceef1; vertical-align:middle; font-size:.9rem; }
+    .dash-table th { color:#6c737e; font-weight:650; white-space:nowrap; }
+    .dash-table select,.dash-table input { max-width:150px; padding:7px; border:1px solid #d9dde4; border-radius:7px; background:white; }
+    .dash-form { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; }
+    .dash-form .field { min-width:0; }
+    .dash-form .full { grid-column:1/-1; }
+    .dash-form input,.dash-form select,.dash-form textarea { width:100%; box-sizing:border-box; }
+    .dash-feedback { margin:12px 0; min-height:1.2em; color:#555e69; }
+    .pill { display:inline-block; padding:4px 8px; border-radius:99px; font-size:.78rem; background:#eef0f3; color:#424954; white-space:nowrap; }
+    .pill-green { background:#e5f5ec; color:#216b43; }
+    .pill-gold { background:#fff3d9; color:#825d17; }
+    .small-btn { border:0; border-radius:7px; padding:8px 10px; margin:2px; cursor:pointer; background:#252a33; color:#fff; }
+    .small-btn.gold { background:#b18a45; color:#fff; }
+    .small-btn.light { background:#eef0f3; color:#252a33; }
+    .small-btn:disabled { opacity:.55; cursor:wait; }
+    .auth-card { max-width:460px; margin:7vh auto; background:white; border:1px solid #e7e9ee; border-radius:16px; padding:28px; box-shadow:0 10px 35px rgba(25,35,50,.08); }
+    .auth-card h1 { margin-top:0; }
+    .auth-fields { display:grid; gap:12px; }
+    .auth-fields input { width:100%; box-sizing:border-box; padding:12px; border:1px solid #d9dde4; border-radius:8px; }
+    .notice { margin:12px 0 20px; }
+    @media(max-width:1050px) { .dash-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .dash-two-col { grid-template-columns:1fr; } }
+    @media(max-width:650px) { .dashboard-wrap { padding:14px; } .dash-grid { gap:9px; } .dash-card { padding:13px; } .dash-number { font-size:1.6rem; } .dash-form { grid-template-columns:1fr; } .dash-form .full { grid-column:auto; } }
+  </style>
+</head>
+<body>
+  <section id="login-screen" class="auth-card">
+    <div class="eyebrow">R&D PRIME IMÓVEIS</div>
+    <h1>Administração</h1>
+    <p class="property-location">Entre com uma conta de administrador ativa.</p>
+    <form id="admin-login-form" class="auth-fields">
+      <label for="admin-email">E-mail</label>
+      <input id="admin-email" type="email" autocomplete="username" required>
+      <label for="admin-password">Senha</label>
+      <input id="admin-password" type="password" autocomplete="current-password" required>
+      <button class="button button-gold" id="admin-login" type="submit">Entrar</button>
+    </form>
+    <p id="admin-feedback" class="dash-feedback" role="status" aria-live="polite"></p>
+    <a href="/painel.html">Voltar ao painel</a>
+  </section>
+
+  <main id="admin-app" class="dashboard-wrap" hidden>
+    <header class="dash-top">
+      <div>
+        <div class="eyebrow">GESTÃO IMOBILIÁRIA</div>
+        <div class="dash-title">Dashboard administrativo</div>
+        <p id="admin-welcome" class="dash-subtitle">Validando sessão…</p>
+      </div>
+      <div class="dash-actions">
+        <a class="button button-dark" href="/painel.html">Painel geral</a>
+        <button class="button button-gold" id="admin-refresh" type="button">Atualizar dados ↻</button>
+        <button class="button button-dark" id="admin-logout" type="button">Sair</button>
+      </div>
+    </header>
+
+    <div id="dashboard-feedback" class="notice" role="status" aria-live="polite"></div>
+
+    <section class="dash-grid" aria-label="Indicadores">
+      <article class="dash-card"><small>Total de imóveis</small><strong class="dash-number" id="stat-imoveis">—</strong><span class="dash-note">Todos os status</span></article>
+      <article class="dash-card"><small>Imóveis publicados</small><strong class="dash-number" id="stat-publicados">—</strong><span class="dash-note">Visíveis no site</span></article>
+      <article class="dash-card"><small>Pendentes de aprovação</small><strong class="dash-number" id="stat-pendentes">—</strong><span class="dash-note">Aguardando análise</span></article>
+      <article class="dash-card"><small>Clientes cadastrados</small><strong class="dash-number" id="stat-clientes">—</strong><span class="dash-note">Perfis de cliente</span></article>
+      <article class="dash-card"><small>Imóveis à venda</small><strong class="dash-number" id="stat-venda">—</strong><span class="dash-note">Todas as situações</span></article>
+      <article class="dash-card"><small>Imóveis para locação</small><strong class="dash-number" id="stat-locacao">—</strong><span class="dash-note">Todas as situações</span></article>
+      <article class="dash-card"><small>Corretores ativos</small><strong class="dash-number" id="stat-corretores">—</strong><span class="dash-note">Contas autorizadas</span></article>
+      <article class="dash-card"><small>Leads recebidos</small><strong class="dash-number" id="stat-leads">—</strong><span class="dash-note"><span id="stat-leads-novos">—</span> novos</span></article>
+    </section>
+
+    <section class="dash-two-col">
+      <article class="dash-panel">
+        <h2>Carteira por finalidade</h2>
+        <div class="dash-bars">
+          <div class="bar-row"><span>Venda</span><div class="bar-track"><div id="bar-venda" class="bar-fill" style="width:0%"></div></div><strong id="bar-venda-num">0</strong></div>
+          <div class="bar-row"><span>Locação</span><div class="bar-track"><div id="bar-locacao" class="bar-fill" style="width:0%"></div></div><strong id="bar-locacao-num">0</strong></div>
+          <div class="bar-row"><span>Temporada</span><div class="bar-track"><div id="bar-temporada" class="bar-fill" style="width:0%"></div></div><strong id="bar-temporada-num">0</strong></div>
+        </div>
+      </article>
+      <article class="dash-panel">
+        <h2>Resumo da operação</h2>
+        <div class="dash-bars">
+          <div class="bar-row"><span>Publicados</span><div class="bar-track"><div id="bar-publicados" class="bar-fill" style="width:0%"></div></div><strong id="bar-publicados-num">0</strong></div>
+          <div class="bar-row"><span>Pendentes</span><div class="bar-track"><div id="bar-pendentes" class="bar-fill" style="width:0%"></div></div><strong id="bar-pendentes-num">0</strong></div>
+          <div class="bar-row"><span>Inativos</span><div class="bar-track"><div id="bar-inativos" class="bar-fill" style="width:0%"></div></div><strong id="bar-inativos-num">0</strong></div>
+        </div>
+      </article>
+    </section>
+
+    <section class="dash-panel">
+      <h2>Cadastrar imóvel</h2>
+      <p class="dash-subtitle">O administrador pode cadastrar e publicar diretamente ou deixar o imóvel aguardando aprovação.</p>
+      <form id="admin-property-form" class="dash-form">
+        <div class="field"><label for="prop-titulo">Título *</label><input id="prop-titulo" required maxlength="180"></div>
+        <div class="field"><label for="prop-categoria">Categoria *</label><select id="prop-categoria" required><option value="residencial">Residencial</option><option value="comercial">Comercial</option><option value="sublocacao">Sublocação / Coworking</option><option value="garagem">Garagem</option><option value="lancamento">Lançamento</option></select></div>
+        <div class="field"><label for="prop-finalidade">Finalidade *</label><select id="prop-finalidade" required><option value="venda">Venda</option><option value="locacao">Locação</option><option value="temporada">Temporada</option></select></div>
+        <div class="field"><label for="prop-preco">Preço (R$)</label><input id="prop-preco" type="number" min="0" step="0.01"></div>
+        <div class="field"><label for="prop-cidade">Cidade</label><input id="prop-cidade" maxlength="100"></div>
+        <div class="field"><label for="prop-estado">UF</label><input id="prop-estado" maxlength="2" placeholder="SP"></div>
+        <div class="field"><label for="prop-bairro">Bairro</label><input id="prop-bairro" maxlength="120"></div>
+        <div class="field"><label for="prop-area">Área (m²)</label><input id="prop-area" type="number" min="0"></div>
+        <div class="field"><label for="prop-quartos">Quartos</label><input id="prop-quartos" type="number" min="0"></div>
+        <div class="field"><label for="prop-suites">Suítes</label><input id="prop-suites" type="number" min="0"></div>
+        <div class="field"><label for="prop-banheiros">Banheiros</label><input id="prop-banheiros" type="number" min="0"></div>
+        <div class="field"><label for="prop-vagas">Vagas</label><input id="prop-vagas" type="number" min="0"></div>
+        <div class="field full"><label for="prop-descricao">Descrição</label><textarea id="prop-descricao" rows="3" maxlength="10000"></textarea></div>
+        <div class="field full" style="display:flex;align-items:center;gap:10px"><input id="prop-publicar" type="checkbox" checked style="width:auto"><label for="prop-publicar">Publicar no site imediatamente</label></div>
+        <div class="field full"><button id="prop-submit" class="button button-gold" type="submit">Cadastrar imóvel</button></div>
+      </form>
+      <p id="property-feedback" class="dash-feedback" role="status" aria-live="polite"></p>
+    </section>
+
+    <section class="dash-panel">
+      <h2>Todos os imóveis</h2>
+      <div class="dash-table-wrap">
+        <table class="dash-table">
+          <thead><tr><th>Imóvel</th><th>Finalidade</th><th>Preço</th><th>Responsável</th><th>Status</th><th>Ações</th></tr></thead>
+          <tbody id="imoveis-lista"><tr><td colspan="6">Carregando…</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="dash-panel">
+      <h2>Clientes, corretores e usuários</h2>
+      <div class="dash-table-wrap">
+        <table class="dash-table">
+          <thead><tr><th>Usuário</th><th>Telefone</th><th>Perfil</th><th>Status</th><th>Ações</th></tr></thead>
+          <tbody id="usuarios-lista"><tr><td colspan="5">Carregando…</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="dash-panel">
+      <h2>Leads recentes</h2>
+      <div class="dash-table-wrap">
+        <table class="dash-table">
+          <thead><tr><th>Contato</th><th>Telefone</th><th>Imóvel</th><th>Status</th><th>Data</th></tr></thead>
+          <tbody id="leads-lista"><tr><td colspan="5">Carregando…</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="/js/admin.js"></script>
+</body>
+</html>

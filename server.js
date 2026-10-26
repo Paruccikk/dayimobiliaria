@@ -266,6 +266,9 @@ app.post("/api/auth/registrar", async (req, res) => {
 
   const nome = cleanString(req.body?.nome, 120);
   const telefone = cleanString(req.body?.telefone, 30);
+  // A pessoa pode solicitar cadastro como corretor, mas nunca recebe
+  // o papel de corretor automaticamente. A aprovação é feita pelo admin.
+  const solicitacaoPapel = req.body?.tipoCadastro === "corretor" ? "corretor" : "cliente";
 
   if (!nome || !telefone) {
     return res.status(400).json({
@@ -290,6 +293,7 @@ app.post("/api/auth/registrar", async (req, res) => {
       email: userRecord.email || decoded.email || "",
       telefone,
       papel: "cliente",
+      solicitacaoPapel,
       ativo: false,
       status: "pendente",
       criadoEm: new Date().toISOString()
@@ -300,9 +304,12 @@ app.post("/api/auth/registrar", async (req, res) => {
     return res.status(201).json({
       ok: true,
       papel: "cliente",
+      solicitacaoPapel,
       ativo: false,
       status: "pendente",
-      message: "Cadastro recebido. Aguarde a aprovação do administrador."
+      message: solicitacaoPapel === "corretor"
+        ? "Solicitação de cadastro como corretor recebida. Aguarde a aprovação do administrador."
+        : "Cadastro recebido. Aguarde a aprovação do administrador."
     });
 
   } catch (error) {
@@ -318,57 +325,40 @@ app.post("/api/auth/registrar", async (req, res) => {
 // AUTENTICAÇÃO E AUTORIZAÇÃO
 // --------------------------------------------------
 
-async function requireFirebase(req, res, next) {
-  if (!auth || !db) {
-    return firebaseUnavailable(res);
-  }
+// Autentica o usuário e carrega o perfil, mesmo se estiver pendente.
+// Usado para que a tela de login consiga identificar o estado da aprovação.
+async function requireAuthenticated(req, res, next) {
+  if (!auth || !db) return firebaseUnavailable(res);
 
   const token = getBearerToken(req);
-
   if (!token) {
-    return res.status(401).json({
-      error: "Autenticação necessária."
-    });
+    return res.status(401).json({ error: "Autenticação necessária." });
   }
 
   try {
     req.user = await auth.verifyIdToken(token);
-
-  } catch (error) {
-    return res.status(401).json({
-      error: "Sessão inválida ou expirada."
-    });
-  }
-
-  try {
-    const snapshot = await db
-      .ref(`usuarios/${req.user.uid}`)
-      .get();
-
-    const profile = snapshot.val();
-
-    if (!profile) {
-      return res.status(403).json({
-        error: "Perfil não cadastrado. Aguarde a aprovação."
-      });
-    }
-
-    if (profile.ativo !== true || profile.status !== "ativo") {
-      return res.status(403).json({
-        error: "Seu acesso está pendente ou inativo."
-      });
-    }
-
-    req.profile = profile;
+    const snapshot = await db.ref(`usuarios/${req.user.uid}`).get();
+    req.profile = snapshot.val() || null;
     return next();
-
   } catch (error) {
-    return sendServerError(
-      res,
-      "Não foi possível consultar o perfil do usuário.",
-      error
-    );
+    if (error?.code === "auth/id-token-expired" || error?.code === "auth/argument-error" || error?.code === "auth/id-token-revoked") {
+      return res.status(401).json({ error: "Sessão inválida ou expirada." });
+    }
+    return sendServerError(res, "Não foi possível validar a sessão e consultar o perfil.", error);
   }
+}
+
+// Mantém a proteção de todas as rotas privadas: perfil ativo é obrigatório.
+function requireFirebase(req, res, next) {
+  return requireAuthenticated(req, res, () => {
+    if (!req.profile) {
+      return res.status(403).json({ error: "Perfil não cadastrado. Complete o cadastro e aguarde a aprovação." });
+    }
+    if (req.profile.ativo !== true || req.profile.status !== "ativo") {
+      return res.status(403).json({ error: "Seu acesso está pendente ou inativo." });
+    }
+    return next();
+  });
 }
 
 function allowRoles(...roles) {
@@ -386,9 +376,14 @@ function allowRoles(...roles) {
   };
 }
 
-// Perfil autenticado: usado pelo painel geral.
-app.get("/api/auth/perfil", requireFirebase, (req, res) => {
-  return res.json({ perfil: req.profile });
+// Retorna o perfil mesmo quando pendente, para o frontend decidir
+// entre dashboard, solicitação pendente ou pedido de cadastro.
+app.get("/api/auth/perfil", requireAuthenticated, (req, res) => {
+  return res.json({
+    perfil: req.profile,
+    autenticado: true,
+    aprovado: req.profile?.ativo === true && req.profile?.status === "ativo"
+  });
 });
 
 // --------------------------------------------------
