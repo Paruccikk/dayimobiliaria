@@ -1,0 +1,23 @@
+# Dependências
+node_modules/
+
+# Variáveis de ambiente
+.env
+.env.local
+.env.production
+
+# Credenciais — NUNCA commitar
+firebase-service-account.json
+*service-account*.json
+*firebase-adminsdk*.json
+secrets/
+credentials/
+
+# Uploads (se quiser manter fora do Git)
+uploads/
+
+# Logs e temporários
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
