@@ -594,13 +594,27 @@ app.get(
 // IMÓVEIS PÚBLICOS
 // --------------------------------------------------
 
+
 app.get("/api/imoveis", async (_req, res) => {
   if (!db) {
     return firebaseUnavailable(res);
   }
 
+  console.log("[API] Iniciando consulta de imóveis...");
+
+  let timeout;
+
   try {
-    const snapshot = await db.ref("imoveis").get();
+    const snapshot = await Promise.race([
+      db.ref("imoveis").get(),
+      new Promise((_, reject) => {
+        timeout = setTimeout(
+          () => reject(new Error("TIMEOUT_CONSULTA_FIREBASE")),
+          10000
+        );
+      })
+    ]);
+
     const all = snapshot.val() || {};
 
     const items = Object.entries(all)
@@ -610,16 +624,28 @@ app.get("/api/imoveis", async (_req, res) => {
         item.publicadoNoSite === true
       );
 
-    return res.json({ items });
+    console.log(`[API] Consulta concluída: ${items.length} imóveis publicados.`);
 
+    return res.json({ items });
   } catch (error) {
+    console.error("[API] Falha ao consultar imóveis:", error.message);
+
+    if (error.message === "TIMEOUT_CONSULTA_FIREBASE") {
+      return res.status(504).json({
+        error: "O Firebase demorou demais para responder ao consultar os imóveis."
+      });
+    }
+
     return sendServerError(
       res,
       "Não foi possível carregar os imóveis.",
       error
     );
+  } finally {
+    clearTimeout(timeout);
   }
 });
+
 
 app.get("/api/imoveis/:id", async (req, res) => {
   if (!db) {
