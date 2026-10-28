@@ -335,9 +335,25 @@ async function carregarDashboard() {
   if (!currentUser || loading) return;
   loading = true;
   refreshButton.disabled = true;
-  setMessage(dashboardFeedback, "Atualizando indicadores e dados…");
+  setMessage(dashboardFeedback, "Validando acesso administrativo…");
 
   try {
+    const authData = await api("/api/auth/perfil");
+    const profile = authData.perfil;
+    if (!profile) throw new Error("Perfil não encontrado.");
+    if (profile.papel === "cliente") {
+      window.location.replace("/");
+      return;
+    }
+    if (profile.papel === "corretor") {
+      window.location.replace("/painel.html");
+      return;
+    }
+    if (profile.papel !== "administrador" || profile.ativo !== true || profile.status !== "ativo") {
+      throw new Error("Apenas administradores ativos podem acessar esta área.");
+    }
+
+    setMessage(dashboardFeedback, "Atualizando indicadores e dados…");
     const data = await api("/api/admin/dashboard");
     dashboardData = data;
 
