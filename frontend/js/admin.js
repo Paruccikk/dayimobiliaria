@@ -1,7 +1,6 @@
 import { auth } from "./firebase-client.js";
 
 import {
-  signInWithEmailAndPassword,
   signOut,
   onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -106,9 +105,11 @@ async function api(url, options = {}) {
 }
 
 function showLogin(text = "") {
-  loginScreen.hidden = false;
-  adminApp.hidden = true;
-  if (text) setMessage(feedback, text);
+  if (text) {
+    console.warn(text);
+  }
+
+  window.location.replace("/login.html");
 }
 
 function showAdmin() {
@@ -226,7 +227,7 @@ function renderUsers(users) {
     return;
   }
 
-  const roles = ["cliente", "corretor", "chefe", "administrador"];
+  const roles = ["cliente", "corretor", "administrador"];
 
   tbody.innerHTML = users.map(user => {
     const roleOptions = roles.map(role => `
@@ -335,9 +336,25 @@ async function carregarDashboard() {
   if (!currentUser || loading) return;
   loading = true;
   refreshButton.disabled = true;
-  setMessage(dashboardFeedback, "Atualizando indicadores e dados…");
+  setMessage(dashboardFeedback, "Validando acesso administrativo…");
 
   try {
+    const authData = await api("/api/auth/perfil");
+    const profile = authData.perfil;
+    if (!profile) throw new Error("Perfil não encontrado.");
+    if (profile.papel === "cliente") {
+      window.location.replace("/");
+      return;
+    }
+    if (profile.papel === "corretor") {
+      window.location.replace("/painel.html");
+      return;
+    }
+    if (profile.papel !== "administrador" || profile.ativo !== true || profile.status !== "ativo") {
+      throw new Error("Apenas administradores ativos podem acessar esta área.");
+    }
+
+    setMessage(dashboardFeedback, "Atualizando indicadores e dados…");
     const data = await api("/api/admin/dashboard");
     dashboardData = data;
 
@@ -363,34 +380,6 @@ async function carregarDashboard() {
   }
 }
 
-loginForm.addEventListener("submit", async event => {
-  event.preventDefault();
-
-  const email = $("#admin-email").value.trim();
-  const password = $("#admin-password").value;
-
-  if (!email || !password) {
-    setMessage(feedback, "Informe e-mail e senha.");
-    return;
-  }
-
-  loginButton.disabled = true;
-  setMessage(feedback, "Autenticando…");
-
-  try {
-    const credential = await signInWithEmailAndPassword(auth, email, password);
-    currentUser = credential.user;
-    setMessage(feedback, "Login realizado. Validando perfil administrativo…");
-    await carregarDashboard();
-  } catch (error) {
-    const message = error.code === "auth/invalid-credential"
-      ? "E-mail ou senha incorretos."
-      : error.message || "Não foi possível entrar.";
-    setMessage(feedback, message);
-  } finally {
-    loginButton.disabled = false;
-  }
-});
 
 refreshButton.addEventListener("click", carregarDashboard);
 
@@ -453,16 +442,19 @@ propertyForm.addEventListener("submit", async event => {
   }
 });
 
+
 onAuthStateChanged(auth, user => {
   currentUser = user;
-  refreshButton.disabled = !user;
-  logoutButton.disabled = !user;
+
+  if (refreshButton) refreshButton.disabled = !user;
+  if (logoutButton) logoutButton.disabled = !user;
 
   if (!user) {
-    showLogin();
+    window.location.replace("/login.html");
     return;
   }
 
-  // O endpoint administrativo valida papel, ativo e status no servidor.
-  carregarDashboard();
+  // Usa a sessão já autenticada no login.html.
+  void carregarDashboard();
 });
+

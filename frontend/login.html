@@ -1,1 +1,73 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Acesso profissional | R&D PRIME</title><link rel="stylesheet" href="/css/style.css"></head><body><header class="navbar"><div class="container nav-inner"><a class="brand" href="/"><span class="brand-mark">R&D</span><span><span class="brand-name">R&D PRIME</span><span class="brand-sub">ÁREA PROFISSIONAL</span></span></a><a href="/">Voltar ao site</a></div></header><main class="section section-soft"><div class="container" style="max-width:480px"><div class="panel"><div class="eyebrow">Acesso restrito</div><h2>Bem-vindo de volta.</h2><p class="property-location">Entre com sua conta profissional autorizada.</p><form id="login-form"><div class="field"><label for="email">E-mail</label><input id="email" type="email" autocomplete="username" required></div><div class="field" style="margin-top:15px"><label for="password">Senha</label><input id="password" type="password" autocomplete="current-password" required></div><button class="button button-dark" style="width:100%;margin-top:20px">Entrar</button><p id="login-feedback" class="property-location" aria-live="polite"></p></form><p class="property-location" style="margin-top:18px">Ainda não tem acesso? <a href="/cadastro.html" style="color:#a17c21;font-weight:700">Solicite seu cadastro</a>.</p><div class="notice">Novas contas precisam ser aprovadas por um administrador antes de acessar o painel.</div></div></div></main><script type="module" src="/js/login.js"></script></body></html>
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#172b25">
+  <title>Entrar | R&D Prime Imóveis</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    :root{--auth-green:#173b2e;--auth-gold:#c4a15a;--auth-ink:#18231f;--auth-muted:#68756f;--auth-line:#e4e9e5}
+    body.auth-page{min-height:100vh;margin:0;background:#f4f6f3;color:var(--auth-ink);font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    .auth-nav{height:78px;background:#fff;border-bottom:1px solid var(--auth-line);display:flex;align-items:center}
+    .auth-nav-inner{width:min(1120px,calc(100% - 40px));margin:auto;display:flex;justify-content:space-between;align-items:center;gap:20px}
+    .auth-brand{display:flex;align-items:center;gap:12px;color:var(--auth-ink);text-decoration:none}
+    .auth-mark{width:46px;height:46px;display:grid;place-items:center;border-radius:14px;background:var(--auth-green);color:#fff;font-weight:800;letter-spacing:-1px}
+    .auth-brand strong{display:block;letter-spacing:.08em;font-size:14px}.auth-brand small{display:block;margin-top:4px;color:var(--auth-muted);font-size:10px;letter-spacing:.18em}
+    .auth-back{color:var(--auth-green);text-decoration:none;font-weight:700;font-size:13px}
+    .auth-main{width:min(1120px,calc(100% - 40px));margin:48px auto;display:grid;grid-template-columns:1.02fr .98fr;min-height:590px;border-radius:26px;overflow:hidden;background:#fff;box-shadow:0 20px 70px #16332812}
+    .auth-visual{position:relative;display:flex;flex-direction:column;justify-content:flex-end;padding:54px;color:white;background:linear-gradient(180deg,#102a2050,#102a20e8),url("https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=1200&q=85") center/cover}
+    .auth-kicker{font-size:11px;font-weight:800;letter-spacing:.22em;text-transform:uppercase;color:#e0c888}
+    .auth-visual h1{max-width:450px;margin:15px 0;font-size:clamp(30px,3.4vw,48px);line-height:1.08;letter-spacing:-.04em}
+    .auth-visual p{max-width:390px;color:#eef3ef;line-height:1.75;font-size:15px}
+    .auth-trust{display:flex;gap:10px;align-items:center;margin-top:22px;font-size:12px;color:#f4f5ef}.auth-trust span{width:7px;height:7px;border-radius:50%;background:#d5b568}
+    .auth-content{padding:clamp(30px,5vw,62px);display:flex;flex-direction:column;justify-content:center}
+    .auth-eyebrow{color:#987b3e;font-size:11px;font-weight:800;letter-spacing:.18em;text-transform:uppercase}
+    .auth-content h2{font-size:32px;line-height:1.15;letter-spacing:-.04em;margin:12px 0 10px}
+    .auth-intro{color:var(--auth-muted);line-height:1.65;font-size:14px;margin:0 0 28px}
+    .auth-form .field{margin:0 0 17px!important}.auth-form label{display:block;font-size:12px;font-weight:750;margin-bottom:8px;color:#36433d}
+    .auth-form input{box-sizing:border-box;width:100%;height:49px;border:1px solid #dce3de;border-radius:11px;padding:0 14px;font:inherit;background:#fbfcfb;outline:none;transition:border .15s,box-shadow .15s}
+    .auth-form input:focus{border-color:#537763;box-shadow:0 0 0 3px #5377631c;background:#fff}
+    .auth-submit{width:100%;min-height:50px;border:0!important;border-radius:11px;background:var(--auth-green)!important;color:#fff!important;font-size:14px;font-weight:800;cursor:pointer;margin-top:6px;transition:transform .15s,background .15s}
+    .auth-submit:hover{background:#24523f!important;transform:translateY(-1px)}.auth-submit:disabled{opacity:.6;cursor:wait;transform:none}
+    .auth-feedback{font-size:13px;line-height:1.6;min-height:20px;color:#9a4b35}
+    .auth-switch{text-align:center;font-size:13px;color:var(--auth-muted);margin-top:18px}.auth-switch a{color:var(--auth-green);font-weight:800;text-decoration:none}
+    .auth-note{background:#f5f7f3;border:1px solid #e5eae3;border-radius:12px;padding:13px 15px;color:#657169;font-size:12px;line-height:1.6;margin-top:22px}
+    @media(max-width:800px){.auth-main{grid-template-columns:1fr;margin:24px auto}.auth-visual{min-height:230px;padding:30px}.auth-visual h1{font-size:30px}.auth-visual p{margin-bottom:0}.auth-content{padding:32px 26px}.auth-nav{height:68px}}
+    @media(max-width:430px){.auth-nav-inner{width:calc(100% - 28px)}.auth-main{width:calc(100% - 28px);border-radius:18px}.auth-brand small{font-size:9px}.auth-back{font-size:12px}.auth-visual{min-height:205px}}
+  </style>
+</head>
+<body class="auth-page">
+  <header class="auth-nav">
+    <div class="auth-nav-inner">
+      <a class="auth-brand" href="/" aria-label="R&D Prime Imóveis - página inicial">
+        <span class="auth-mark">R&D</span>
+        <span><strong>R&D PRIME</strong><small>IMÓVEIS · ACESSO PROFISSIONAL</small></span>
+      </a>
+      <a class="auth-back" href="/">← Voltar ao site</a>
+    </div>
+  </header>
+  <main class="auth-main">
+    <section class="auth-visual" aria-label="R&D Prime Imóveis">
+      <div class="auth-kicker">Seu próximo capítulo começa aqui</div>
+      <h1>Boas conexões constroem grandes negócios.</h1>
+      <p>Acesse sua área para acompanhar oportunidades e trabalhar com a equipe R&D Prime.</p>
+      <div class="auth-trust"><span></span> Ambiente profissional com acesso autorizado</div>
+    </section>
+    <section class="auth-content">
+      <div class="auth-eyebrow">Área profissional</div>
+      <h2>Que bom ter você de volta.</h2>
+      <p class="auth-intro">Entre com seu e-mail e senha para continuar.</p>
+      <form id="login-form" class="auth-form">
+        <div class="field"><label for="email">E-mail</label><input id="email" name="email" type="email" autocomplete="username" placeholder="voce@exemplo.com" required></div>
+        <div class="field"><label for="password">Senha</label><input id="password" name="password" type="password" autocomplete="current-password" placeholder="Digite sua senha" required></div>
+        <button class="auth-submit" type="submit">Entrar na minha conta <span aria-hidden="true">→</span></button>
+        <p id="login-feedback" class="auth-feedback" role="status" aria-live="polite"></p>
+      </form>
+      <p class="auth-switch">Ainda não tem conta? <a href="/cadastro.html">Criar cadastro</a></p>
+      <div class="auth-note">Clientes podem navegar pelo site. O acesso ao painel profissional é liberado após a aprovação e a definição do perfil pelo administrador.</div>
+    </section>
+  </main>
+  <script type="module" src="/js/login.js"></script>
+</body>
+</html>

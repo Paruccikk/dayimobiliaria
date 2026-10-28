@@ -1,0 +1,276 @@
+/* ============================================
+   R&D PRIME — Property Cards (tema escuro)
+   Estiliza a saída de propertyCard() em common.js
+   Usar em TODAS as páginas com .property-grid
+   ============================================ */
+
+.property-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 24px;
+}
+
+/* ---------- Card wrapper ---------- */
+.property-card {
+  position: relative;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  transition: transform 0.35s var(--ease), border-color 0.3s;
+  display: flex;
+  flex-direction: column;
+  /* ✅ Isola o card do layout externo — evita reflow dos vizinhos */
+  contain: layout paint;
+  /* ❌ SEM will-change */
+}
+
+/* Sombra em camada separada — não anima box-shadow direto */
+.property-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow:
+    0 30px 60px -20px rgba(0, 0, 0, 0.8),
+    0 0 40px -10px rgba(230, 180, 90, 0.25);
+  opacity: 0;
+  transition: opacity 0.35s var(--ease);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Anel gradiente no hover — usa inset box-shadow (barato) */
+.property-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow:
+    inset 0 0 0 1px rgba(230, 180, 90, 0.5),
+    inset 0 0 24px rgba(230, 180, 90, 0.08);
+  opacity: 0;
+  transition: opacity 0.35s var(--ease);
+  pointer-events: none;
+  z-index: 3;
+}
+
+.property-card:hover {
+  transform: translateY(-6px);
+  border-color: rgba(230, 180, 90, 0.25);
+}
+.property-card:hover::after { opacity: 1; }
+.property-card:hover::before { opacity: 1; }
+
+.property-card > a {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  color: inherit;
+  text-decoration: none;
+  position: relative;
+  z-index: 1;
+}
+
+/* ---------- Imagem ---------- */
+.property-image {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  background: var(--bg-soft);
+  flex-shrink: 0;
+}
+.property-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.5s var(--ease);
+  backface-visibility: hidden;
+  transform: translateZ(0);
+}
+.property-card:hover .property-image img {
+  transform: translateZ(0) scale(1.06);
+}
+
+.property-tag {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  padding: 6px 12px;
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #0a0c14;
+  background: var(--grad-gold);
+  border-radius: 999px;
+  box-shadow: 0 6px 20px -6px rgba(230, 180, 90, 0.6);
+  z-index: 1;
+  white-space: nowrap;
+}
+
+/* ---------- Corpo ---------- */
+.property-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 20px 22px 22px;
+  flex: 1;
+  min-height: 0;
+}
+
+.property-code {
+  font-family: var(--font-display);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gold-2);
+  opacity: 0.85;
+  line-height: 1.2;
+}
+
+.property-title {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--text);
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.property-location {
+  font-size: 13px;
+  color: var(--text-soft);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.property-price {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--gold-2);
+  letter-spacing: -0.01em;
+  margin-top: 4px;
+  line-height: 1.2;
+}
+
+.property-features {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.property-features span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-soft);
+  padding: 5px 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-weight: 500;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+/* ---------- Animação de entrada (só na 1ª renderização) ---------- */
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.property-grid:not(.rendered) .property-card {
+  animation: cardIn 0.45s var(--ease) backwards;
+}
+.property-grid:not(.rendered) .property-card:nth-child(1) { animation-delay: 0.02s; }
+.property-grid:not(.rendered) .property-card:nth-child(2) { animation-delay: 0.04s; }
+.property-grid:not(.rendered) .property-card:nth-child(3) { animation-delay: 0.06s; }
+.property-grid:not(.rendered) .property-card:nth-child(4) { animation-delay: 0.08s; }
+.property-grid:not(.rendered) .property-card:nth-child(5) { animation-delay: 0.10s; }
+.property-grid:not(.rendered) .property-card:nth-child(6) { animation-delay: 0.12s; }
+.property-grid:not(.rendered) .property-card:nth-child(n+7) { animation-delay: 0.14s; }
+
+/* ---------- Skeleton ---------- */
+.loading-skeleton {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 24px;
+  padding: 0;
+  width: 100%;
+  background: none;
+  border: 0;
+}
+.skeleton-card {
+  height: 340px;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.03) 25%,
+    rgba(255, 255, 255, 0.07) 50%,
+    rgba(255, 255, 255, 0.03) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+  border: 1px solid var(--border);
+}
+
+/* ---------- Empty state ---------- */
+.property-grid .empty-state {
+  grid-column: 1 / -1;
+}
+
+/* ---------- View lista (imoveis.html) ---------- */
+.property-grid[data-view="list"] {
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+.property-grid[data-view="list"] .property-card > a {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  align-items: stretch;
+}
+.property-grid[data-view="list"] .property-image {
+  aspect-ratio: auto;
+  height: 100%;
+  min-height: 220px;
+}
+.property-grid[data-view="list"] .property-body {
+  justify-content: center;
+}
+
+/* ---------- Responsivo ---------- */
+@media (max-width: 720px) {
+  .property-grid[data-view="list"] .property-card > a {
+    grid-template-columns: 1fr;
+  }
+  .property-grid[data-view="list"] .property-image {
+    aspect-ratio: 4 / 3;
+    min-height: 0;
+  }
+}
+
+/* ---------- Prefere menos movimento ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .property-card,
+  .property-card::before,
+  .property-card::after,
+  .property-image img {
+    transition: none !important;
+  }
+  .property-card:hover { transform: none; }
+  .property-card:hover .property-image img { transform: none; }
+}

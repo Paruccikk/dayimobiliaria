@@ -1,87 +1,80 @@
-
 <!doctype html>
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Solicitar acesso | R&D PRIME</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#173b2e">
+  <title>Criar cadastro | R&D Prime Imóveis</title>
   <link rel="stylesheet" href="/css/style.css">
+  <style>
+    :root{--auth-green:#173b2e;--auth-gold:#c4a15a;--auth-ink:#18231f;--auth-muted:#68756f;--auth-line:#e4e9e5}
+    body.auth-page{min-height:100vh;margin:0;background:#f4f6f3;color:var(--auth-ink);font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    .auth-nav{height:78px;background:#fff;border-bottom:1px solid var(--auth-line);display:flex;align-items:center}
+    .auth-nav-inner{width:min(1120px,calc(100% - 40px));margin:auto;display:flex;justify-content:space-between;align-items:center;gap:20px}
+    .auth-brand{display:flex;align-items:center;gap:12px;color:var(--auth-ink);text-decoration:none}
+    .auth-mark{width:46px;height:46px;display:grid;place-items:center;border-radius:14px;background:var(--auth-green);color:#fff;font-weight:800;letter-spacing:-1px}
+    .auth-brand strong{display:block;letter-spacing:.08em;font-size:14px}.auth-brand small{display:block;margin-top:4px;color:var(--auth-muted);font-size:10px;letter-spacing:.18em}
+    .auth-back{color:var(--auth-green);text-decoration:none;font-weight:700;font-size:13px}
+    .auth-main{width:min(1120px,calc(100% - 40px));margin:38px auto;display:grid;grid-template-columns:.9fr 1.1fr;min-height:650px;border-radius:26px;overflow:hidden;background:#fff;box-shadow:0 20px 70px #16332812}
+    .auth-visual{position:relative;display:flex;flex-direction:column;justify-content:flex-end;padding:50px;color:white;background:linear-gradient(180deg,#102a2050,#102a20e8),url("https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?auto=format&fit=crop&w=1200&q=85") center/cover}
+    .auth-kicker{font-size:11px;font-weight:800;letter-spacing:.22em;text-transform:uppercase;color:#e0c888}
+    .auth-visual h1{max-width:420px;margin:15px 0;font-size:clamp(30px,3.2vw,44px);line-height:1.08;letter-spacing:-.04em}
+    .auth-visual p{max-width:360px;color:#eef3ef;line-height:1.75;font-size:15px}
+    .auth-steps{display:grid;gap:15px;margin-top:25px}.auth-step{display:flex;gap:12px;align-items:flex-start;color:#f4f5ef;font-size:13px;line-height:1.5}.auth-step b{flex:none;width:27px;height:27px;border:1px solid #ffffff65;border-radius:9px;display:grid;place-items:center;color:#e0c888}
+    .auth-content{padding:clamp(28px,4vw,52px);display:flex;flex-direction:column;justify-content:center}
+    .auth-eyebrow{color:#987b3e;font-size:11px;font-weight:800;letter-spacing:.18em;text-transform:uppercase}
+    .auth-content h2{font-size:32px;line-height:1.15;letter-spacing:-.04em;margin:12px 0 10px}
+    .auth-intro{color:var(--auth-muted);line-height:1.65;font-size:14px;margin:0 0 22px}
+    .auth-form .field{margin:0 0 13px!important}.auth-form label{display:block;font-size:12px;font-weight:750;margin-bottom:7px;color:#36433d}
+    .auth-form input{box-sizing:border-box;width:100%;height:46px;border:1px solid #dce3de;border-radius:11px;padding:0 13px;font:inherit;background:#fbfcfb;outline:none;transition:border .15s,box-shadow .15s}
+    .auth-form input:focus{border-color:#537763;box-shadow:0 0 0 3px #5377631c;background:#fff}
+    .auth-submit{width:100%;min-height:50px;border:0!important;border-radius:11px;background:var(--auth-green)!important;color:#fff!important;font-size:14px;font-weight:800;cursor:pointer;margin-top:7px;transition:transform .15s,background .15s}
+    .auth-submit:hover{background:#24523f!important;transform:translateY(-1px)}.auth-submit:disabled{opacity:.6;cursor:wait;transform:none}
+    .auth-feedback{font-size:13px;line-height:1.6;min-height:20px;color:#9a4b35}
+    .auth-switch{text-align:center;font-size:13px;color:var(--auth-muted);margin-top:16px}.auth-switch a{color:var(--auth-green);font-weight:800;text-decoration:none}
+    .auth-note{background:#f5f7f3;border:1px solid #e5eae3;border-radius:12px;padding:13px 15px;color:#657169;font-size:12px;line-height:1.6;margin-top:18px}
+    @media(max-width:800px){.auth-main{grid-template-columns:1fr;margin:24px auto}.auth-visual{min-height:230px;padding:30px}.auth-visual h1{font-size:30px}.auth-content{padding:32px 26px}.auth-nav{height:68px}}
+    @media(max-width:430px){.auth-nav-inner{width:calc(100% - 28px)}.auth-main{width:calc(100% - 28px);border-radius:18px}.auth-brand small{font-size:9px}.auth-back{font-size:12px}}
+  </style>
 </head>
-<body>
-  <header class="navbar">
-    <div class="container nav-inner">
-      <a class="brand" href="/">
-        <span class="brand-mark">R&D</span>
-        <span>
-          <span class="brand-name">R&D PRIME</span>
-          <span class="brand-sub">ÁREA PROFISSIONAL</span>
-        </span>
+<body class="auth-page">
+  <header class="auth-nav">
+    <div class="auth-nav-inner">
+      <a class="auth-brand" href="/" aria-label="R&D Prime Imóveis - página inicial">
+        <span class="auth-mark">R&D</span>
+        <span><strong>R&D PRIME</strong><small>IMÓVEIS · CADASTRO</small></span>
       </a>
-      <a href="/login.html">Já tenho acesso</a>
+      <a class="auth-back" href="/login.html">Já tenho conta →</a>
     </div>
   </header>
-
-  <main class="section section-soft">
-    <div class="container" style="max-width:540px">
-      <div class="panel">
-        <div class="eyebrow">Área profissional</div>
-        <h2>Solicitar cadastro</h2>
-        <p class="property-location">
-          Preencha seus dados para solicitar acesso à plataforma
-          R&D PRIME IMÓVEIS.
-        </p>
-
-        <form id="cadastro-form">
-          <div class="field">
-            <label for="nome">Nome completo</label>
-            <input id="nome" name="nome" autocomplete="name"
-                   maxlength="120" required>
-          </div>
-
-          <div class="field" style="margin-top:15px">
-            <label for="telefone">Telefone</label>
-            <input id="telefone" name="telefone" type="tel"
-                   autocomplete="tel" maxlength="30" required>
-          </div>
-
-          <div class="field" style="margin-top:15px">
-            <label for="email">E-mail profissional</label>
-            <input id="email" name="email" type="email"
-                   autocomplete="email" required>
-          </div>
-
-          <div class="field" style="margin-top:15px">
-            <label for="password">Senha (mínimo de 6 caracteres)</label>
-            <input id="password" name="password" type="password"
-                   autocomplete="new-password" minlength="6" required>
-          </div>
-
-          <div class="field" style="margin-top:15px">
-            <label for="confirm-password">Confirmar senha</label>
-            <input id="confirm-password" name="confirm-password"
-                   type="password" autocomplete="new-password"
-                   minlength="6" required>
-          </div>
-
-          <button class="button button-dark"
-                  style="width:100%;margin-top:20px"
-                  type="submit">
-            Enviar solicitação
-          </button>
-
-          <p id="cadastro-feedback"
-             class="property-location"
-             role="status" aria-live="polite"></p>
-        </form>
-
-        <div class="notice">
-          Todo cadastro começa como cliente e fica pendente de aprovação.
-          Depois, o administrador poderá aprovar o acesso e alterar o perfil.
-        </div>
+  <main class="auth-main">
+    <section class="auth-visual" aria-label="Bem-vindo à R&D Prime Imóveis">
+      <div class="auth-kicker">Bem-vindo à R&D Prime</div>
+      <h1>Novas oportunidades começam com uma boa conexão.</h1>
+      <p>Crie seu cadastro para fazer parte da plataforma e acompanhar as oportunidades imobiliárias.</p>
+      <div class="auth-steps">
+        <div class="auth-step"><b>1</b><span>Crie sua conta com seus dados de contato.</span></div>
+        <div class="auth-step"><b>2</b><span>Seu perfil inicial será Cliente.</span></div>
+        <div class="auth-step"><b>3</b><span>O administrador poderá liberar o acesso profissional quando necessário.</span></div>
       </div>
-    </div>
+    </section>
+    <section class="auth-content">
+      <div class="auth-eyebrow">Comece por aqui</div>
+      <h2>Crie sua conta.</h2>
+      <p class="auth-intro">Preencha os dados abaixo. O cadastro público não concede permissões de corretor ou administrador.</p>
+      <form id="cadastro-form" class="auth-form">
+        <div class="field"><label for="nome">Nome completo</label><input id="nome" name="nome" autocomplete="name" maxlength="120" placeholder="Seu nome e sobrenome" required></div>
+        <div class="field"><label for="telefone">Telefone</label><input id="telefone" name="telefone" type="tel" autocomplete="tel" maxlength="30" placeholder="(11) 99999-9999" required></div>
+        <div class="field"><label for="email">E-mail</label><input id="email" name="email" type="email" autocomplete="email" placeholder="voce@exemplo.com" required></div>
+        <div class="field"><label for="password">Senha</label><input id="password" name="password" type="password" autocomplete="new-password" minlength="6" placeholder="Mínimo de 6 caracteres" required></div>
+        <div class="field"><label for="confirm-password">Confirmar senha</label><input id="confirm-password" name="confirm-password" type="password" autocomplete="new-password" minlength="6" placeholder="Digite a senha novamente" required></div>
+        <button class="auth-submit" type="submit">Criar minha conta <span aria-hidden="true">→</span></button>
+        <p id="cadastro-feedback" class="auth-feedback" role="status" aria-live="polite"></p>
+      </form>
+      <p class="auth-switch">Já possui cadastro? <a href="/login.html">Entrar</a></p>
+      <div class="auth-note">Sua conta será criada como Cliente. Para acessar o painel profissional, o administrador precisará alterar seu perfil para Corretor e ativar o acesso.</div>
+    </section>
   </main>
-
   <script type="module" src="/js/cadastro.js"></script>
 </body>
 </html>

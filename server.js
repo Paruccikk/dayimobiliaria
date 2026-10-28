@@ -209,7 +209,6 @@ const allowedPropertyStatuses = new Set([
 const allowedUserRoles = new Set([
   "cliente",
   "corretor",
-  "chefe",
   "administrador"
 ]);
 
@@ -294,8 +293,8 @@ app.post("/api/auth/registrar", async (req, res) => {
       telefone,
       papel: "cliente",
       solicitacaoPapel,
-      ativo: false,
-      status: "pendente",
+      ativo: true,
+      status: "ativo",
       criadoEm: new Date().toISOString()
     };
 
@@ -305,11 +304,9 @@ app.post("/api/auth/registrar", async (req, res) => {
       ok: true,
       papel: "cliente",
       solicitacaoPapel,
-      ativo: false,
-      status: "pendente",
-      message: solicitacaoPapel === "corretor"
-        ? "Solicitação de cadastro como corretor recebida. Aguarde a aprovação do administrador."
-        : "Cadastro recebido. Aguarde a aprovação do administrador."
+      ativo: true,
+      status: "ativo",
+      message: "Cadastro de cliente concluído com sucesso."
     });
 
   } catch (error) {
@@ -774,7 +771,7 @@ const upload = multer({
 app.post(
   "/api/admin/imoveis/:id/fotos",
   requireFirebase,
-  allowRoles("administrador", "chefe", "corretor"),
+  allowRoles("administrador", "corretor"),
   upload.array("fotos", 20),
   async (req, res) => {
     const id = cleanString(req.params.id, 100);
@@ -840,7 +837,7 @@ app.post(
 app.post(
   "/api/admin/imoveis",
   requireFirebase,
-  allowRoles("administrador", "chefe", "corretor"),
+  allowRoles("administrador", "corretor"),
   async (req, res) => {
     const body = req.body || {};
     const titulo = cleanString(body.titulo, 180);

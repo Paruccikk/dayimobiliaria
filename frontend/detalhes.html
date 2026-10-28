@@ -1,1 +1,82 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Detalhes do imóvel | R&D PRIME</title><link rel="stylesheet" href="/css/style.css"></head><body><header class="navbar"><div class="container nav-inner"><a class="brand" href="/"><span class="brand-mark">R&D</span><span><span class="brand-name">R&D PRIME</span><span class="brand-sub">IMÓVEIS</span></span></a><a href="/imoveis.html">← Voltar aos imóveis</a></div></header><main class="section"><div class="container" id="property-detail"><div class="empty-state">Carregando detalhes do imóvel…</div></div></main><footer class="footer"><div class="container"><p>© <span id="year"></span> R&D Prime Imóveis</p></div></footer><script type="module" src="/js/detalhes.js"></script></body></html>
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#05060a">
+  <title>Detalhes do imóvel | R&D PRIME</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/detalhes.css">
+</head>
+<body>
+
+  <div class="bg-aura" aria-hidden="true">
+    <div class="aura aura-1"></div>
+    <div class="aura aura-2"></div>
+    <div class="aura aura-3"></div>
+    <div class="grid-overlay"></div>
+    <div class="noise"></div>
+  </div>
+
+  <header class="navbar" id="navbar">
+    <div class="container nav-inner">
+      <a class="brand" href="/">
+        <span class="brand-mark">R&D</span>
+        <span class="brand-text">
+          <span class="brand-name">R&D PRIME</span>
+          <span class="brand-sub">IMÓVEIS · RESIDENCIAL · COMERCIAL</span>
+        </span>
+      </a>
+      <a href="/imoveis.html" class="back-link">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        Voltar aos imóveis
+      </a>
+    </div>
+  </header>
+
+  <main class="section detail-section">
+    <div class="container" id="property-detail">
+      <div class="detail-loading">
+        <div class="skeleton-img"></div>
+        <div class="skeleton-line"></div>
+        <div class="skeleton-line"></div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div>
+          <div class="brand">
+            <span class="brand-mark">R&D</span>
+            <span class="brand-text">
+              <span class="brand-name">R&D PRIME</span>
+              <span class="brand-sub">IMÓVEIS</span>
+            </span>
+          </div>
+          <p>Curadoria imobiliária residencial, comercial e de investimentos.</p>
+        </div>
+        <div>
+          <h4>Navegue</h4>
+          <p>
+            <a href="/">Página inicial</a><br>
+            <a href="/imoveis.html">Imóveis</a><br>
+            <a href="/login.html">Área do corretor</a>
+          </p>
+        </div>
+        <div>
+          <h4>Atendimento</h4>
+          <p>São Paulo · SP<br>Atendimento mediante agendamento</p>
+        </div>
+      </div>
+      <div class="copyright">© <span id="year"></span> R&D Prime Imóveis. Todos os direitos reservados.</div>
+    </div>
+  </footer>
+
+  <script type="module" src="/js/detalhes.js"></script>
+</body>
+</html>

@@ -1,51 +1,301 @@
 <!doctype html>
 <html lang="pt-BR">
 <head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="description" content="R&D Prime Imóveis — curadoria imobiliária para morar, investir e realizar.">
+  <meta name="theme-color" content="#05060a">
   <title>R&D PRIME IMÓVEIS | Curadoria Imobiliária</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/index.css">
   <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/cards.css">   <!-- ✅ ADICIONADO -->
 </head>
 <body>
-  <div class="topbar"><div class="container"><span>Curadoria imobiliária residencial e comercial</span><span>Atendimento personalizado · São Paulo, SP</span></div></div>
-  <header class="navbar"><div class="container nav-inner">
-    <a class="brand" href="/"><span class="brand-mark">R&D</span><span><span class="brand-name">R&D PRIME</span><span class="brand-sub">IMÓVEIS · RESIDENCIAL · COMERCIAL</span></span></a>
-    <nav class="nav-links"><a href="#imoveis">Imóveis</a><a href="#segmentos">Segmentos</a><a href="#sobre">Sobre nós</a><a class="button button-dark" href="/login.html">Área do corretor</a></nav>
-  </div></header>
+
+  <!-- Efeitos de fundo globais -->
+  <div class="bg-aura" aria-hidden="true">
+    <div class="aura aura-1"></div>
+    <div class="aura aura-2"></div>
+    <div class="aura aura-3"></div>
+    <div class="grid-overlay"></div>
+    <div class="noise"></div>
+  </div>
+
+  <!-- Cursor customizado -->
+  <div class="cursor-dot" aria-hidden="true"></div>
+  <div class="cursor-ring" aria-hidden="true"></div>
+
+  <!-- Barra de progresso de scroll -->
+  <div class="scroll-progress" id="scroll-progress"></div>
+
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="container">
+      <span class="topbar-item"><span class="pulse-dot"></span>Curadoria imobiliária residencial e comercial</span>
+      <span class="topbar-item">Atendimento personalizado · São Paulo, SP</span>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <header class="navbar" id="navbar">
+    <div class="container nav-inner">
+      <a class="brand" href="/">
+        <span class="brand-mark" data-text="R&D">R&D</span>
+        <span class="brand-text">
+          <span class="brand-name">R&D PRIME</span>
+          <span class="brand-sub">IMÓVEIS · RESIDENCIAL · COMERCIAL</span>
+        </span>
+      </a>
+      <nav class="nav-links">
+        <a href="#imoveis" class="nav-link">Imóveis</a>
+        <a href="#segmentos" class="nav-link">Segmentos</a>
+        <a href="#sobre" class="nav-link">Sobre nós</a>
+        <a class="button button-dark magnetic" href="/login.html">
+          <span>Área do corretor</span>
+        </a>
+      </nav>
+      <button class="nav-toggle" id="nav-toggle" aria-label="Menu">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </header>
+
   <main>
-    <section class="hero"><div class="container"><div class="hero-content">
-      <div class="eyebrow">Excelência em cada escolha</div>
-      <h1>O próximo capítulo da sua história começa aqui.</h1>
-      <p>Uma curadoria imobiliária feita para quem busca mais do que um endereço: busca potencial, qualidade de vida e oportunidades de investimento.</p>
-      <div class="hero-actions"><a class="button button-gold" href="#imoveis">Explorar imóveis ↗</a><a class="button button-outline" href="#contato">Fale com um especialista</a></div>
-    </div></div></section>
-    <div class="container"><form class="search-panel" id="search-form">
-      <div class="field"><label for="categoria">TIPO DE IMÓVEL</label><select id="categoria"><option value="">Todas as categorias</option><option value="residencial">Residencial</option><option value="comercial">Comercial</option><option value="sublocacao">Coworking / Sublocação</option><option value="garagem">Vagas de garagem</option><option value="lancamento">Lançamentos</option></select></div>
-      <div class="field"><label for="finalidade">FINALIDADE</label><select id="finalidade"><option value="">Todas</option><option value="venda">Comprar</option><option value="locacao">Alugar</option><option value="temporada">Temporada</option></select></div>
-      <div class="field"><label for="localizacao">LOCALIZAÇÃO</label><input id="localizacao" placeholder="Bairro ou cidade"></div>
-      <div class="field"><label for="preco-max">PREÇO MÁXIMO (R$)</label><input id="preco-max" type="number" min="0" placeholder="Sem limite"></div>
-      <button class="button button-gold" type="submit">Buscar imóveis</button>
-    </form></div>
-    <section class="section" id="imoveis"><div class="container">
-      <div class="section-head"><div><div class="eyebrow">Seleção especial</div><h2>Imóveis em destaque</h2><p class="section-intro">Uma seleção de oportunidades escolhidas com atenção aos detalhes.</p></div><a href="/imoveis.html" class="button button-dark">Ver todos os imóveis ↗</a></div>
-      <div id="featured-grid" class="property-grid"><div class="empty-state">Carregando imóveis publicados…</div></div>
-    </div></section>
-    <section class="section section-soft" id="segmentos"><div class="container"><div class="eyebrow">Soluções imobiliárias</div><h2>Um portfólio para diferentes objetivos.</h2><p class="section-intro">Da escolha do novo lar à próxima oportunidade de negócio, conectamos pessoas a espaços com propósito.</p>
-      <div class="feature-grid" style="margin-top:30px">
-        <article class="feature"><div class="feature-icon">⌂</div><h3>Residencial</h3><p>Casas e apartamentos selecionados para viver com conforto e personalidade.</p></article>
-        <article class="feature"><div class="feature-icon">▤</div><h3>Comercial</h3><p>Espaços para empresas, consultórios, escritórios e novos projetos.</p></article>
-        <article class="feature"><div class="feature-icon">◇</div><h3>Investimentos</h3><p>Oportunidades, lançamentos e alternativas para diversificar seu patrimônio.</p></article>
+    <!-- HERO -->
+    <section class="hero" id="hero">
+      <div class="hero-orbs" aria-hidden="true">
+        <span class="orb orb-1"></span>
+        <span class="orb orb-2"></span>
+        <span class="orb orb-3"></span>
       </div>
-    </div></section>
-    <section class="section" id="sobre"><div class="container"><div class="cta"><div><div class="eyebrow">R&D Prime Imóveis</div><h2>Seu próximo investimento merece uma boa conversa.</h2><p>Conte com um atendimento próximo para encontrar o imóvel alinhado ao seu momento e aos seus objetivos.</p></div><a class="button button-gold" href="#contato">Fale com nossa equipe ↗</a></div></div></section>
-    <section class="section section-soft" id="contato"><div class="container" style="max-width:760px"><div class="eyebrow">Vamos conversar</div><h2>Encontre o imóvel certo com a nossa equipe.</h2><form id="lead-form" class="panel"><div class="form-grid">
-      <div class="field"><label for="lead-nome">Nome completo</label><input id="lead-nome" name="nome" required maxlength="120" placeholder="Seu nome"></div>
-      <div class="field"><label for="lead-telefone">WhatsApp</label><input id="lead-telefone" name="telefone" required maxlength="40" placeholder="(11) 99999-9999"></div>
-      <div class="field full"><label for="lead-mensagem">O que você procura?</label><textarea id="lead-mensagem" name="mensagem" rows="4" maxlength="2000" placeholder="Conte um pouco sobre o imóvel ideal"></textarea></div>
-      <div class="full"><button class="button button-dark" type="submit">Solicitar contato</button><p id="lead-feedback" class="property-location" aria-live="polite"></p></div>
-    </div></form></div></section>
+      <div class="container">
+        <div class="hero-content">
+          <div class="eyebrow reveal">
+            <span class="eyebrow-line"></span>
+            Excelência em cada escolha
+          </div>
+          <h1 class="hero-title">
+            O próximo capítulo da<br>
+            <span class="grad-text">sua história</span> começa aqui.
+          </h1>
+          <p class="hero-sub reveal">
+            Uma curadoria imobiliária feita para quem busca mais do que um endereço:
+            busca potencial, qualidade de vida e oportunidades de investimento.
+          </p>
+          <div class="hero-actions reveal">
+            <a class="button button-gold magnetic" href="#imoveis">
+              <span>Explorar imóveis</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7M7 7h10v10"/></svg>
+            </a>
+            <a class="button button-outline magnetic" href="#contato">
+              <span>Fale com um especialista</span>
+            </a>
+          </div>
+          <div class="hero-stats reveal">
+            <div class="stat"><strong data-count="480">0</strong><span>Imóveis curados</span></div>
+            <div class="stat-divider"></div>
+            <div class="stat"><strong data-count="12">0</strong><span>Anos de mercado</span></div>
+            <div class="stat-divider"></div>
+            <div class="stat"><strong data-count="98">0</strong><span>% satisfação</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="scroll-indicator" aria-hidden="true">
+        <span>Role para explorar</span>
+        <div class="scroll-bar"></div>
+      </div>
+    </section>
+
+    <!-- SEARCH PANEL -->
+    <div class="container">
+      <form class="search-panel" id="search-form">
+        <div class="search-glow" aria-hidden="true"></div>
+        <div class="field">
+          <label for="categoria">TIPO DE IMÓVEL</label>
+          <select id="categoria">
+            <option value="">Todas as categorias</option>
+            <option value="residencial">Residencial</option>
+            <option value="comercial">Comercial</option>
+            <option value="sublocacao">Coworking / Sublocação</option>
+            <option value="garagem">Vagas de garagem</option>
+            <option value="lancamento">Lançamentos</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="finalidade">FINALIDADE</label>
+          <select id="finalidade">
+            <option value="">Todas</option>
+            <option value="venda">Comprar</option>
+            <option value="locacao">Alugar</option>
+            <option value="temporada">Temporada</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="localizacao">LOCALIZAÇÃO</label>
+          <input id="localizacao" placeholder="Bairro ou cidade">
+        </div>
+        <div class="field">
+          <label for="preco-max">PREÇO MÁXIMO (R$)</label>
+          <input id="preco-max" type="number" min="0" placeholder="Sem limite">
+        </div>
+        <button class="button button-gold search-btn" type="submit">
+          <span>Buscar</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        </button>
+      </form>
+    </div>
+
+    <!-- IMÓVEIS EM DESTAQUE -->
+    <section class="section" id="imoveis">
+      <div class="container">
+        <div class="section-head">
+          <div class="reveal">
+            <div class="eyebrow"><span class="eyebrow-line"></span>Seleção especial</div>
+            <h2>Imóveis <span class="grad-text">em destaque</span></h2>
+            <p class="section-intro">Uma seleção de oportunidades escolhidas com atenção aos detalhes.</p>
+          </div>
+          <a href="/imoveis.html" class="button button-dark magnetic reveal">
+            <span>Ver todos</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7M7 7h10v10"/></svg>
+          </a>
+        </div>
+        <div id="featured-grid" class="property-grid">
+          <div class="empty-state loading-skeleton">
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SEGMENTOS -->
+    <section class="section section-soft" id="segmentos">
+      <div class="container">
+        <div class="reveal">
+          <div class="eyebrow"><span class="eyebrow-line"></span>Soluções imobiliárias</div>
+          <h2>Um portfólio para<br><span class="grad-text">diferentes objetivos.</span></h2>
+          <p class="section-intro">Da escolha do novo lar à próxima oportunidade de negócio, conectamos pessoas a espaços com propósito.</p>
+        </div>
+        <div class="feature-grid">
+          <article class="feature tilt-card reveal">
+            <div class="feature-glow"></div>
+            <div class="feature-icon">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 10v10h14V10"/><path d="M9 20v-6h6v6"/></svg>
+            </div>
+            <h3>Residencial</h3>
+            <p>Casas e apartamentos selecionados para viver com conforto e personalidade.</p>
+            <span class="feature-arrow">→</span>
+          </article>
+          <article class="feature tilt-card reveal">
+            <div class="feature-glow"></div>
+            <div class="feature-icon">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="1.5"/><path d="M3 10h18M9 10v10"/></svg>
+            </div>
+            <h3>Comercial</h3>
+            <p>Espaços para empresas, consultórios, escritórios e novos projetos.</p>
+            <span class="feature-arrow">→</span>
+          </article>
+          <article class="feature tilt-card reveal">
+            <div class="feature-glow"></div>
+            <div class="feature-icon">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg>
+            </div>
+            <h3>Investimentos</h3>
+            <p>Oportunidades, lançamentos e alternativas para diversificar seu patrimônio.</p>
+            <span class="feature-arrow">→</span>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA SOBRE -->
+    <section class="section" id="sobre">
+      <div class="container">
+        <div class="cta reveal">
+          <div class="cta-glow"></div>
+          <div class="cta-content">
+            <div class="eyebrow"><span class="eyebrow-line"></span>R&D Prime Imóveis</div>
+            <h2>Seu próximo investimento<br>merece uma <span class="grad-text">boa conversa.</span></h2>
+            <p>Conte com um atendimento próximo para encontrar o imóvel alinhado ao seu momento e aos seus objetivos.</p>
+          </div>
+          <a class="button button-gold magnetic" href="#contato">
+            <span>Fale com nossa equipe</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7M7 7h10v10"/></svg>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- CONTATO -->
+    <section class="section section-soft" id="contato">
+      <div class="container contact-container">
+        <div class="reveal">
+          <div class="eyebrow"><span class="eyebrow-line"></span>Vamos conversar</div>
+          <h2>Encontre o <span class="grad-text">imóvel certo</span> com a nossa equipe.</h2>
+        </div>
+        <form id="lead-form" class="panel reveal">
+          <div class="form-grid">
+            <div class="field">
+              <label for="lead-nome">Nome completo</label>
+              <input id="lead-nome" name="nome" required maxlength="120" placeholder="Seu nome">
+            </div>
+            <div class="field">
+              <label for="lead-telefone">WhatsApp</label>
+              <input id="lead-telefone" name="telefone" required maxlength="40" placeholder="(11) 99999-9999">
+            </div>
+            <div class="field full">
+              <label for="lead-mensagem">O que você procura?</label>
+              <textarea id="lead-mensagem" name="mensagem" rows="4" maxlength="2000" placeholder="Conte um pouco sobre o imóvel ideal"></textarea>
+            </div>
+            <div class="full form-submit">
+              <button class="button button-dark magnetic" type="submit">
+                <span>Solicitar contato</span>
+              </button>
+              <p id="lead-feedback" class="property-location" aria-live="polite"></p>
+            </div>
+          </div>
+        </form>
+      </div>
+    </section>
   </main>
-  <footer class="footer"><div class="container"><div class="footer-grid"><div><div class="brand"><span class="brand-mark">R&D</span><span><span class="brand-name">R&D PRIME</span><span class="brand-sub" style="color:#aaa">IMÓVEIS</span></span></div><p>Curadoria imobiliária residencial, comercial e de investimentos.</p></div><div><h4>Navegue</h4><p><a href="#imoveis">Imóveis</a><br><a href="#segmentos">Segmentos</a><br><a href="/login.html">Área do corretor</a></p></div><div><h4>Atendimento</h4><p>São Paulo · SP<br>Atendimento mediante agendamento</p></div></div><div class="copyright">© <span id="year"></span> R&D Prime Imóveis. Todos os direitos reservados.</div></div></footer>
-  <a class="whatsapp" id="whatsapp-link" href="https://wa.me/" target="_blank" rel="noopener">WhatsApp ↗</a>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div class="footer-glow" aria-hidden="true"></div>
+    <div class="container">
+      <div class="footer-grid">
+        <div>
+          <div class="brand">
+            <span class="brand-mark">R&D</span>
+            <span class="brand-text">
+              <span class="brand-name">R&D PRIME</span>
+              <span class="brand-sub">IMÓVEIS</span>
+            </span>
+          </div>
+          <p>Curadoria imobiliária residencial, comercial e de investimentos.</p>
+        </div>
+        <div>
+          <h4>Navegue</h4>
+          <p><a href="#imoveis">Imóveis</a><br><a href="#segmentos">Segmentos</a><br><a href="/login.html">Área do corretor</a></p>
+        </div>
+        <div>
+          <h4>Atendimento</h4>
+          <p>São Paulo · SP<br>Atendimento mediante agendamento</p>
+        </div>
+      </div>
+      <div class="copyright">© <span id="year"></span> R&D Prime Imóveis. Todos os direitos reservados.</div>
+    </div>
+  </footer>
+
+  <a class="whatsapp" id="whatsapp-link" href="https://wa.me/" target="_blank" rel="noopener">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.5 14.4c-.3-.2-1.8-.9-2.1-1s-.5-.1-.7.2-.8 1-1 1.2-.4.2-.7.1c-.3-.1-1.3-.5-2.4-1.5-.9-.8-1.5-1.8-1.7-2.1s0-.5.1-.6.3-.4.4-.6c.1-.2.2-.3.3-.5s0-.4 0-.5c-.1-.2-.7-1.6-.9-2.2s-.5-.5-.7-.5h-.6c-.2 0-.6.1-.9.4-.3.3-1.1 1.1-1.1 2.7s1.2 3.1 1.3 3.3c.2.2 2.3 3.5 5.6 4.9.8.3 1.4.5 1.9.7.8.3 1.5.2 2.1.1.6-.1 1.8-.7 2.1-1.5.3-.7.3-1.4.2-1.5-.1-.1-.3-.2-.6-.4zM12 2a10 10 0 00-8.5 15.3L2 22l4.8-1.4A10 10 0 1012 2z"/></svg>
+    <span>WhatsApp</span>
+  </a>
+
   <script type="module" src="/js/home.js"></script>
-</body></html>
+</body>
+</html>
