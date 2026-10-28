@@ -1,4 +1,3 @@
-
 require("dotenv").config();
 
 const path = require("path");
@@ -34,13 +33,9 @@ app.use(
         styleSrc: [
           "'self'",
           "'unsafe-inline'",
-          "https://fonts.googleapis.com"
+          "https://fonts.googleapis.com",
         ],
-        fontSrc: [
-          "'self'",
-          "https://fonts.gstatic.com",
-          "data:"
-        ],
+        fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
         imgSrc: ["'self'", "data:", "blob:", "https:"],
         connectSrc: [
           "'self'",
@@ -48,13 +43,13 @@ app.use(
           "https://*.firebaseio.com",
           "https://*.firebasedatabase.app",
           "https://*.firebaseapp.com",
-          "https://securetoken.googleapis.com"
+          "https://securetoken.googleapis.com",
         ],
         objectSrc: ["'none'"],
         upgradeInsecureRequests:
-          process.env.NODE_ENV === "production" ? [] : null
-      }
-    }
+          process.env.NODE_ENV === "production" ? [] : null,
+      },
+    },
   })
 );
 
@@ -68,7 +63,7 @@ app.use(
     windowMs: 15 * 60 * 1000,
     limit: 300,
     standardHeaders: "draft-7",
-    legacyHeaders: false
+    legacyHeaders: false,
   })
 );
 
@@ -81,7 +76,7 @@ app.use(
   express.static(UPLOAD_ROOT, {
     dotfiles: "deny",
     index: false,
-    maxAge: process.env.NODE_ENV === "production" ? "7d" : 0
+    maxAge: process.env.NODE_ENV === "production" ? "7d" : 0,
   })
 );
 
@@ -99,7 +94,8 @@ try {
 
   if (!admin.apps.length) {
     // Local: GOOGLE_APPLICATION_CREDENTIALS aponta para o JSON da conta de serviço.
-    // Render: use FIREBASE_SERVICE_ACCOUNT_JSON ou FIREBASE_SERVICE_ACCOUNT_JSON_BASE64.
+    // Render: use FIREBASE_SERVICE_ACCOUNT_JSON_BASE64 (obrigatório, pois
+    // applicationDefault() NÃO funciona fora do Google Cloud).
     let credential;
     const serviceAccountBase64 = process.env.FIREBASE_SERVICE_ACCOUNT_JSON_BASE64;
     const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
@@ -110,6 +106,7 @@ try {
     } else if (serviceAccountJson) {
       credential = admin.credential.cert(JSON.parse(serviceAccountJson));
     } else {
+      // Fallback apenas para ambiente local (GOOGLE_APPLICATION_CREDENTIALS).
       credential = admin.credential.applicationDefault();
     }
 
@@ -117,7 +114,7 @@ try {
       credential,
       databaseURL:
         process.env.FIREBASE_DATABASE_URL ||
-        "https://rdprimeimoveis-46b2f-default-rtdb.firebaseio.com"
+        "https://rdprimeimoveis-46b2f-default-rtdb.firebaseio.com",
     });
   }
 
@@ -125,7 +122,6 @@ try {
   auth = admin.auth();
 
   console.log("Firebase Admin inicializado.");
-
 } catch (error) {
   firebaseAdminError = error;
 
@@ -142,7 +138,7 @@ function firebaseUnavailable(res) {
 
   return res.status(503).json({
     error: "Firebase Admin indisponível no servidor.",
-    ...(process.env.NODE_ENV !== "production" ? { details } : {})
+    ...(process.env.NODE_ENV !== "production" ? { details } : {}),
   });
 }
 
@@ -151,9 +147,7 @@ function firebaseUnavailable(res) {
 // --------------------------------------------------
 
 function cleanString(value, max = 3000) {
-  return typeof value === "string"
-    ? value.trim().slice(0, max)
-    : "";
+  return typeof value === "string" ? value.trim().slice(0, max) : "";
 }
 
 function getBearerToken(req) {
@@ -178,8 +172,66 @@ function sendServerError(res, message, error) {
   console.error(message, error?.stack || error?.message || error);
 
   return res.status(500).json({
-    error: message
+    error: message,
   });
+}
+
+// ✅ Promise.race com timeout reutilizável
+function withTimeout(promise, ms, code = "TIMEOUT_CONSULTA_FIREBASE") {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(code)), ms)
+    ),
+  ]);
+}
+
+// ✅ Busca imóveis publicados com retry + timeouts maiores.
+// Isso resolve o 504 no Render quando o cold start ou o Firebase estão lentos.
+async function fetchPublishedPropertiesWithRetry(maxAttempts = 2) {
+  let lastError;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const t0 = Date.now();
+
+    try {
+      // .once("value") é mais estável que .get() no Admin SDK.
+      const snapshot = await withTimeout(
+        db.ref("imoveis").once("value"),
+        attempt === 1 ? 25000 : 40000
+      );
+
+      const all = snapshot.val() || {};
+
+      const items = Object.entries(all)
+        .map(([id, value]) => ({ id, ...value }))
+        .filter(
+          (item) =>
+            item.status === "publicado" &&
+            item.publicadoNoSite === true
+        );
+
+      console.log(
+        `[API] Tentativa ${attempt} OK em ${Date.now() - t0}ms: ` +
+        `${items.length} imóveis publicados.`
+      );
+
+      return items;
+    } catch (error) {
+      lastError = error;
+      console.warn(
+        `[API] Tentativa ${attempt}/${maxAttempts} falhou em ` +
+        `${Date.now() - t0}ms: ${error.message}`
+      );
+
+      if (attempt < maxAttempts) {
+        // Pequena espera antes de tentar novamente
+        await new Promise((r) => setTimeout(r, 1500));
+      }
+    }
+  }
+
+  throw lastError;
 }
 
 const allowedCategories = new Set([
@@ -187,14 +239,10 @@ const allowedCategories = new Set([
   "comercial",
   "sublocacao",
   "garagem",
-  "lancamento"
+  "lancamento",
 ]);
 
-const allowedPurposes = new Set([
-  "venda",
-  "locacao",
-  "temporada"
-]);
+const allowedPurposes = new Set(["venda", "locacao", "temporada"]);
 
 const allowedPropertyStatuses = new Set([
   "rascunho",
@@ -203,25 +251,90 @@ const allowedPropertyStatuses = new Set([
   "reservado",
   "vendido",
   "alugado",
-  "inativo"
+  "inativo",
 ]);
 
-const allowedUserRoles = new Set([
-  "cliente",
-  "corretor",
-  "administrador"
-]);
+const allowedUserRoles = new Set(["cliente", "corretor", "administrador"]);
 
 // --------------------------------------------------
 // SAÚDE DO SERVIDOR
 // --------------------------------------------------
 
-app.get("/api/health", (_req, res) => {
-  res.json({
+app.get("/api/health", async (_req, res) => {
+  const base = {
     ok: true,
     service: "rd-prime-imoveis",
-    firebaseAdminConfigured: Boolean(auth && db)
-  });
+    firebaseAdminConfigured: Boolean(auth && db),
+    uptime: Math.floor(process.uptime()),
+    timestamp: new Date().toISOString(),
+  };
+
+  // Ping rápido no Firebase (não bloqueia se estiver lento)
+  if (db) {
+    try {
+      const t0 = Date.now();
+      await withTimeout(db.ref(".info/connected").once("value"), 3000);
+      base.firebase = { ok: true, ms: Date.now() - t0 };
+    } catch (err) {
+      base.firebase = { ok: false, error: err.message };
+    }
+  } else {
+    base.firebase = { ok: false, error: "Firebase não inicializado." };
+  }
+
+  return res.json(base);
+});
+
+// --------------------------------------------------
+// DIAGNÓSTICO TEMPORÁRIO
+// ⚠️ Remova esta rota em produção quando não precisar mais.
+// Acesse: /api/debug/firebase
+// --------------------------------------------------
+
+app.get("/api/debug/firebase", async (_req, res) => {
+  const info = {
+    nodeEnv: process.env.NODE_ENV || "(não definido)",
+    hasServiceAccountBase64: Boolean(
+      process.env.FIREBASE_SERVICE_ACCOUNT_JSON_BASE64
+    ),
+    hasServiceAccountJson: Boolean(
+      process.env.FIREBASE_SERVICE_ACCOUNT_JSON
+    ),
+    databaseURL:
+      process.env.FIREBASE_DATABASE_URL || "(default hardcoded no código)",
+    adminInitialized: Boolean(admin && admin.apps.length),
+    dbAvailable: Boolean(db),
+    authAvailable: Boolean(auth),
+    firebaseAdminError: firebaseAdminError?.message || null,
+  };
+
+  if (db) {
+    const t0 = Date.now();
+    try {
+      const snap = await withTimeout(
+        db.ref("imoveis").once("value"),
+        15000
+      );
+      const data = snap.val() || {};
+      const all = Object.values(data);
+      info.ping = {
+        ok: true,
+        ms: Date.now() - t0,
+        totalImoveis: all.length,
+        publicados: all.filter(
+          (i) => i.status === "publicado" && i.publicadoNoSite === true
+        ).length,
+      };
+    } catch (err) {
+      info.ping = {
+        ok: false,
+        ms: Date.now() - t0,
+        error: err.message,
+      };
+    }
+  }
+
+  return res.json(info);
 });
 
 // --------------------------------------------------
@@ -243,35 +356,30 @@ app.post("/api/auth/registrar", async (req, res) => {
 
   if (!token) {
     return res.status(401).json({
-      error: "Token de autenticação não enviado."
+      error: "Token de autenticação não enviado.",
     });
   }
 
   let decoded;
 
-  // Primeiro, validar o token separadamente.
   try {
     decoded = await auth.verifyIdToken(token);
   } catch (error) {
-    console.error(
-      "Token inválido no cadastro:",
-      error.message
-    );
+    console.error("Token inválido no cadastro:", error.message);
 
     return res.status(401).json({
-      error: "Sessão inválida. Entre novamente e tente cadastrar."
+      error: "Sessão inválida. Entre novamente e tente cadastrar.",
     });
   }
 
   const nome = cleanString(req.body?.nome, 120);
   const telefone = cleanString(req.body?.telefone, 30);
-  // A pessoa pode solicitar cadastro como corretor, mas nunca recebe
-  // o papel de corretor automaticamente. A aprovação é feita pelo admin.
-  const solicitacaoPapel = req.body?.tipoCadastro === "corretor" ? "corretor" : "cliente";
+  const solicitacaoPapel =
+    req.body?.tipoCadastro === "corretor" ? "corretor" : "cliente";
 
   if (!nome || !telefone) {
     return res.status(400).json({
-      error: "Nome e telefone são obrigatórios."
+      error: "Nome e telefone são obrigatórios.",
     });
   }
 
@@ -283,7 +391,7 @@ app.post("/api/auth/registrar", async (req, res) => {
 
     if (existing.exists()) {
       return res.status(409).json({
-        error: "Já existe um perfil para esta conta. Procure o administrador."
+        error: "Já existe um perfil para esta conta. Procure o administrador.",
       });
     }
 
@@ -295,7 +403,7 @@ app.post("/api/auth/registrar", async (req, res) => {
       solicitacaoPapel,
       ativo: true,
       status: "ativo",
-      criadoEm: new Date().toISOString()
+      criadoEm: new Date().toISOString(),
     };
 
     await userRef.set(profile);
@@ -306,9 +414,8 @@ app.post("/api/auth/registrar", async (req, res) => {
       solicitacaoPapel,
       ativo: true,
       status: "ativo",
-      message: "Cadastro de cliente concluído com sucesso."
+      message: "Cadastro de cliente concluído com sucesso.",
     });
-
   } catch (error) {
     return sendServerError(
       res,
@@ -322,8 +429,6 @@ app.post("/api/auth/registrar", async (req, res) => {
 // AUTENTICAÇÃO E AUTORIZAÇÃO
 // --------------------------------------------------
 
-// Autentica o usuário e carrega o perfil, mesmo se estiver pendente.
-// Usado para que a tela de login consiga identificar o estado da aprovação.
 async function requireAuthenticated(req, res, next) {
   if (!auth || !db) return firebaseUnavailable(res);
 
@@ -338,21 +443,33 @@ async function requireAuthenticated(req, res, next) {
     req.profile = snapshot.val() || null;
     return next();
   } catch (error) {
-    if (error?.code === "auth/id-token-expired" || error?.code === "auth/argument-error" || error?.code === "auth/id-token-revoked") {
+    if (
+      error?.code === "auth/id-token-expired" ||
+      error?.code === "auth/argument-error" ||
+      error?.code === "auth/id-token-revoked"
+    ) {
       return res.status(401).json({ error: "Sessão inválida ou expirada." });
     }
-    return sendServerError(res, "Não foi possível validar a sessão e consultar o perfil.", error);
+    return sendServerError(
+      res,
+      "Não foi possível validar a sessão e consultar o perfil.",
+      error
+    );
   }
 }
 
-// Mantém a proteção de todas as rotas privadas: perfil ativo é obrigatório.
 function requireFirebase(req, res, next) {
   return requireAuthenticated(req, res, () => {
     if (!req.profile) {
-      return res.status(403).json({ error: "Perfil não cadastrado. Complete o cadastro e aguarde a aprovação." });
+      return res.status(403).json({
+        error:
+          "Perfil não cadastrado. Complete o cadastro e aguarde a aprovação.",
+      });
     }
     if (req.profile.ativo !== true || req.profile.status !== "ativo") {
-      return res.status(403).json({ error: "Seu acesso está pendente ou inativo." });
+      return res.status(403).json({
+        error: "Seu acesso está pendente ou inativo.",
+      });
     }
     return next();
   });
@@ -360,12 +477,9 @@ function requireFirebase(req, res, next) {
 
 function allowRoles(...roles) {
   return (req, res, next) => {
-    if (
-      !req.profile ||
-      !roles.includes(req.profile.papel)
-    ) {
+    if (!req.profile || !roles.includes(req.profile.papel)) {
       return res.status(403).json({
-        error: "Você não tem permissão para esta operação."
+        error: "Você não tem permissão para esta operação.",
       });
     }
 
@@ -373,19 +487,17 @@ function allowRoles(...roles) {
   };
 }
 
-// Retorna o perfil mesmo quando pendente, para o frontend decidir
-// entre dashboard, solicitação pendente ou pedido de cadastro.
 app.get("/api/auth/perfil", requireAuthenticated, (req, res) => {
   return res.json({
     perfil: req.profile,
     autenticado: true,
-    aprovado: req.profile?.ativo === true && req.profile?.status === "ativo"
+    aprovado:
+      req.profile?.ativo === true && req.profile?.status === "ativo",
   });
 });
 
 // --------------------------------------------------
 // ADMINISTRAÇÃO DE USUÁRIOS
-// Apenas administrador ativo pode listar e alterar.
 // --------------------------------------------------
 
 app.get(
@@ -399,11 +511,10 @@ app.get(
 
       const items = Object.entries(users).map(([uid, user]) => ({
         uid,
-        ...user
+        ...user,
       }));
 
       return res.json({ items });
-
     } catch (error) {
       return sendServerError(
         res,
@@ -424,41 +535,35 @@ app.patch(
     const updates = {};
 
     if (!isValidUid(uid)) {
-      return res.status(400).json({
-        error: "UID inválido."
-      });
+      return res.status(400).json({ error: "UID inválido." });
     }
 
     if (Object.hasOwn(body, "papel")) {
       if (!allowedUserRoles.has(body.papel)) {
-        return res.status(400).json({
-          error: "Perfil inválido."
-        });
+        return res.status(400).json({ error: "Perfil inválido." });
       }
-
       updates.papel = body.papel;
     }
 
     if (Object.hasOwn(body, "ativo")) {
       if (typeof body.ativo !== "boolean") {
         return res.status(400).json({
-          error: "O campo ativo deve ser verdadeiro ou falso."
+          error: "O campo ativo deve ser verdadeiro ou falso.",
         });
       }
-
       updates.ativo = body.ativo;
       updates.status = body.ativo ? "ativo" : "inativo";
     }
 
     if (Object.keys(updates).length === 0) {
       return res.status(400).json({
-        error: "Informe um perfil e/ou status para atualizar."
+        error: "Informe um perfil e/ou status para atualizar.",
       });
     }
 
     if (uid === req.user.uid && updates.ativo === false) {
       return res.status(400).json({
-        error: "Você não pode desativar sua própria conta."
+        error: "Você não pode desativar sua própria conta.",
       });
     }
 
@@ -468,7 +573,7 @@ app.patch(
       updates.papel !== "administrador"
     ) {
       return res.status(400).json({
-        error: "Você não pode remover seu próprio perfil de administrador."
+        error: "Você não pode remover seu próprio perfil de administrador.",
       });
     }
 
@@ -477,21 +582,14 @@ app.patch(
       const snapshot = await userRef.get();
 
       if (!snapshot.exists()) {
-        return res.status(404).json({
-          error: "Usuário não encontrado."
-        });
+        return res.status(404).json({ error: "Usuário não encontrado." });
       }
 
       updates.atualizadoEm = new Date().toISOString();
 
       await userRef.update(updates);
 
-      return res.json({
-        ok: true,
-        uid,
-        updates
-      });
-
+      return res.json({ ok: true, uid, updates });
     } catch (error) {
       return sendServerError(
         res,
@@ -504,7 +602,6 @@ app.patch(
 
 // --------------------------------------------------
 // DASHBOARD ADMINISTRATIVO
-// Somente administradores ativos podem consultar todos os dados.
 // --------------------------------------------------
 
 app.get(
@@ -513,11 +610,12 @@ app.get(
   allowRoles("administrador"),
   async (_req, res) => {
     try {
-      const [propertiesSnapshot, usersSnapshot, leadsSnapshot] = await Promise.all([
-        db.ref("imoveis").get(),
-        db.ref("usuarios").get(),
-        db.ref("leads").get()
-      ]);
+      const [propertiesSnapshot, usersSnapshot, leadsSnapshot] =
+        await Promise.all([
+          db.ref("imoveis").get(),
+          db.ref("usuarios").get(),
+          db.ref("leads").get(),
+        ]);
 
       const propertiesRaw = propertiesSnapshot.val() || {};
       const usersRaw = usersSnapshot.val() || {};
@@ -525,34 +623,38 @@ app.get(
 
       const imoveis = Object.entries(propertiesRaw).map(([id, item]) => ({
         id,
-        ...item
+        ...item,
       }));
 
       const usuarios = Object.entries(usersRaw).map(([uid, item]) => ({
         uid,
-        ...item
+        ...item,
       }));
 
       const leads = Object.entries(leadsRaw).map(([id, item]) => ({
         id,
-        ...item
+        ...item,
       }));
 
-      const publicados = imoveis.filter(item =>
-        item.status === "publicado" && item.publicadoNoSite === true
+      const publicados = imoveis.filter(
+        (item) =>
+          item.status === "publicado" && item.publicadoNoSite === true
       );
 
-      const pendentes = imoveis.filter(item =>
-        item.status === "aguardando_aprovacao"
+      const pendentes = imoveis.filter(
+        (item) => item.status === "aguardando_aprovacao"
       );
 
-      const clientes = usuarios.filter(item => item.papel === "cliente");
-      const corretores = usuarios.filter(item =>
-        item.papel === "corretor" && item.ativo === true && item.status === "ativo"
+      const clientes = usuarios.filter((item) => item.papel === "cliente");
+      const corretores = usuarios.filter(
+        (item) =>
+          item.papel === "corretor" &&
+          item.ativo === true &&
+          item.status === "ativo"
       );
 
-      const leadsNovos = leads.filter(item =>
-        !item.status || item.status === "novo"
+      const leadsNovos = leads.filter(
+        (item) => !item.status || item.status === "novo"
       );
 
       return res.json({
@@ -560,15 +662,17 @@ app.get(
           totalImoveis: imoveis.length,
           publicados: publicados.length,
           pendentes: pendentes.length,
-          inativos: imoveis.filter(item => item.status === "inativo").length,
-          venda: imoveis.filter(item => item.finalidade === "venda").length,
-          locacao: imoveis.filter(item => item.finalidade === "locacao").length,
-          temporada: imoveis.filter(item => item.finalidade === "temporada").length,
+          inativos: imoveis.filter((item) => item.status === "inativo").length,
+          venda: imoveis.filter((item) => item.finalidade === "venda").length,
+          locacao: imoveis.filter((item) => item.finalidade === "locacao")
+            .length,
+          temporada: imoveis.filter((item) => item.finalidade === "temporada")
+            .length,
           totalUsuarios: usuarios.length,
           clientes: clientes.length,
           corretores: corretores.length,
           leads: leads.length,
-          leadsNovos: leadsNovos.length
+          leadsNovos: leadsNovos.length,
         },
         imoveis: imoveis.sort((a, b) =>
           String(b.criadoEm || "").localeCompare(String(a.criadoEm || ""))
@@ -576,9 +680,11 @@ app.get(
         usuarios: usuarios.sort((a, b) =>
           String(a.nome || "").localeCompare(String(b.nome || ""), "pt-BR")
         ),
-        leads: leads.sort((a, b) =>
-          String(b.criadoEm || "").localeCompare(String(a.criadoEm || ""))
-        ).slice(0, 100)
+        leads: leads
+          .sort((a, b) =>
+            String(b.criadoEm || "").localeCompare(String(a.criadoEm || ""))
+          )
+          .slice(0, 100),
       });
     } catch (error) {
       return sendServerError(
@@ -594,37 +700,21 @@ app.get(
 // IMÓVEIS PÚBLICOS
 // --------------------------------------------------
 
-
 app.get("/api/imoveis", async (_req, res) => {
   if (!db) {
     return firebaseUnavailable(res);
   }
 
   console.log("[API] Iniciando consulta de imóveis...");
-
-  let timeout;
+  const startedAt = Date.now();
 
   try {
-    const snapshot = await Promise.race([
-      db.ref("imoveis").get(),
-      new Promise((_, reject) => {
-        timeout = setTimeout(
-          () => reject(new Error("TIMEOUT_CONSULTA_FIREBASE")),
-          10000
-        );
-      })
-    ]);
+    const items = await fetchPublishedPropertiesWithRetry();
 
-    const all = snapshot.val() || {};
-
-    const items = Object.entries(all)
-      .map(([id, value]) => ({ id, ...value }))
-      .filter(item =>
-        item.status === "publicado" &&
-        item.publicadoNoSite === true
-      );
-
-    console.log(`[API] Consulta concluída: ${items.length} imóveis publicados.`);
+    console.log(
+      `[API] Consulta concluída em ${Date.now() - startedAt}ms: ` +
+      `${items.length} imóveis publicados.`
+    );
 
     return res.json({ items });
   } catch (error) {
@@ -632,7 +722,10 @@ app.get("/api/imoveis", async (_req, res) => {
 
     if (error.message === "TIMEOUT_CONSULTA_FIREBASE") {
       return res.status(504).json({
-        error: "O Firebase demorou demais para responder ao consultar os imóveis."
+        error:
+          "O Firebase demorou demais para responder. Isso pode " +
+          "acontecer no primeiro acesso após o servidor hibernar. " +
+          "Tente novamente em alguns segundos.",
       });
     }
 
@@ -641,11 +734,8 @@ app.get("/api/imoveis", async (_req, res) => {
       "Não foi possível carregar os imóveis.",
       error
     );
-  } finally {
-    clearTimeout(timeout);
   }
 });
-
 
 app.get("/api/imoveis/:id", async (req, res) => {
   if (!db) {
@@ -656,7 +746,7 @@ app.get("/api/imoveis/:id", async (req, res) => {
 
   if (!id || id.includes("/")) {
     return res.status(400).json({
-      error: "ID de imóvel inválido."
+      error: "ID de imóvel inválido.",
     });
   }
 
@@ -670,14 +760,13 @@ app.get("/api/imoveis/:id", async (req, res) => {
       item.publicadoNoSite !== true
     ) {
       return res.status(404).json({
-        error: "Imóvel não encontrado."
+        error: "Imóvel não encontrado.",
       });
     }
 
     return res.json({
-      item: { id, ...item }
+      item: { id, ...item },
     });
-
   } catch (error) {
     return sendServerError(
       res,
@@ -703,7 +792,7 @@ app.post("/api/leads", async (req, res) => {
 
   if (!nome || !telefone) {
     return res.status(400).json({
-      error: "Informe nome e telefone."
+      error: "Informe nome e telefone.",
     });
   }
 
@@ -717,14 +806,13 @@ app.post("/api/leads", async (req, res) => {
       imovelId: imovelId || null,
       origem: "site",
       status: "novo",
-      criadoEm: new Date().toISOString()
+      criadoEm: new Date().toISOString(),
     });
 
     return res.status(201).json({
       ok: true,
-      id: leadRef.key
+      id: leadRef.key,
     });
-
   } catch (error) {
     return sendServerError(
       res,
@@ -740,8 +828,10 @@ app.post("/api/leads", async (req, res) => {
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const id = cleanString(req.params.id, 100)
-      .replace(/[^a-zA-Z0-9_-]/g, "");
+    const id = cleanString(req.params.id, 100).replace(
+      /[^a-zA-Z0-9_-]/g,
+      ""
+    );
 
     if (!id) {
       return cb(new Error("ID de imóvel inválido."));
@@ -757,7 +847,7 @@ const storage = multer.diskStorage({
     const extensions = {
       "image/jpeg": ".jpg",
       "image/png": ".png",
-      "image/webp": ".webp"
+      "image/webp": ".webp",
     };
 
     const ext = extensions[file.mimetype];
@@ -766,32 +856,29 @@ const storage = multer.diskStorage({
       return cb(new Error("Formato de imagem não permitido."));
     }
 
-    const filename =
-      `${Date.now()}-${crypto.randomBytes(5).toString("hex")}${ext}`;
+    const filename = `${Date.now()}-${crypto
+      .randomBytes(5)
+      .toString("hex")}${ext}`;
 
     return cb(null, filename);
-  }
+  },
 });
 
 const upload = multer({
   storage,
   limits: {
     fileSize: Number(process.env.MAX_UPLOAD_MB || 12) * 1024 * 1024,
-    files: 20
+    files: 20,
   },
   fileFilter: (_req, file, cb) => {
-    const allowedTypes = [
-      "image/jpeg",
-      "image/png",
-      "image/webp"
-    ];
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
 
     if (!allowedTypes.includes(file.mimetype)) {
       return cb(new Error("Envie somente imagens JPG, PNG ou WEBP."));
     }
 
     return cb(null, true);
-  }
+  },
 });
 
 app.post(
@@ -804,7 +891,7 @@ app.post(
 
     if (!id || id.includes("/")) {
       return res.status(400).json({
-        error: "ID de imóvel inválido."
+        error: "ID de imóvel inválido.",
       });
     }
 
@@ -814,7 +901,7 @@ app.post(
 
       if (!snapshot.exists()) {
         return res.status(404).json({
-          error: "Imóvel não encontrado."
+          error: "Imóvel não encontrado.",
         });
       }
 
@@ -825,33 +912,26 @@ app.post(
         property.responsavelUid !== req.user.uid
       ) {
         return res.status(403).json({
-          error: "Você só pode alterar fotos dos imóveis da sua carteira."
+          error: "Você só pode alterar fotos dos imóveis da sua carteira.",
         });
       }
 
-      const novasFotos = (req.files || []).map(file =>
-        `/uploads/imoveis/${id}/${path.basename(file.filename)}`
+      const novasFotos = (req.files || []).map(
+        (file) => `/uploads/imoveis/${id}/${path.basename(file.filename)}`
       );
 
-      const antigas = Array.isArray(property.fotos)
-        ? property.fotos
-        : [];
+      const antigas = Array.isArray(property.fotos) ? property.fotos : [];
 
       const fotos = [...antigas, ...novasFotos];
 
       await ref.update({
         fotos,
-        atualizadoEm: new Date().toISOString()
+        atualizadoEm: new Date().toISOString(),
       });
 
       return res.status(201).json({ fotos });
-
     } catch (error) {
-      return sendServerError(
-        res,
-        "Falha ao salvar fotos.",
-        error
-      );
+      return sendServerError(res, "Falha ao salvar fotos.", error);
     }
   }
 );
@@ -874,7 +954,7 @@ app.post(
       !allowedPurposes.has(body.finalidade)
     ) {
       return res.status(400).json({
-        error: "Título, categoria e finalidade válidos são obrigatórios."
+        error: "Título, categoria e finalidade válidos são obrigatórios.",
       });
     }
 
@@ -885,13 +965,8 @@ app.post(
 
     const preco = precoInformado ? Number(body.preco) : null;
 
-    if (
-      precoInformado &&
-      (!Number.isFinite(preco) || preco < 0)
-    ) {
-      return res.status(400).json({
-        error: "Preço inválido."
-      });
+    if (precoInformado && (!Number.isFinite(preco) || preco < 0)) {
+      return res.status(400).json({ error: "Preço inválido." });
     }
 
     try {
@@ -923,16 +998,15 @@ app.post(
         publicadoNoSite: status === "publicado",
         responsavelUid: req.user.uid,
         criadoEm: new Date().toISOString(),
-        atualizadoEm: new Date().toISOString()
+        atualizadoEm: new Date().toISOString(),
       };
 
       await ref.set(item);
 
       return res.status(201).json({
         id: ref.key,
-        item
+        item,
       });
-
     } catch (error) {
       return sendServerError(
         res,
@@ -958,12 +1032,12 @@ app.patch(
     const allowedApprovalStatuses = [
       "publicado",
       "inativo",
-      "aguardando_aprovacao"
+      "aguardando_aprovacao",
     ];
 
     if (!id || id.includes("/")) {
       return res.status(400).json({
-        error: "ID de imóvel inválido."
+        error: "ID de imóvel inválido.",
       });
     }
 
@@ -971,9 +1045,7 @@ app.patch(
       !allowedPropertyStatuses.has(status) ||
       !allowedApprovalStatuses.includes(status)
     ) {
-      return res.status(400).json({
-        error: "Status inválido."
-      });
+      return res.status(400).json({ error: "Status inválido." });
     }
 
     try {
@@ -982,18 +1054,17 @@ app.patch(
 
       if (!snapshot.exists()) {
         return res.status(404).json({
-          error: "Imóvel não encontrado."
+          error: "Imóvel não encontrado.",
         });
       }
 
       await ref.update({
         status,
         publicadoNoSite: status === "publicado",
-        atualizadoEm: new Date().toISOString()
+        atualizadoEm: new Date().toISOString(),
       });
 
       return res.json({ ok: true });
-
     } catch (error) {
       return sendServerError(
         res,
@@ -1011,20 +1082,17 @@ app.patch(
 app.use((err, _req, res, _next) => {
   if (err instanceof multer.MulterError) {
     return res.status(400).json({
-      error: "Upload inválido ou arquivo acima do limite permitido."
+      error: "Upload inválido ou arquivo acima do limite permitido.",
     });
   }
 
-  console.error(
-    "Erro na requisição:",
-    err.stack || err.message || err
-  );
+  console.error("Erro na requisição:", err.stack || err.message || err);
 
   return res.status(400).json({
     error:
       process.env.NODE_ENV === "production"
         ? "Requisição inválida."
-        : err.message || "Requisição inválida."
+        : err.message || "Requisição inválida.",
   });
 });
 
@@ -1039,7 +1107,12 @@ app.listen(PORT, () => {
 
   if (!auth || !db) {
     console.error(
-      "ATENÇÃO: Firebase Admin não está disponível. APIs que dependem do Firebase falharão."
+      "ATENÇÃO: Firebase Admin não está disponível. " +
+      "APIs que dependem do Firebase falharão."
+    );
+  } else {
+    console.log(
+      "Firebase Admin e Realtime Database prontos."
     );
   }
 });
