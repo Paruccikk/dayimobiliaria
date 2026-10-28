@@ -93,20 +93,31 @@ try {
   admin = require("firebase-admin");
 
   if (!admin.apps.length) {
-    // Local: GOOGLE_APPLICATION_CREDENTIALS aponta para o JSON da conta de serviço.
-    // Render: use FIREBASE_SERVICE_ACCOUNT_JSON_BASE64 (obrigatório, pois
-    // applicationDefault() NÃO funciona fora do Google Cloud).
     let credential;
-    const serviceAccountBase64 = process.env.FIREBASE_SERVICE_ACCOUNT_JSON_BASE64;
-    const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-
-    if (serviceAccountBase64) {
-      const decoded = Buffer.from(serviceAccountBase64, "base64").toString("utf8");
+    
+    // ✅ 1. Tenta ler pelo arquivo físico (padrão do Render Secret Files)
+    const secretFilePath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+    
+    if (secretFilePath && fs.existsSync(secretFilePath)) {
+      console.log(`[Firebase] Lendo credenciais do arquivo: ${secretFilePath}`);
+      const fileContent = fs.readFileSync(secretFilePath, "utf8");
+      credential = admin.credential.cert(JSON.parse(fileContent));
+    } 
+    // ✅ 2. Fallback: Tenta pelo Base64 (se existir)
+    else if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON_BASE64) {
+      console.log("[Firebase] Lendo credenciais via Base64");
+      const b64 = process.env.FIREBASE_SERVICE_ACCOUNT_JSON_BASE64.replace(/\s+/g, "");
+      const decoded = Buffer.from(b64, "base64").toString("utf8");
       credential = admin.credential.cert(JSON.parse(decoded));
-    } else if (serviceAccountJson) {
-      credential = admin.credential.cert(JSON.parse(serviceAccountJson));
-    } else {
-      // Fallback apenas para ambiente local (GOOGLE_APPLICATION_CREDENTIALS).
+    }
+    // ✅ 3. Fallback: Tenta pelo JSON bruto
+    else if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+      console.log("[Firebase] Lendo credenciais via JSON bruto");
+      credential = admin.credential.cert(JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON));
+    } 
+    // ⚠️ 4. Fallback local
+    else {
+      console.log("[Firebase] Usando applicationDefault()");
       credential = admin.credential.applicationDefault();
     }
 
@@ -121,14 +132,10 @@ try {
   db = admin.database();
   auth = admin.auth();
 
-  console.log("Firebase Admin inicializado.");
+  console.log("✅ Firebase Admin inicializado com sucesso.");
 } catch (error) {
   firebaseAdminError = error;
-
-  console.error(
-    "ERRO AO INICIALIZAR O FIREBASE ADMIN:",
-    error.stack || error.message
-  );
+  console.error("❌ ERRO AO INICIALIZAR O FIREBASE ADMIN:", error.message);
 }
 
 function firebaseUnavailable(res) {
