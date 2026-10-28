@@ -226,7 +226,7 @@ function renderUsers(users) {
     return;
   }
 
-  const roles = ["cliente", "corretor", "chefe", "administrador"];
+  const roles = ["cliente", "corretor", "administrador"];
 
   tbody.innerHTML = users.map(user => {
     const roleOptions = roles.map(role => `
