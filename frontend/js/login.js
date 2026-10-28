@@ -1,6 +1,4 @@
-
 import { auth } from "./firebase-client.js";
-
 import {
   signInWithEmailAndPassword,
   onAuthStateChanged,
@@ -9,150 +7,111 @@ import {
 
 const form = document.querySelector("#login-form");
 const feedback = document.querySelector("#login-feedback");
+const submitButton = form?.querySelector('button[type="submit"]');
+let checking = false;
 
-let verificandoSessao = false;
-
-function mostrarMensagem(mensagem) {
-  if (feedback) {
-    feedback.textContent = mensagem;
-  }
+function message(text) {
+  if (feedback) feedback.textContent = text;
 }
 
-async function validarPerfilEEncaminhar(user) {
-  if (!user || verificandoSessao) return;
+function roleHome(role) {
+  if (role === "administrador") return "/admin.html";
+  if (role === "corretor") return "/painel.html";
+  if (role === "cliente") return "/";
+  return null;
+}
 
-  verificandoSessao = true;
-  mostrarMensagem("Validando sessão e consultando perfil…");
+async function validateAndRedirect(user) {
+  if (!user || checking) return;
+  checking = true;
+  if (submitButton) submitButton.disabled = true;
+  message("Validando sua conta e permissões…");
 
   try {
-    // Obtém o token da sessão atual do Firebase.
     const token = await user.getIdToken();
-
-    // Envia o token ao servidor para consultar o perfil no banco.
-    const resposta = await fetch("/api/auth/perfil", {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/json"
-      },
+    const response = await fetch("/api/auth/perfil", {
+      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
       cache: "no-store"
     });
+    const data = await response.json().catch(() => ({}));
 
-    const dados = await resposta.json().catch(() => ({}));
-
-    if (!resposta.ok) {
-      console.error(
-        "Falha ao consultar perfil:",
-        resposta.status,
-        dados
-      );
-
-      if (resposta.status === 401) {
+    if (!response.ok) {
+      if (response.status === 401) {
         await signOut(auth);
-        mostrarMensagem(
-          "Sua sessão expirou ou não pôde ser validada. Entre novamente."
-        );
-        return;
+        message("Sua sessão expirou. Entre novamente.");
+      } else {
+        message(data.error || "Não foi possível validar sua conta. Tente novamente.");
       }
-
-      mostrarMensagem(
-        "Não foi possível validar a sessão e consultar o perfil. " +
-        "Tente novamente em instantes."
-      );
       return;
     }
 
-    const perfil = dados.perfil;
-
-    if (!perfil) {
-      console.error("Resposta da API sem perfil:", dados);
-      mostrarMensagem(
-        "O servidor não retornou o perfil do usuário. " +
-        "Verifique a configuração da API."
-      );
-      return;
-    }
-
-    // O acesso exige perfil ativo e aprovado.
-    const perfilAtivo =
-      perfil.ativo === true &&
-      perfil.status === "ativo";
-
-    if (!perfilAtivo) {
+    const profile = data.perfil;
+    if (!profile || !["cliente", "corretor", "administrador"].includes(profile.papel)) {
       await signOut(auth);
-      mostrarMensagem(
-        "Seu cadastro ainda está aguardando aprovação ou está inativo. " +
-        "Entre em contato com o administrador."
-      );
+      message("Seu perfil não está configurado corretamente. Procure o administrador.");
       return;
     }
 
-    // Direciona conforme o papel confirmado pelo servidor.
-    if (perfil.papel === "administrador") {
-      window.location.replace("/admin.html");
+    // Clientes usam somente o site público; não precisam de aprovação para navegar.
+    if (profile.papel === "cliente") {
+      window.location.replace("/");
       return;
     }
 
-    if (
-      perfil.papel === "corretor" ||
-      perfil.papel === "cliente"
-    ) {
-      window.location.replace("/painel.html");
+    if (profile.ativo !== true || profile.status !== "ativo") {
+      await signOut(auth);
+      message("Seu acesso profissional está pendente ou inativo. Entre em contato com o administrador.");
       return;
     }
 
-    console.error("Papel de usuário não reconhecido:", perfil.papel);
+    const destination = roleHome(profile.papel);
+    if (destination) {
+      window.location.replace(destination);
+      return;
+    }
 
     await signOut(auth);
-    mostrarMensagem(
-      "Seu perfil não possui um tipo de acesso reconhecido. " +
-      "Entre em contato com o administrador."
-    );
-  } catch (erro) {
-    console.error("Erro ao validar sessão e perfil:", erro);
-
-    mostrarMensagem(
-      "Não foi possível validar a sessão e consultar o perfil. " +
-      "Verifique sua conexão e tente novamente."
-    );
+    message("Seu perfil não tem permissão de acesso.");
+  } catch (error) {
+    console.error("Falha ao validar login:", error);
+    message("Não foi possível consultar sua conta. Verifique a conexão e tente novamente.");
   } finally {
-    verificandoSessao = false;
+    checking = false;
+    if (submitButton) submitButton.disabled = false;
   }
 }
 
-// Se já houver sessão, valida o perfil antes de redirecionar.
-onAuthStateChanged(auth, async (user) => {
-  if (user) {
-    await validarPerfilEEncaminhar(user);
-  }
+onAuthStateChanged(auth, user => {
+  if (user) void validateAndRedirect(user);
 });
 
-form?.addEventListener("submit", async (evento) => {
-  evento.preventDefault();
-
-  if (verificandoSessao) return;
+form?.addEventListener("submit", async event => {
+  event.preventDefault();
+  if (checking) return;
 
   const email = document.querySelector("#email")?.value.trim();
-  const senha = document.querySelector("#password")?.value;
-
-  if (!email || !senha) {
-    mostrarMensagem("Informe seu e-mail e sua senha.");
+  const password = document.querySelector("#password")?.value;
+  if (!email || !password) {
+    message("Informe seu e-mail e sua senha.");
     return;
   }
 
-  mostrarMensagem("Autenticando no Firebase…");
-
+  if (submitButton) submitButton.disabled = true;
+  message("Entrando…");
   try {
-    await signInWithEmailAndPassword(auth, email, senha);
-
-    // O onAuthStateChanged fará a consulta do perfil.
-    mostrarMensagem("Login realizado. Validando suas permissões…");
-  } catch (erro) {
-    console.error("Erro no login:", erro);
-
-    mostrarMensagem(
-      "Não foi possível entrar. Confira e-mail e senha " +
-      "ou solicite acesso ao administrador."
-    );
+    await signInWithEmailAndPassword(auth, email, password);
+    // onAuthStateChanged valida o papel consultando o servidor.
+  } catch (error) {
+    console.error("Falha no login:", error);
+    const errors = {
+      "auth/invalid-credential": "E-mail ou senha incorretos.",
+      "auth/user-not-found": "Não existe uma conta com esse e-mail.",
+      "auth/wrong-password": "E-mail ou senha incorretos.",
+      "auth/invalid-email": "Informe um e-mail válido.",
+      "auth/too-many-requests": "Muitas tentativas. Aguarde alguns minutos e tente novamente.",
+      "auth/network-request-failed": "Falha de conexão. Verifique sua internet."
+    };
+    message(errors[error.code] || "Não foi possível entrar. Confira os dados e tente novamente.");
+    if (submitButton) submitButton.disabled = false;
   }
 });
