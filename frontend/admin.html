@@ -4,52 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Administração | R&D PRIME IMÓVEIS</title>
-  <link rel="stylesheet" href="/css/style.css">
-  <style>
-    [hidden] { display: none !important; }
-    body { background:#f5f6f8; }
-    .dashboard-wrap { max-width:1500px; margin:0 auto; padding:24px; }
-    .dash-top { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:24px; }
-    .dash-title { font-size:clamp(1.6rem,3vw,2.25rem); font-weight:750; color:#20242b; }
-    .dash-subtitle { color:#707782; margin-top:6px; }
-    .dash-actions { display:flex; gap:10px; flex-wrap:wrap; }
-    .dash-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; margin-bottom:20px; }
-    .dash-card,.dash-panel { background:#fff; border:1px solid #e7e9ee; border-radius:14px; padding:18px; box-shadow:0 4px 16px rgba(25,35,50,.035); }
-    .dash-card small { display:block; color:#747b86; font-size:.86rem; }
-    .dash-number { display:block; font-size:2rem; line-height:1.25; font-weight:750; margin:10px 0 4px; color:#222832; }
-    .dash-note { color:#858b95; font-size:.8rem; }
-    .dash-panel { margin-bottom:20px; }
-    .dash-panel h2 { font-size:1.12rem; margin:0 0 16px; color:#252a33; }
-    .dash-two-col { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
-    .dash-bars { display:grid; gap:13px; }
-    .bar-row { display:grid; grid-template-columns:minmax(95px,130px) 1fr 40px; align-items:center; gap:10px; font-size:.9rem; }
-    .bar-track { height:10px; background:#eef0f3; border-radius:99px; overflow:hidden; }
-    .bar-fill { height:100%; background:#b18a45; border-radius:99px; }
-    .dash-table-wrap { overflow-x:auto; }
-    .dash-table { width:100%; border-collapse:collapse; min-width:720px; }
-    .dash-table th,.dash-table td { text-align:left; padding:12px 10px; border-bottom:1px solid #eceef1; vertical-align:middle; font-size:.9rem; }
-    .dash-table th { color:#6c737e; font-weight:650; white-space:nowrap; }
-    .dash-table select,.dash-table input { max-width:150px; padding:7px; border:1px solid #d9dde4; border-radius:7px; background:white; }
-    .dash-form { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; }
-    .dash-form .field { min-width:0; }
-    .dash-form .full { grid-column:1/-1; }
-    .dash-form input,.dash-form select,.dash-form textarea { width:100%; box-sizing:border-box; }
-    .dash-feedback { margin:12px 0; min-height:1.2em; color:#555e69; }
-    .pill { display:inline-block; padding:4px 8px; border-radius:99px; font-size:.78rem; background:#eef0f3; color:#424954; white-space:nowrap; }
-    .pill-green { background:#e5f5ec; color:#216b43; }
-    .pill-gold { background:#fff3d9; color:#825d17; }
-    .small-btn { border:0; border-radius:7px; padding:8px 10px; margin:2px; cursor:pointer; background:#252a33; color:#fff; }
-    .small-btn.gold { background:#b18a45; color:#fff; }
-    .small-btn.light { background:#eef0f3; color:#252a33; }
-    .small-btn:disabled { opacity:.55; cursor:wait; }
-    .auth-card { max-width:460px; margin:7vh auto; background:white; border:1px solid #e7e9ee; border-radius:16px; padding:28px; box-shadow:0 10px 35px rgba(25,35,50,.08); }
-    .auth-card h1 { margin-top:0; }
-    .auth-fields { display:grid; gap:12px; }
-    .auth-fields input { width:100%; box-sizing:border-box; padding:12px; border:1px solid #d9dde4; border-radius:8px; }
-    .notice { margin:12px 0 20px; }
-    @media(max-width:1050px) { .dash-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .dash-two-col { grid-template-columns:1fr; } }
-    @media(max-width:650px) { .dashboard-wrap { padding:14px; } .dash-grid { gap:9px; } .dash-card { padding:13px; } .dash-number { font-size:1.6rem; } .dash-form { grid-template-columns:1fr; } .dash-form .full { grid-column:auto; } }
-  </style>
+    <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/admin.css">
 </head>
 <body>
   <section id="login-screen" class="auth-card">
