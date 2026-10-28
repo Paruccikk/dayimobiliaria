@@ -1,132 +1,85 @@
-
 import { auth } from "./firebase-client.js";
-
 import {
   createUserWithEmailAndPassword,
   updateProfile,
-  signOut
+  signOut,
+  onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 const form = document.querySelector("#cadastro-form");
 const feedback = document.querySelector("#cadastro-feedback");
-const submit = form.querySelector('button[type="submit"]');
+const submitButton = form?.querySelector('button[type="submit"]');
+let currentUser = null;
+let submitting = false;
 
-const mensagens = {
-  "auth/email-already-in-use":
-    "Este e-mail já está cadastrado. Tente entrar pela página de login.",
+onAuthStateChanged(auth, user => { currentUser = user; });
 
-  "auth/invalid-email":
-    "Informe um e-mail válido.",
-
-  "auth/weak-password":
-    "Escolha uma senha com pelo menos 6 caracteres.",
-
-  "auth/operation-not-allowed":
-    "Ative o método E-mail/Senha em Firebase Authentication → Sign-in method.",
-
-  "auth/invalid-api-key":
-    "A API key do Firebase está incorreta. Confira firebase-client.js.",
-
-  "auth/network-request-failed":
-    "Falha de conexão. Verifique sua internet e tente novamente."
+const messages = {
+  "auth/email-already-in-use": "Este e-mail já está cadastrado. Faça login.",
+  "auth/invalid-email": "Informe um e-mail válido.",
+  "auth/weak-password": "A senha precisa ter pelo menos 6 caracteres.",
+  "auth/operation-not-allowed": "Ative E-mail/Senha em Firebase Authentication → Sign-in method.",
+  "auth/invalid-api-key": "A chave de configuração do Firebase está incorreta.",
+  "auth/network-request-failed": "Falha de conexão. Verifique sua internet."
 };
 
-form.addEventListener("submit", async (event) => {
+function showMessage(text) {
+  if (feedback) feedback.textContent = text;
+}
+
+form?.addEventListener("submit", async event => {
   event.preventDefault();
+  if (submitting) return;
 
-  const nome = document.querySelector("#nome").value.trim();
-  const telefone = document.querySelector("#telefone").value.trim();
-  const email = document.querySelector("#email").value.trim();
-  const password = document.querySelector("#password").value;
-  const confirmPassword =
-    document.querySelector("#confirm-password").value;
+  const nome = document.querySelector("#nome")?.value.trim() || "";
+  const telefone = document.querySelector("#telefone")?.value.trim() || "";
+  const email = document.querySelector("#email")?.value.trim() || "";
+  const password = document.querySelector("#password")?.value || "";
+  const confirmation = document.querySelector("#confirm-password")?.value || "";
 
-  feedback.textContent = "";
+  if (!nome || !telefone || !email) return showMessage("Preencha todos os campos.");
+  if (password.length < 6) return showMessage("A senha precisa ter pelo menos 6 caracteres.");
+  if (password !== confirmation) return showMessage("As senhas não conferem.");
 
-  if (!nome || !telefone || !email) {
-    feedback.textContent = "Preencha todos os campos.";
-    return;
-  }
-
-  if (password.length < 6) {
-    feedback.textContent =
-      "A senha precisa ter pelo menos 6 caracteres.";
-    return;
-  }
-
-  if (password !== confirmPassword) {
-    feedback.textContent = "As senhas não conferem.";
-    return;
-  }
-
-  submit.disabled = true;
-  feedback.textContent = "Enviando solicitação...";
-
-  let createdUser = null;
-  let profileSaved = false;
+  submitting = true;
+  if (submitButton) submitButton.disabled = true;
+  showMessage(currentUser ? "Finalizando o cadastro…" : "Criando sua conta…");
 
   try {
-    const credential = await createUserWithEmailAndPassword(
-      auth,
-      email,
-      password
-    );
+    let user = currentUser;
 
-    createdUser = credential.user;
+    // Se a conta foi criada mas a API falhou, a próxima tentativa reutiliza
+    // a sessão atual em vez de tentar criar a mesma conta novamente.
+    if (!user) {
+      const credential = await createUserWithEmailAndPassword(auth, email, password);
+      user = credential.user;
+      currentUser = user;
+      await updateProfile(user, { displayName: nome });
+    } else if ((user.email || "").toLowerCase() !== email.toLowerCase()) {
+      throw new Error("Já existe uma sessão aberta com outro e-mail. Saia da conta e tente novamente.");
+    }
 
-    await updateProfile(createdUser, {
-      displayName: nome
-    });
-
-    const token = await createdUser.getIdToken(true);
-
+    const token = await user.getIdToken(true);
     const response = await fetch("/api/auth/registrar", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`
+        Authorization: `Bearer ${token}`
       },
-      body: JSON.stringify({
-        nome,
-        telefone
-      })
+      body: JSON.stringify({ nome, telefone })
     });
-
     const result = await response.json().catch(() => ({}));
-
-    if (!response.ok) {
-      throw new Error(
-        result.error || "Não foi possível salvar o cadastro no servidor."
-      );
-    }
-
-    profileSaved = true;
+    if (!response.ok) throw new Error(result.error || "Não foi possível salvar seu perfil.");
 
     await signOut(auth);
-
+    currentUser = null;
     form.reset();
-
-    feedback.textContent =
-      "Cadastro recebido! Seu perfil inicial é Cliente. " +
-      "Aguarde a aprovação do administrador.";
-
+    showMessage("Cadastro concluído! Sua conta é de Cliente e você já pode navegar pelo site. Para acessar o painel profissional, o administrador precisa promover sua conta a Corretor.");
   } catch (error) {
-    console.error("Erro no cadastro:", error);
-
-    if (createdUser && !profileSaved) {
-      feedback.textContent =
-        "A conta foi criada no Firebase Authentication, mas o perfil " +
-        "não foi salvo no sistema. Não tente cadastrar novamente com " +
-        "outro e-mail. Procure o administrador para regularizar o cadastro. " +
-        "Detalhe: " + (error.message || "erro desconhecido");
-    } else {
-      feedback.textContent =
-        mensagens[error.code] ||
-        error.message ||
-        "Não foi possível concluir o cadastro.";
-    }
-
+    console.error("Falha no cadastro:", error);
+    showMessage(messages[error.code] || error.message || "Não foi possível concluir o cadastro.");
   } finally {
-    submit.disabled = false;
+    submitting = false;
+    if (submitButton) submitButton.disabled = false;
   }
 });
