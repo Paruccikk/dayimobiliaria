@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Painel do Corretor | R&D PRIME</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body>
+
+  <div class="bg-aura" aria-hidden="true">
+    <div class="aura aura-1"></div>
+    <div class="aura aura-2"></div>
+    <div class="aura aura-3"></div>
+    <div class="grid-overlay"></div>
+  </div>
+
+  <div style="position: fixed; top: 20px; left: 20px; z-index: 100;">
+    <a href="/painel.html" class="button button-dark" style="padding: 8px 16px; font-size: 13px;">← Voltar ao Hub</a>
+  </div>
+
+  <main class="dashboard-wrap" id="corretor-app" style="padding-top: 80px;">
+    <header class="dash-top">
+      <div>
+        <div class="eyebrow">GESTÃO IMOBILIÁRIA</div>
+        <div class="dash-title">Painel do Corretor</div>
+        <p id="corretor-welcome" class="dash-subtitle">Validando sessão…</p>
+      </div>
+      <div class="dash-actions">
+        <button class="button button-gold" id="btn-refresh" type="button">Atualizar dados ↻</button>
+        <button class="button button-dark" id="btn-logout" type="button">Sair</button>
+      </div>
+    </header>
+
+    <div id="dash-feedback" class="notice" role="status" aria-live="polite"></div>
+
+    <!-- Resumo -->
+    <section class="dash-grid" aria-label="Indicadores">
+      <article class="dash-card">
+        <small>Meus Imóveis</small>
+        <strong class="dash-number" id="stat-total">—</strong>
+        <span class="dash-note">Na minha carteira</span>
+      </article>
+      <article class="dash-card">
+        <small>Publicados</small>
+        <strong class="dash-number" id="stat-publicados">—</strong>
+        <span class="dash-note">Visíveis no site</span>
+      </article>
+      <article class="dash-card">
+        <small>Pendentes</small>
+        <strong class="dash-number" id="stat-pendentes">—</strong>
+        <span class="dash-note">Aguardando Admin</span>
+      </article>
+      <article class="dash-card">
+        <small>Leads Recebidos</small>
+        <strong class="dash-number" id="stat-leads">—</strong>
+        <span class="dash-note">Contatos no site</span>
+      </article>
+    </section>
+
+    <!-- Formulário de Cadastro -->
+    <section class="dash-panel">
+      <h2>Cadastrar novo imóvel</h2>
+      <p class="dash-subtitle" style="margin-bottom: 20px;">O imóvel será enviado para aprovação do administrador antes de ir ao ar.</p>
+      <form id="property-form" class="dash-form">
+        <div class="field"><label for="prop-titulo">Título *</label><input id="prop-titulo" required maxlength="180"></div>
+        <div class="field"><label for="prop-categoria">Categoria *</label><select id="prop-categoria" required><option value="residencial">Residencial</option><option value="comercial">Comercial</option><option value="sublocacao">Sublocação</option><option value="garagem">Garagem</option><option value="lancamento">Lançamento</option></select></div>
+        <div class="field"><label for="prop-finalidade">Finalidade *</label><select id="prop-finalidade" required><option value="venda">Venda</option><option value="locacao">Locação</option><option value="temporada">Temporada</option></select></div>
+        <div class="field"><label for="prop-preco">Preço (R$)</label><input id="prop-preco" type="number" min="0" step="0.01"></div>
+        <div class="field"><label for="prop-cidade">Cidade</label><input id="prop-cidade" maxlength="100"></div>
+        <div class="field"><label for="prop-estado">UF</label><input id="prop-estado" maxlength="2" placeholder="SP"></div>
+        <div class="field"><label for="prop-bairro">Bairro</label><input id="prop-bairro" maxlength="120"></div>
+        <div class="field"><label for="prop-area">Área (m²)</label><input id="prop-area" type="number" min="0"></div>
+        <div class="field"><label for="prop-quartos">Quartos</label><input id="prop-quartos" type="number" min="0"></div>
+        <div class="field"><label for="prop-suites">Suítes</label><input id="prop-suites" type="number" min="0"></div>
+        <div class="field"><label for="prop-banheiros">Banheiros</label><input id="prop-banheiros" type="number" min="0"></div>
+        <div class="field"><label for="prop-vagas">Vagas</label><input id="prop-vagas" type="number" min="0"></div>
+        <div class="field full"><label for="prop-descricao">Descrição</label><textarea id="prop-descricao" rows="3" maxlength="10000"></textarea></div>
+        
+        <div class="field full">
+          <button id="btn-submit" class="button button-gold" type="submit">Enviar para Aprovação</button>
+        </div>
+      </form>
+      <p id="form-feedback" class="dash-feedback" role="status" aria-live="polite"></p>
+    </section>
+
+    <!-- Agenda de Visitas -->
+    <section class="dash-panel">
+      <h2>Agenda de Visitas</h2>
+      <div class="dash-table-wrap">
+        <table class="dash-table">
+          <thead><tr><th>Cliente</th><th>Imóvel (ID)</th><th>Data/Turno</th><th>Tipo</th><th>Status</th><th>Ações</th></tr></thead>
+          <tbody id="agenda-lista"><tr><td colspan="6">Carregando agendamentos…</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Tabela de Imóveis -->
+    <section class="dash-panel">
+      <h2>Minha Carteira</h2>
+      <div class="dash-table-wrap">
+        <table class="dash-table">
+          <thead><tr><th>Imóvel</th><th>Finalidade</th><th>Preço</th><th>Status</th><th>Ações</th></tr></thead>
+          <tbody id="imoveis-lista"><tr><td colspan="5">Carregando…</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Tabela de Leads Recentes -->
+    <section class="dash-panel">
+      <h2>Leads Recentes</h2>
+      <div class="dash-table-wrap">
+        <table class="dash-table">
+          <thead><tr><th>Contato</th><th>Telefone</th><th>Imóvel (ID)</th><th>Data</th></tr></thead>
+          <tbody id="leads-lista"><tr><td colspan="4">Carregando…</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <script type="module" src="/js/corretor.js"></script>
+</body>
+</html>

@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Anuncie seu Imóvel | R&D PRIME</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/anuncie.css">
+</head>
+<body>
+
+  <div class="bg-aura" aria-hidden="true">
+    <div class="aura aura-1"></div>
+    <div class="aura aura-2"></div>
+    <div class="aura aura-3"></div>
+    <div class="grid-overlay"></div>
+  </div>
+
+  <header class="navbar">
+    <div class="container nav-inner">
+      <a class="brand" href="/">
+        <span class="brand-mark">R&D</span>
+        <span class="brand-text">
+          <span class="brand-name">R&D PRIME</span>
+          <span class="brand-sub">IMÓVEIS</span>
+        </span>
+      </a>
+      <a href="/" class="nav-link">← Voltar ao site</a>
+    </div>
+  </header>
+
+  <main class="container" style="padding: 60px 0; max-width: 800px; position:relative; z-index:1;">
+    
+    <!-- Cabeçalho -->
+    <div class="reveal visible" style="text-align:center; margin-bottom: 40px;">
+      <div class="eyebrow"><span class="eyebrow-line"></span>Para Proprietários</div>
+      <h1 style="font-family:var(--font-display); font-size:2.5rem; margin-bottom:12px;">Anuncie seu imóvel conosco</h1>
+      <p class="section-intro" style="margin:0 auto;">Preencha os dados abaixo. Nossa equipe fará uma avaliação e entrará em contato.</p>
+    </div>
+
+    <!-- Barra de Progresso do Wizard -->
+    <div class="wizard-progress">
+      <div class="progress-bar" id="progress-bar"></div>
+      <div class="step-indicators">
+        <div class="step active" data-step="1">1. Contato</div>
+        <div class="step" data-step="2">2. Identificação</div>
+        <div class="step" data-step="3">3. Localização</div>
+        <div class="step" data-step="4">4. Imóvel</div>
+      </div>
+    </div>
+
+    <!-- O Formulário -->
+    <form id="wizard-form" class="panel" style="padding: 40px;">
+      
+      <!-- PASSO 1: DADOS PESSOAIS -->
+      <div class="form-step active" id="step-1">
+        <h3>Vamos começar com o seu contato</h3>
+        <div class="field">
+          <label for="nome">Nome completo *</label>
+          <input id="nome" type="text" required placeholder="Seu nome">
+        </div>
+        <div class="field">
+          <label for="email">E-mail *</label>
+          <input id="email" type="email" required placeholder="seu@email.com">
+        </div>
+        <div class="field">
+          <label for="whatsapp">WhatsApp (com DDD) *</label>
+          <input id="whatsapp" type="tel" required placeholder="(11) 99999-9999">
+        </div>
+        <div class="wizard-actions">
+          <span></span> <!-- Espaçador -->
+          <button type="button" class="button button-gold next-btn" data-next="2">Próximo →</button>
+        </div>
+      </div>
+
+      <!-- PASSO 2: IDENTIFICAÇÃO -->
+      <div class="form-step" id="step-2">
+        <h3>Identificação do anunciante</h3>
+        <p class="section-intro" style="margin-bottom:24px;">Esses dados são necessários para validar a titularidade do imóvel junto aos órgãos competentes.</p>
+        <div class="field">
+          <label for="cpf">CPF *</label>
+          <input id="cpf" type="text" required placeholder="000.000.000-00" maxlength="14">
+        </div>
+        <div class="field">
+          <label for="tipo-anunciante">Você é: *</label>
+          <select id="tipo-anunciante" required>
+            <option value="Proprietário" style="color: black;">O Proprietário do imóvel</option>
+            <option value="Representante" style="color: black;">Representante / Procurador</option>
+          </select>
+        </div>
+        <div class="wizard-actions">
+          <button type="button" class="button button-dark prev-btn" data-prev="1">← Voltar</button>
+          <button type="button" class="button button-gold next-btn" data-next="3">Próximo →</button>
+        </div>
+      </div>
+
+      <!-- PASSO 3: LOCALIZAÇÃO -->
+      <div class="form-step" id="step-3">
+        <h3>Onde fica o imóvel?</h3>
+        <div class="grid-2">
+          <div class="field">
+            <label for="cep">CEP *</label>
+            <input id="cep" type="text" required placeholder="00000-000" maxlength="9">
+          </div>
+          <div class="field">
+            <label for="cidade">Cidade *</label>
+            <input id="cidade" type="text" required placeholder="São Paulo">
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="field">
+            <label for="bairro">Bairro *</label>
+            <input id="bairro" type="text" required placeholder="Vila Sônia">
+          </div>
+          <div class="field">
+            <label for="endereco">Endereço (Rua/Av e Número) *</label>
+            <input id="endereco" type="text" required placeholder="Av. das Nações, 1000">
+          </div>
+        </div>
+        <div class="wizard-actions">
+          <button type="button" class="button button-dark prev-btn" data-prev="2">← Voltar</button>
+          <button type="button" class="button button-gold next-btn" data-next="4">Próximo →</button>
+        </div>
+      </div>
+
+      <!-- PASSO 4: CARACTERÍSTICAS DO IMÓVEL -->
+      <div class="form-step" id="step-4">
+        <h3>Detalhes do imóvel</h3>
+        <div class="grid-2">
+          <div class="field">
+            <label for="tipo-imovel">Tipo de Imóvel *</label>
+            <select id="tipo-imovel" required>
+              <option value="residencial" style="color: black;">Residencial (Casa/Apartamento)</option>
+              <option value="comercial" style="color: black;">Comercial (Loja/Sala)</option>
+              <option value="sublocacao" style="color: black;">Coworking / Sublocação</option>
+              <option value="garagem" style="color: black;">Vaga de Garagem</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="modalidade">Modalidade *</label>
+            <select id="modalidade" required>
+              <option value="venda" style="color: black;">Venda</option>
+              <option value="locacao" style="color: black;">Locação</option>
+              <option value="temporada" style="color: black;">Temporada</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="field">
+            <label for="valor">Valor pretendido (R$) *</label>
+            <input id="valor" type="number" required placeholder="500000">
+          </div>
+          <div class="field">
+            <label for="area">Área útil (m²)</label>
+            <input id="area" type="number" placeholder="70">
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="field">
+            <label for="quartos">Quartos</label>
+            <input id="quartos" type="number" min="0" placeholder="2">
+          </div>
+          <div class="field">
+            <label for="vagas">Vagas</label>
+            <input id="vagas" type="number" min="0" placeholder="1">
+          </div>
+        </div>
+        <div class="field">
+          <label for="links">Links de fotos (Google Drive, Dropbox, etc.)</label>
+          <textarea id="links" rows="2" placeholder="Cole aqui links das fotos ou o link do anúncio antigo"></textarea>
+        </div>
+        <div class="wizard-actions">
+          <button type="button" class="button button-dark prev-btn" data-prev="3">← Voltar</button>
+          <button type="submit" class="button button-gold" id="btn-submit">Enviar para Avaliação ✓</button>
+        </div>
+      </div>
+
+    </form>
+    
+    <!-- Feedback de Sucesso -->
+    <div id="success-screen" class="panel" style="display:none; text-align:center; padding: 60px 40px;">
+      <div style="width:80px; height:80px; background:rgba(74,222,128,0.1); color:#4ade80; border-radius:50%; display:grid; place-items:center; margin:0 auto 24px;">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+      </div>
+      <h2 style="font-family:var(--font-display); font-size:2rem; color:#fff; margin-bottom:12px;">Recebemos seus dados!</h2>
+      <p style="color:var(--text-soft); margin-bottom:32px;">Nossa equipe de captação vai analisar as informações e entrar em contato via WhatsApp em até 24h.</p>
+      <a href="/" class="button button-gold">Voltar para a Página Inicial</a>
+    </div>
+
+  </main>
+
+  <script type="module" src="/js/anuncie.js"></script>
+</body>
+</html>

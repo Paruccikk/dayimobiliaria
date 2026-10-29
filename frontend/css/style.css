@@ -359,10 +359,6 @@ img { max-width: 100%; display: block; }
   transform: translateY(-2px);
 }
 
-/* ✅ Magnetic SEM will-change (era o gatilho de repaint) */
-.magnetic {
-  /* Nada de will-change — deixa o navegador decidir */
-}
 
 /* ---------- Eyebrow ---------- */
 .eyebrow {

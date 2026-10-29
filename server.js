@@ -1082,6 +1082,89 @@ app.patch(
   }
 );
 
+
+// --------------------------------------------------
+// AGENDAMENTO DE VISITAS
+// --------------------------------------------------
+
+// 1. Cliente cria um agendamento (Público, mas valida os dados)
+app.post("/api/agendamentos", async (req, res) => {
+  if (!db) return firebaseUnavailable(res);
+
+  const { imovelId, corretorUid, nome, telefone, data, turno, tipo } = req.body || {};
+
+  if (!imovelId || !nome || !telefone || !data || !turno || !tipo) {
+    return res.status(400).json({ error: "Preencha todos os campos do agendamento." });
+  }
+
+  try {
+    const ref = db.ref("agendamentos").push();
+    await ref.set({
+      imovelId,
+      corretorUid: corretorUid || null,
+      clienteNome: nome,
+      clienteTelefone: telefone,
+      data,
+      turno,
+      tipo, // "Presencial" ou "Vídeochamada"
+      status: "pendente",
+      criadoEm: new Date().toISOString()
+    });
+
+    return res.status(201).json({ ok: true, id: ref.key });
+  } catch (error) {
+    return sendServerError(res, "Não foi possível agendar a visita.", error);
+  }
+});
+
+// 2. Corretor lê os agendamentos da carteira dele
+app.get("/api/agendamentos", requireFirebase, async (req, res) => {
+  try {
+    const snapshot = await db.ref("agendamentos").get();
+    const all = snapshot.val() || {};
+    
+    let items = Object.entries(all).map(([id, value]) => ({ id, ...value }));
+
+    // Se não for admin, só vê os agendamentos dele
+    if (req.profile.papel !== "administrador") {
+      items = items.filter(a => a.corretorUid === req.user.uid);
+    }
+
+    // Ordena pelos mais recentes
+    items.sort((a, b) => String(b.criadoEm).localeCompare(String(a.criadoEm)));
+
+    return res.json({ items });
+  } catch (error) {
+    return sendServerError(res, "Não foi possível carregar os agendamentos.", error);
+  }
+});
+
+// 3. Corretor atualiza o status do agendamento
+app.patch("/api/agendamentos/:id", requireFirebase, async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+
+  if (!["confirmado", "recusado", "concluido"].includes(status)) {
+    return res.status(400).json({ error: "Status inválido." });
+  }
+
+  try {
+    const ref = db.ref(`agendamentos/${id}`);
+    const snap = await ref.get();
+    if (!snap.exists()) return res.status(404).json({ error: "Agendamento não encontrado." });
+
+    const agendamento = snap.val();
+    if (req.profile.papel !== "administrador" && agendamento.corretorUid !== req.user.uid) {
+      return res.status(403).json({ error: "Sem permissão para alterar este agendamento." });
+    }
+
+    await ref.update({ status, atualizadoEm: new Date().toISOString() });
+    return res.json({ ok: true });
+  } catch (error) {
+    return sendServerError(res, "Erro ao atualizar agendamento.", error);
+  }
+});
+
 // --------------------------------------------------
 // TRATAMENTO DE ERROS
 // --------------------------------------------------
