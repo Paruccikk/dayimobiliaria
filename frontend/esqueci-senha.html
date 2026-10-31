@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Recuperar Senha | R&D PRIME</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/admin.css"> <!-- Reaproveitando o CSS de auth -->
+</head>
+<body>
+
+  <div class="bg-aura" aria-hidden="true">
+    <div class="aura aura-1"></div>
+    <div class="aura aura-2"></div>
+    <div class="aura aura-3"></div>
+    <div class="grid-overlay"></div>
+  </div>
+
+  <section class="auth-card reveal visible" style="position:relative; z-index:1;">
+    <div class="eyebrow">R&D PRIME IMÓVEIS</div>
+    <h1>Recuperar senha</h1>
+    <p class="dash-subtitle">Informe seu e-mail cadastrado e enviaremos um link para criar uma nova senha.</p>
+    
+    <form id="reset-form" class="auth-fields">
+      <label for="email">E-mail</label>
+      <input id="email" type="email" autocomplete="email" required placeholder="seu@email.com">
+      
+      <button class="button button-gold" id="btn-submit" type="submit" style="margin-top: 10px;">Enviar link de recuperação</button>
+    </form>
+    
+    <p id="feedback" class="dash-feedback" style="text-align:center; color:#f06ca8;" role="status"></p>
+    
+    <div style="text-align: center; margin-top: 20px; display:flex; justify-content:space-between;">
+      <a href="/login.html" style="font-size: 13px; color: var(--text-soft);">← Voltar ao login</a>
+    </div>
+  </section>
+
+  <script type="module">
+    import { auth } from "/js/firebase-client.js";
+    import { sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+    const form = document.querySelector("#reset-form");
+    const btn = document.querySelector("#btn-submit");
+    const feedback = document.querySelector("#feedback");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      btn.disabled = true;
+      btn.textContent = "Enviando...";
+      feedback.textContent = "";
+
+      const email = document.querySelector("#email").value;
+
+      try {
+        await sendPasswordResetEmail(auth, email);
+        feedback.style.color = "#4ade80"; // Verde
+        feedback.textContent = "Link enviado! Verifique sua caixa de entrada e o spam.";
+        form.reset();
+      } catch (error) {
+        console.error(error);
+        feedback.style.color = "#f06ca8"; // Rosa
+        if (error.code === "auth/user-not-found") {
+          feedback.textContent = "Não há conta cadastrada com este e-mail.";
+        } else {
+          feedback.textContent = "Erro ao enviar e-mail. Tente novamente mais tarde.";
+        }
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Enviar link de recuperação";
+      }
+    });
+  </script>
+</body>
+</html>
