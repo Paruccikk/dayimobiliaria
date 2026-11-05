@@ -709,6 +709,23 @@ app.get(
 // IMÓVEIS PÚBLICOS
 // --------------------------------------------------
 
+// Dashboard do painel do corretor: dados restritos à carteira do usuário.
+app.get("/api/corretor/dashboard", requireFirebase, allowRoles("administrador", "corretor"), async (req, res) => {
+  try {
+    const [propertiesSnapshot, leadsSnapshot] = await Promise.all([db.ref("imoveis").get(), db.ref("leads").get()]);
+    let imoveis = Object.entries(propertiesSnapshot.val() || {}).map(([id, item]) => ({ id, ...item }));
+    let leads = Object.entries(leadsSnapshot.val() || {}).map(([id, item]) => ({ id, ...item }));
+    if (req.profile.papel !== "administrador") {
+      imoveis = imoveis.filter(item => item.responsavelUid === req.user.uid);
+      leads = leads.filter(item => item.responsavelUid === req.user.uid);
+    }
+    imoveis.sort((a, b) => String(b.criadoEm || "").localeCompare(String(a.criadoEm || "")));
+    leads.sort((a, b) => String(b.criadoEm || "").localeCompare(String(a.criadoEm || "")));
+    return res.json({ imoveis, leads: leads.slice(0, 100) });
+  } catch (error) {
+    return sendServerError(res, "Não foi possível carregar os dados do painel.", error);
+  }
+});
 app.get("/api/imoveis", async (_req, res) => {
   if (!db) {
     return firebaseUnavailable(res);
