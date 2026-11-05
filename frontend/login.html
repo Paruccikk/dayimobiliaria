@@ -8,10 +8,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/style.css">
-  <link rel="stylesheet" href="/css/admin.css"> <!-- Reaproveitando o CSS de auth-card -->
+  <link rel="stylesheet" href="/css/admin.css">
 </head>
 <body>
-
   <div class="bg-aura" aria-hidden="true">
     <div class="aura aura-1"></div>
     <div class="aura aura-2"></div>
@@ -23,59 +22,25 @@
     <div class="eyebrow">R&D PRIME IMÓVEIS</div>
     <h1>Área Restrita</h1>
     <p class="dash-subtitle">Entre com suas credenciais para acessar o sistema.</p>
-    
+
     <form id="login-form" class="auth-fields">
       <label for="email">E-mail</label>
       <input id="email" type="email" autocomplete="username" required placeholder="seu@email.com">
-      
+
       <label for="password">Senha</label>
       <input id="password" type="password" autocomplete="current-password" required placeholder="••••••••">
-      
-      <button class="button button-gold" id="btn-submit" type="submit" style="margin-top: 10px;">Entrar</button>
-    </form>
-    
-    <p id="login-feedback" class="dash-feedback" style="text-align:center; color:#f06ca8;" role="status"></p>
-    
-      <!-- Procure por isso no seu login.html e adicione a linha do esqueci-senha -->
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px;">
-      <a href="/" style="font-size: 13px; color: var(--text-soft);">← Voltar ao site</a>
-      <a href="/esqueci-senha.html" style="font-size: 13px; color: var(--gold-2); text-decoration: underline;">Esqueci minha senha</a>
-    </div>
 
+      <button class="button button-gold" id="btn-submit" type="submit" style="margin-top:10px;">Entrar</button>
+    </form>
+
+    <p id="login-feedback" class="dash-feedback" style="text-align:center; color:#f06ca8;" role="status" aria-live="polite"></p>
+
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px;">
+      <a href="/" style="font-size:13px; color:var(--text-soft);">← Voltar ao site</a>
+      <a href="/esqueci-senha.html" style="font-size:13px; color:var(--gold-2); text-decoration:underline;">Esqueci minha senha</a>
+    </div>
   </section>
 
-  <script type="module">
-    import { auth } from "/js/firebase-client.js";
-    import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-
-    const form = document.querySelector("#login-form");
-    const btn = document.querySelector("#btn-submit");
-    const feedback = document.querySelector("#login-feedback");
-
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      btn.disabled = true;
-      btn.textContent = "Entrando...";
-      feedback.textContent = "";
-
-      const email = document.querySelector("#email").value;
-      const password = document.querySelector("#password").value;
-
-      try {
-        await signInWithEmailAndPassword(auth, email, password);
-        // Sucesso: Redireciona para o Hub, onde as permissões serão validadas
-        window.location.replace("/painel.html");
-      } catch (error) {
-        console.error(error);
-        if (error.code === "auth/invalid-credential") {
-          feedback.textContent = "E-mail ou senha incorretos.";
-        } else {
-          feedback.textContent = "Erro ao entrar. Tente novamente.";
-        }
-        btn.disabled = false;
-        btn.textContent = "Entrar";
-      }
-    });
-  </script>
+  <script type="module" src="/js/login.js"></script>
 </body>
 </html>
