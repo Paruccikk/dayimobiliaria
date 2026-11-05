@@ -18,6 +18,8 @@ const UPLOAD_ROOT = path.join(__dirname, "uploads", "imoveis");
 fs.mkdirSync(UPLOAD_ROOT, { recursive: true });
 
 app.disable("x-powered-by");
+// Render fica atrás de proxy reverso; necessário para rate-limit identificar IP corretamente.
+app.set("trust proxy", 1);
 
 // --------------------------------------------------
 // SEGURANÇA E CONFIGURAÇÃO HTTP
@@ -1168,7 +1170,7 @@ app.patch("/api/agendamentos/:id", requireFirebase, async (req, res) => {
 
 
 /* AGENDA DE VISITAS */
-const visitStatuses = new Set(["confirmada","realizada","cliente_faltou","proposta_apresentada"]);
+const visitStatuses = new Set(["pendente","confirmada","recusada","realizada","cliente_faltou","proposta_apresentada"]);
 function validVisitDate(value) {
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) return false;
   const date = new Date(value);
@@ -1181,7 +1183,7 @@ app.get("/api/agenda/visitas", requireFirebase, allowRoles("administrador","corr
   try {
     const [visitasSnap,legacySnap] = await Promise.all([db.ref("visitas").get(),db.ref("agendamentos").get()]);
     const manual=Object.entries(visitasSnap.val()||{}).map(([id,v])=>({id,origem:"manual",...v}));
-    const site=Object.entries(legacySnap.val()||{}).map(([id,v])=>({id,origem:"site",clienteNome:v.clienteNome||v.nome||"",clienteTelefone:v.clienteTelefone||v.telefone||"",imovelId:v.imovelId||"",corretorUid:v.corretorUid||null,inicio:v.inicio||v.data||"",turno:v.turno||"",tipo:v.tipo||"",status:({pendente:"confirmada",confirmado:"confirmada",concluido:"realizada",recusado:"cliente_faltou"})[v.status]||v.status||"confirmada",observacoes:v.observacoes||"",criadoEm:v.criadoEm||""}));
+    const site=Object.entries(legacySnap.val()||{}).map(([id,v])=>({id,origem:"site",clienteNome:v.clienteNome||v.nome||"",clienteTelefone:v.clienteTelefone||v.telefone||"",imovelId:v.imovelId||"",corretorUid:v.corretorUid||null,inicio:v.inicio||v.data||"",turno:v.turno||"",tipo:v.tipo||"",status:v.statusOperacional||({pendente:"pendente",confirmado:"confirmada",concluido:"realizada",recusado:"recusada"})[v.status]||v.status||"pendente",observacoes:v.observacoes||"",criadoEm:v.criadoEm||""}));
     let items=[...manual,...site];
     if(req.profile.papel!=="administrador") items=items.filter(v=>v.corretorUid===req.user.uid);
     items.sort((a,b)=>String(a.inicio).localeCompare(String(b.inicio)));
@@ -1212,7 +1214,7 @@ app.patch("/api/agenda/visitas/:id", requireFirebase, allowRoles("administrador"
     const legacyRef=db.ref("agendamentos/"+id),legacySnap=await legacyRef.get();
     if(!legacySnap.exists())return res.status(404).json({error:"Visita não encontrada."});
     const old=legacySnap.val();if(req.profile.papel!=="administrador"&&old.corretorUid!==req.user.uid)return res.status(403).json({error:"Visita fora da sua carteira."});
-    const mapped=({confirmada:"confirmado",realizada:"concluido",cliente_faltou:"recusado",proposta_apresentada:"concluido"})[status];
+    const mapped=({pendente:"pendente",confirmada:"confirmado",recusada:"recusado",realizada:"concluido",cliente_faltou:"recusado",proposta_apresentada:"concluido"})[status];
     await legacyRef.update({status:mapped,statusOperacional:status,atualizadoEm:new Date().toISOString()});return res.json({ok:true});
   }catch(e){return sendServerError(res,"Não foi possível atualizar a visita.",e);}
 });
