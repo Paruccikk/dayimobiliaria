@@ -69,7 +69,7 @@ async function loadDashboard() {
 
     $("#corretor-welcome").textContent = `Conectado como ${currentUser.email} · ${currentProfile.papel}`;
 
-    const data = await api("/api/admin/dashboard");
+    const data = await api("/api/corretor/dashboard");
     
     const allImoveis = data.imoveis || [];
     const myImoveis = currentProfile.papel === "administrador" 
@@ -127,8 +127,8 @@ async function loadDashboard() {
           <td>${statusPill(ag.status)}</td>
           <td>
             ${ag.status === 'pendente' ? `
-              <button class="small-btn gold" onclick="updateAgenda('${ag.id}', 'confirmado', this)">Confirmar</button>
-              <button class="small-btn light" onclick="updateAgenda('${ag.id}', 'recusado', this)">Recusar</button>
+              <button class="small-btn gold" data-agenda-action="confirmado" data-agenda-id="${escapeHtml(ag.id)}">Confirmar</button>
+              <button class="small-btn light" data-agenda-action="recusado" data-agenda-id="${escapeHtml(ag.id)}">Recusar</button>
             ` : '<span class="dash-subtitle">Finalizado</span>'}
           </td>
         </tr>
@@ -211,6 +211,12 @@ $("#property-form").addEventListener("submit", async (e) => {
 });
 
 // Controles de UI
+$("#agenda-lista").addEventListener("click", (event) => {
+  const btn = event.target.closest("[data-agenda-action]");
+  if (!btn) return;
+  updateAgenda(btn.dataset.agendaId, btn.dataset.agendaAction, btn);
+});
+
 $("#btn-refresh").addEventListener("click", loadDashboard);
 $("#btn-logout").addEventListener("click", async () => {
   await signOut(auth);
