@@ -89,6 +89,16 @@ onAuthStateChanged(auth, async (user) => {
       );
     }
 
+    if (["corretor", "administrador"].includes(profile.papel)) {
+      html += buildCard(
+        "CRM de Leads",
+        "Organize oportunidades em Kanban, acompanhe preferências e registre cada interação.",
+        "/crm.html",
+        icons.corretor,
+        "#d7ad65"
+      );
+    }
+
     hubGrid.innerHTML = html;
 
   } catch (err) {
