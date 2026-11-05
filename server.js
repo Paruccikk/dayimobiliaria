@@ -1166,6 +1166,57 @@ app.patch("/api/agendamentos/:id", requireFirebase, async (req, res) => {
 });
 
 
+
+/* AGENDA DE VISITAS */
+const visitStatuses = new Set(["confirmada","realizada","cliente_faltou","proposta_apresentada"]);
+function validVisitDate(value) {
+  if (typeof value !== "string" || !/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}$/.test(value)) return false;
+  const date = new Date(value);
+  return Number.isFinite(date.getTime()) && date.getFullYear() >= 2020;
+}
+function canAccessVisit(req, visit) {
+  return req.profile.papel === "administrador" || visit.corretorUid === req.user.uid;
+}
+app.get("/api/agenda/visitas", requireFirebase, allowRoles("administrador","corretor"), async(req,res)=>{
+  try {
+    const [visitasSnap,legacySnap] = await Promise.all([db.ref("visitas").get(),db.ref("agendamentos").get()]);
+    const manual=Object.entries(visitasSnap.val()||{}).map(([id,v])=>({id,origem:"manual",...v}));
+    const site=Object.entries(legacySnap.val()||{}).map(([id,v])=>({id,origem:"site",clienteNome:v.clienteNome||v.nome||"",clienteTelefone:v.clienteTelefone||v.telefone||"",imovelId:v.imovelId||"",corretorUid:v.corretorUid||null,inicio:v.inicio||v.data||"",turno:v.turno||"",tipo:v.tipo||"",status:({pendente:"confirmada",confirmado:"confirmada",concluido:"realizada",recusado:"cliente_faltou"})[v.status]||v.status||"confirmada",observacoes:v.observacoes||"",criadoEm:v.criadoEm||""}));
+    let items=[...manual,...site];
+    if(req.profile.papel!=="administrador") items=items.filter(v=>v.corretorUid===req.user.uid);
+    items.sort((a,b)=>String(a.inicio).localeCompare(String(b.inicio)));
+    return res.json({items});
+  } catch(e){return sendServerError(res,"Não foi possível carregar a agenda.",e);}
+});
+app.post("/api/agenda/visitas", requireFirebase, allowRoles("administrador","corretor"), async(req,res)=>{
+  const b=req.body||{},clienteNome=cleanString(b.clienteNome,120),clienteTelefone=cleanString(b.clienteTelefone,40),inicio=cleanString(b.inicio,16),imovelId=cleanString(b.imovelId,128);
+  if(!clienteNome||!clienteTelefone||!validVisitDate(inicio))return res.status(400).json({error:"Informe cliente, telefone e data/hora válidos."});
+  if(!visitStatuses.has(b.status||"confirmada"))return res.status(400).json({error:"Status de visita inválido."});
+  const corretorUid=req.profile.papel==="administrador"&&isValidUid(b.corretorUid)?b.corretorUid:req.user.uid;
+  try {
+    if(imovelId){const p=await db.ref("imoveis/"+imovelId).get();if(!p.exists())return res.status(404).json({error:"Imóvel não encontrado."});}
+    const ref=db.ref("visitas").push(),now=new Date().toISOString();
+    const item={clienteNome,clienteTelefone,clienteEmail:cleanString(b.clienteEmail,160),imovelId,corretorUid,inicio,status:b.status||"confirmada",tipo:cleanString(b.tipo,40)||"Presencial",observacoes:cleanString(b.observacoes,2000),origem:"manual",criadoPor:req.user.uid,criadoEm:now,atualizadoEm:now};
+    await ref.set(item);return res.status(201).json({ok:true,id:ref.key,item:{id:ref.key,...item}});
+  }catch(e){return sendServerError(res,"Não foi possível cadastrar a visita.",e);}
+});
+app.patch("/api/agenda/visitas/:id", requireFirebase, allowRoles("administrador","corretor"), async(req,res)=>{
+  const id=cleanString(req.params.id,128),status=req.body?.status;
+  if(!id||id.includes("/")||!visitStatuses.has(status))return res.status(400).json({error:"ID ou status inválido."});
+  try {
+    const manualRef=db.ref("visitas/"+id),manualSnap=await manualRef.get();
+    if(manualSnap.exists()){
+      if(!canAccessVisit(req,manualSnap.val()))return res.status(403).json({error:"Visita fora da sua carteira."});
+      await manualRef.update({status,atualizadoEm:new Date().toISOString()});return res.json({ok:true});
+    }
+    const legacyRef=db.ref("agendamentos/"+id),legacySnap=await legacyRef.get();
+    if(!legacySnap.exists())return res.status(404).json({error:"Visita não encontrada."});
+    const old=legacySnap.val();if(req.profile.papel!=="administrador"&&old.corretorUid!==req.user.uid)return res.status(403).json({error:"Visita fora da sua carteira."});
+    const mapped=({confirmada:"confirmado",realizada:"concluido",cliente_faltou:"recusado",proposta_apresentada:"concluido"})[status];
+    await legacyRef.update({status:mapped,statusOperacional:status,atualizadoEm:new Date().toISOString()});return res.json({ok:true});
+  }catch(e){return sendServerError(res,"Não foi possível atualizar a visita.",e);}
+});
+
 /* CRM OPERACIONAL */
 const crmStages = new Set(["novo","em_contato","visita_agendada","proposta_enviada","em_analise_contrato","fechado","perdido"]);
 function canAccessLead(req, lead) { return req.profile.papel === "administrador" || lead.responsavelUid === req.user.uid; }
