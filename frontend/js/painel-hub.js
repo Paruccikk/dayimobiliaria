@@ -99,6 +99,10 @@ onAuthStateChanged(auth, async (user) => {
       );
     }
 
+    if (["corretor", "administrador"].includes(profile.papel)) {
+      html += buildCard("Agenda de Visitas", "Consulte a agenda diária e semanal e acompanhe os resultados das visitas.", "/agenda.html", icons.corretor, "#d7ad65");
+    }
+
     hubGrid.innerHTML = html;
 
   } catch (err) {
