@@ -1170,7 +1170,7 @@ app.patch("/api/agendamentos/:id", requireFirebase, async (req, res) => {
 /* AGENDA DE VISITAS */
 const visitStatuses = new Set(["confirmada","realizada","cliente_faltou","proposta_apresentada"]);
 function validVisitDate(value) {
-  if (typeof value !== "string" || !/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}$/.test(value)) return false;
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) return false;
   const date = new Date(value);
   return Number.isFinite(date.getTime()) && date.getFullYear() >= 2020;
 }
