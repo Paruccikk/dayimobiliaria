@@ -223,7 +223,7 @@ function renderUsers(users) {
   const tbody = $("#usuarios-lista");
 
   if (!users.length) {
-    tbody.innerHTML = '<tr><td colspan="6">Nenhum usuário cadastrado.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7">Nenhum usuário cadastrado.</td></tr>';
     return;
   }
 
