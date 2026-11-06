@@ -635,16 +635,17 @@ app.get(
   allowRoles("administrador"),
   async (_req, res) => {
     try {
-      const [propertiesSnapshot, usersSnapshot, leadsSnapshot] =
+      const [propertiesSnapshot, usersSnapshot, leadsSnapshot, visitsSnapshot, bookingsSnapshot] =
         await Promise.all([
-          db.ref("imoveis").get(),
-          db.ref("usuarios").get(),
-          db.ref("leads").get(),
+          db.ref("imoveis").get(), db.ref("usuarios").get(), db.ref("leads").get(),
+          db.ref("visitas").get(), db.ref("agendamentos").get(),
         ]);
 
       const propertiesRaw = propertiesSnapshot.val() || {};
       const usersRaw = usersSnapshot.val() || {};
       const leadsRaw = leadsSnapshot.val() || {};
+      const visitasRaw = visitsSnapshot.val() || {};
+      const agendamentosRaw = bookingsSnapshot.val() || {};
 
       const imoveis = Object.entries(propertiesRaw).map(([id, item]) => ({
         id,
@@ -678,9 +679,43 @@ app.get(
           item.status === "ativo"
       );
 
-      const leadsNovos = leads.filter(
-        (item) => !item.status || item.status === "novo"
-      );
+      const leadsNovos = leads.filter(item => !item.status || item.status === "novo");
+      const visitas = Object.entries(visitasRaw).map(([id, item]) => ({ id, ...item }));
+      const agendamentos = Object.entries(agendamentosRaw).map(([id, item]) => ({ id, ...item }));
+      const visitasAll = [...visitas, ...agendamentos.map(item => ({
+        ...item,
+        status: item.statusOperacional || ({ pendente: "pendente", confirmado: "confirmada", concluido: "realizada", recusado: "recusada" })[item.status] || item.status
+      }))];
+      const corretoresTodos = usuarios.filter(item => item.papel === "corretor");
+      const gerentes = usuarios.filter(item => item.papel === "gerente");
+      const corretorStats = corretoresTodos.map(user => {
+        const ownLeads = leads.filter(item => item.responsavelUid === user.uid);
+        const ownProperties = imoveis.filter(item => item.responsavelUid === user.uid);
+        const ownVisits = visitasAll.filter(item => item.corretorUid === user.uid);
+        return {
+          uid: user.uid, nome: user.nome || user.email || user.uid, email: user.email || "",
+          gerenteUid: user.gerenteUid || null,
+          leads: ownLeads.length,
+          leadsNovos: ownLeads.filter(item => !item.status || item.status === "novo").length,
+          propostas: ownLeads.filter(item => ["proposta_enviada", "em_analise_contrato"].includes(item.status)).length,
+          fechados: ownLeads.filter(item => item.status === "fechado").length,
+          imoveis: ownProperties.length, visitas: ownVisits.length,
+          visitasRealizadas: ownVisits.filter(item => ["realizada", "concluido"].includes(item.status)).length
+        };
+      });
+      const managerStats = gerentes.map(manager => {
+        const team = corretorStats.filter(item => item.gerenteUid === manager.uid);
+        return {
+          uid: manager.uid, nome: manager.nome || manager.email || manager.uid,
+          corretores: team.length,
+          leads: team.reduce((sum, item) => sum + item.leads, 0),
+          propostas: team.reduce((sum, item) => sum + item.propostas, 0),
+          fechados: team.reduce((sum, item) => sum + item.fechados, 0),
+          imoveis: team.reduce((sum, item) => sum + item.imoveis, 0),
+          visitas: team.reduce((sum, item) => sum + item.visitas, 0),
+          visitasRealizadas: team.reduce((sum, item) => sum + item.visitasRealizadas, 0)
+        };
+      });
 
       return res.json({
         resumo: {
@@ -705,11 +740,14 @@ app.get(
         usuarios: usuarios.sort((a, b) =>
           String(a.nome || "").localeCompare(String(b.nome || ""), "pt-BR")
         ),
-        leads: leads
-          .sort((a, b) =>
-            String(b.criadoEm || "").localeCompare(String(a.criadoEm || ""))
-          )
-          .slice(0, 100),
+        leads: leads.sort((a, b) => String(b.criadoEm || "").localeCompare(String(a.criadoEm || ""))).slice(0, 100),
+        produtividade: {
+          visitas: visitasAll.length,
+          visitasRealizadas: visitasAll.filter(item => ["realizada", "concluido"].includes(item.status)).length,
+          propostas: leads.filter(item => ["proposta_enviada", "em_analise_contrato"].includes(item.status)).length,
+          fechados: leads.filter(item => item.status === "fechado").length,
+          gerentes: managerStats, corretores: corretorStats
+        },
       });
     } catch (error) {
       return sendServerError(
