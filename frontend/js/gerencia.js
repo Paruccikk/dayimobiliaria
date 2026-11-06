@@ -33,11 +33,11 @@ async function load() {
   try {
     const profileData = await api("/api/auth/perfil");
     const profile = profileData.perfil;
-    if (!profile || profile.papel !== "gerente" || profile.ativo !== true || profile.status !== "ativo") {
+    if (!profile || !["gerente", "administrador"].includes(profile.papel) || profile.ativo !== true || profile.status !== "ativo") {
       window.location.replace("/painel.html");
       return;
     }
-    $("#manager-welcome").textContent = "Conectado como " + (profile.nome || currentUser.email) + " · Gerente";
+    $("#manager-welcome").textContent = "Conectado como " + (profile.nome || currentUser.email) + (profile.papel === "administrador" ? " · Administrador" : " · Gerente");
     const data = await api("/api/gerente/dashboard");
     const team = data.equipe || [];
     const properties = data.imoveis || [];
