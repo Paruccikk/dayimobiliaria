@@ -89,7 +89,7 @@ btnWhatsapp.addEventListener("click", () => {
   
   msg += `Aguardo o contato de vocês!`;
 
-  // Redireciona para o WhatsApp (substitua o número pelo da sua imobiliária, ex: 5511999999999)
+  // Abre o atendimento oficial da R&D Prime pelo WhatsApp.
   const phone = "5511964294254";
   const url = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
   
