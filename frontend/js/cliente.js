@@ -84,13 +84,13 @@ btnWhatsapp.addEventListener("click", () => {
     msg += `*${index + 1}. ${p.titulo}*\n`;
     msg += `Código: ${ref}\n`;
     msg += `Valor: ${new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(p.preco || 0)}\n`;
-    msg += `Link: https://dayimobiliaria.onrender.com/detalhes.html?id=${p.id}\n\n`;
+    msg += `Link: ${location.origin}/detalhes.html?id=${encodeURIComponent(p.id)}\n\n`;
   });
   
   msg += `Aguardo o contato de vocês!`;
 
   // Redireciona para o WhatsApp (substitua o número pelo da sua imobiliária, ex: 5511999999999)
-  const phone = "5511999999999"; // Coloque o número da R&D Prime aqui
+  const phone = "5511964294254";
   const url = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
   
   window.open(url, "_blank");
