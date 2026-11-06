@@ -18,6 +18,9 @@ const inputs = {
   finalidade: document.querySelector("#finalidade"),
   localizacao: document.querySelector("#localizacao"),
   precoMax: document.querySelector("#preco-max"),
+  quartos: document.querySelector("#quartos"),
+  situacaoObra: document.querySelector("#situacao-obra"),
+  mcmv: document.querySelector("#mcmv"),
 };
 
 const params = new URLSearchParams(location.search);
@@ -26,6 +29,9 @@ for (const [key, id] of [
   ["finalidade", "finalidade"],
   ["localizacao", "localizacao"],
   ["precoMax", "preco-max"],
+  ["quartos", "quartos"],
+  ["situacaoObra", "situacao-obra"],
+  ["mcmv", "mcmv"],
 ]) {
   if (params.has(key)) document.getElementById(id).value = params.get(key);
 }
@@ -65,6 +71,9 @@ const LABELS = {
   finalidade: "Finalidade",
   localizacao: "Local",
   precoMax: "Até R$",
+  quartos: "Quartos (mín.)",
+  situacaoObra: "Situação",
+  mcmv: "Minha Casa, Minha Vida",
 };
 
 function renderChips() {
@@ -121,7 +130,10 @@ function render() {
         [p.cidade, p.bairro, p.estado, p.titulo].some((v) =>
           String(v || "").toLocaleLowerCase("pt-BR").includes(loc)
         )) &&
-      (p.preco == null || Number(p.preco) <= max)
+      (p.preco == null || Number(p.preco) <= max) &&
+      (!inputs.quartos.value || Number(p.quartos || 0) >= Number(inputs.quartos.value)) &&
+      (!inputs.situacaoObra.value || (p.situacaoObra || (p.categoria === "lancamento" ? "lancamento" : "")) === inputs.situacaoObra.value) &&
+      (!inputs.mcmv.value || p.minhaCasaMinhaVida === true)
   );
 
   countEl.textContent = `${filtered.length} imóvel(is) encontrado(s)`;
