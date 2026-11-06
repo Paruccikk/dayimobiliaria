@@ -780,8 +780,22 @@ app.get("/api/gerente/dashboard", requireFirebase, allowRoles("gerente"), async 
     const agendamentos = byTeam(bookingsSnap.val(), "corretorUid");
     const names = Object.fromEntries(equipe.map(user => [user.uid, user.nome]));
     const annotate = items => items.map(item => ({ ...item, responsavelNome: names[item.responsavelUid || item.corretorUid] || "Corretor da equipe" }));
+    const desempenhoCorretores = equipe.map(user => {
+      const ownLeads = leads.filter(item => item.responsavelUid === user.uid);
+      const ownProperties = imoveis.filter(item => item.responsavelUid === user.uid);
+      const ownVisits = [...visitas, ...agendamentos].filter(item => item.corretorUid === user.uid);
+      return {
+        uid: user.uid, nome: user.nome, email: user.email,
+        imoveis: ownProperties.length, leads: ownLeads.length,
+        leadsNovos: ownLeads.filter(item => !item.status || item.status === "novo").length,
+        propostas: ownLeads.filter(item => ["proposta_enviada", "em_analise_contrato"].includes(item.status)).length,
+        fechados: ownLeads.filter(item => item.status === "fechado").length,
+        visitas: ownVisits.length,
+        visitasRealizadas: ownVisits.filter(item => ["realizada", "concluido"].includes(item.status || item.statusOperacional)).length
+      };
+    });
     return res.json({
-      equipe, imoveis: annotate(imoveis),
+      equipe, desempenhoCorretores, imoveis: annotate(imoveis),
       leads: annotate(leads).sort((a,b) => String(b.criadoEm || "").localeCompare(String(a.criadoEm || ""))),
       visitas: annotate(visitas), agendamentos: annotate(agendamentos),
       resumo: { corretores: equipe.length, imoveis: imoveis.length, leads: leads.length, visitas: visitas.length + agendamentos.length }
