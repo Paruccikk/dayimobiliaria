@@ -1480,16 +1480,19 @@ function validVisitDate(value) {
   const date = new Date(value);
   return Number.isFinite(date.getTime()) && date.getFullYear() >= 2020;
 }
-function canAccessVisit(req, visit) {
-  return req.profile.papel === "administrador" || visit.corretorUid === req.user.uid;
+async function canAccessVisit(req, visit) {
+  if (req.profile.papel === "administrador" || visit.corretorUid === req.user.uid) return true;
+  if (req.profile.papel !== "gerente" || !visit.corretorUid) return false;
+  const broker = (await db.ref("usuarios/" + visit.corretorUid).get()).val();
+  return broker?.papel === "corretor" && broker?.gerenteUid === req.user.uid;
 }
-app.get("/api/agenda/visitas", requireFirebase, allowRoles("administrador","corretor"), async(req,res)=>{
+app.get("/api/agenda/visitas", requireFirebase, allowRoles("administrador","gerente","corretor"), async(req,res)=>{
   try {
     const [visitasSnap,legacySnap] = await Promise.all([db.ref("visitas").get(),db.ref("agendamentos").get()]);
     const manual=Object.entries(visitasSnap.val()||{}).map(([id,v])=>({id,origem:"manual",...v}));
     const site=Object.entries(legacySnap.val()||{}).map(([id,v])=>({id,origem:"site",clienteNome:v.clienteNome||v.nome||"",clienteTelefone:v.clienteTelefone||v.telefone||"",imovelId:v.imovelId||"",corretorUid:v.corretorUid||null,inicio:v.inicio||v.data||"",turno:v.turno||"",tipo:v.tipo||"",status:v.statusOperacional||({pendente:"pendente",confirmado:"confirmada",concluido:"realizada",recusado:"recusada"})[v.status]||v.status||"pendente",observacoes:v.observacoes||"",criadoEm:v.criadoEm||""}));
     let items=[...manual,...site];
-    if(req.profile.papel!=="administrador") items=items.filter(v=>v.corretorUid===req.user.uid);
+    if(req.profile.papel==="corretor") items=items.filter(v=>v.corretorUid===req.user.uid); if(req.profile.papel==="gerente"){const teamSnap=await db.ref("usuarios").get();const team=new Set(Object.entries(teamSnap.val()||{}).filter(([,u])=>u.papel==="corretor"&&u.gerenteUid===req.user.uid).map(([uid])=>uid));items=items.filter(v=>team.has(v.corretorUid));}
     items.sort((a,b)=>String(a.inicio).localeCompare(String(b.inicio)));
     return res.json({items});
   } catch(e){return sendServerError(res,"Não foi possível carregar a agenda.",e);}
@@ -1506,23 +1509,37 @@ app.post("/api/agenda/visitas", requireFirebase, allowRoles("administrador","cor
     await ref.set(item);return res.status(201).json({ok:true,id:ref.key,item:{id:ref.key,...item}});
   }catch(e){return sendServerError(res,"Não foi possível cadastrar a visita.",e);}
 });
-app.patch("/api/agenda/visitas/:id", requireFirebase, allowRoles("administrador","corretor"), async(req,res)=>{
+app.patch("/api/agenda/visitas/:id", requireFirebase, allowRoles("administrador","gerente","corretor"), async(req,res)=>{
   const id=cleanString(req.params.id,128),status=req.body?.status;
   if(!id||id.includes("/")||!visitStatuses.has(status))return res.status(400).json({error:"ID ou status inválido."});
   try {
     const manualRef=db.ref("visitas/"+id),manualSnap=await manualRef.get();
     if(manualSnap.exists()){
-      if(!canAccessVisit(req,manualSnap.val()))return res.status(403).json({error:"Visita fora da sua carteira."});
+      if(!(await canAccessVisit(req,manualSnap.val())))return res.status(403).json({error:"Visita fora da sua carteira ou equipe."});
       await manualRef.update({status,atualizadoEm:new Date().toISOString()});return res.json({ok:true});
     }
     const legacyRef=db.ref("agendamentos/"+id),legacySnap=await legacyRef.get();
     if(!legacySnap.exists())return res.status(404).json({error:"Visita não encontrada."});
-    const old=legacySnap.val();if(req.profile.papel!=="administrador"&&old.corretorUid!==req.user.uid)return res.status(403).json({error:"Visita fora da sua carteira."});
+    const old=legacySnap.val();if(!(await canAccessVisit(req,old)))return res.status(403).json({error:"Visita fora da sua carteira ou equipe."});
     const mapped=({pendente:"pendente",confirmada:"confirmado",recusada:"recusado",realizada:"concluido",cliente_faltou:"recusado",proposta_apresentada:"concluido"})[status];
     await legacyRef.update({status:mapped,statusOperacional:status,atualizadoEm:new Date().toISOString()});return res.json({ok:true});
   }catch(e){return sendServerError(res,"Não foi possível atualizar a visita.",e);}
 });
 
+// Central de notificações do usuário autenticado.
+app.get("/api/notificacoes", requireFirebase, async (req,res) => {
+  try {
+    const snap = await db.ref("notificacoes/" + req.user.uid).get();
+    const items = Object.entries(snap.val() || {}).map(([id,item]) => ({id,...item})).sort((a,b) => String(b.criadoEm||"").localeCompare(String(a.criadoEm||""))).slice(0,50);
+    return res.json({items, naoLidas:items.filter(item=>!item.lida).length});
+  } catch(error) { return sendServerError(res,"Não foi possível carregar as notificações.",error); }
+});
+app.patch("/api/notificacoes/:id/lida", requireFirebase, async (req,res) => {
+  const id=cleanString(req.params.id,128);
+  if(!id||id.includes("/")) return res.status(400).json({error:"Notificação inválida."});
+  try { const ref=db.ref("notificacoes/"+req.user.uid+"/"+id); if(!(await ref.get()).exists()) return res.status(404).json({error:"Notificação não encontrada."}); await ref.update({lida:true,lidaEm:new Date().toISOString()}); return res.json({ok:true}); }
+  catch(error) { return sendServerError(res,"Não foi possível atualizar a notificação.",error); }
+});
 /* CRM OPERACIONAL */
 const crmStages = new Set(["novo","em_contato","visita_agendada","proposta_enviada","em_analise_contrato","fechado","perdido"]);
 async function canAccessLead(req, lead) {
