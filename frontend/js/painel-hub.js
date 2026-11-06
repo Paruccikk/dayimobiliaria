@@ -138,7 +138,8 @@ async function renderHub(user) {
     }
 
     if (role === "cliente") {
-      hubGrid.append(buildCard("Área do Cliente", "Acesse seus imóveis favoritos, histórico e preferências.", "/cliente.html", icons.cliente, "#57d9e0"));
+      window.location.replace("/");
+      return;
     } else {
       hubGrid.append(buildCard("Painel do Corretor", "Gerencie sua carteira de imóveis, leads e agendamentos.", "/corretor.html", icons.corretor, "#e6b45a"));
       hubGrid.append(buildCard("CRM de Leads", "Organize oportunidades, acompanhe preferências e registre interações.", "/crm.html", icons.corretor, "#d7ad65"));
