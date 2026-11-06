@@ -1147,6 +1147,8 @@ app.post(
         descricao: cleanString(body.descricao, 10000),
         categoria: body.categoria,
         finalidade: body.finalidade,
+        situacaoObra: ["lancamento", "em_obras", "pronto"].includes(body.situacaoObra) ? body.situacaoObra : (body.categoria === "lancamento" ? "lancamento" : "pronto"),
+        minhaCasaMinhaVida: body.minhaCasaMinhaVida === true,
         preco,
         moeda: "BRL",
         cidade: cleanString(body.cidade, 100),
