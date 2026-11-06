@@ -263,7 +263,7 @@ const allowedPropertyStatuses = new Set([
   "inativo",
 ]);
 
-const allowedUserRoles = new Set(["cliente", "corretor", "administrador"]);
+const allowedUserRoles = new Set(["cliente", "corretor", "gerente", "administrador"]);
 
 // --------------------------------------------------
 // SAÚDE DO SERVIDOR
@@ -554,6 +554,21 @@ app.patch(
       updates.papel = body.papel;
     }
 
+    if (Object.hasOwn(body, "gerenteUid") || body.papel === "corretor") {
+      const gerenteUid = cleanString(body.gerenteUid, 128);
+      if (body.papel === "corretor" && gerenteUid) {
+        if (!isValidUid(gerenteUid)) return res.status(400).json({ error: "Gerente inválido." });
+        const gerenteSnapshot = await db.ref("usuarios/" + gerenteUid).get();
+        const gerente = gerenteSnapshot.val();
+        if (!gerente || gerente.papel !== "gerente" || gerente.ativo !== true || gerente.status !== "ativo") {
+          return res.status(400).json({ error: "Selecione um gerente ativo." });
+        }
+        updates.gerenteUid = gerenteUid;
+      } else {
+        updates.gerenteUid = null;
+      }
+    }
+
     if (Object.hasOwn(body, "ativo")) {
       if (typeof body.ativo !== "boolean") {
         return res.status(400).json({
@@ -596,6 +611,7 @@ app.patch(
 
       updates.atualizadoEm = new Date().toISOString();
 
+      if (updates.papel && updates.papel !== "corretor") updates.gerenteUid = null;
       await userRef.update(updates);
 
       return res.json({ ok: true, uid, updates });
@@ -704,6 +720,38 @@ app.get(
     }
   }
 );
+
+// --------------------------------------------------
+// PAINEL DE GERÊNCIA
+// --------------------------------------------------
+app.get("/api/gerente/dashboard", requireFirebase, allowRoles("gerente"), async (req, res) => {
+  try {
+    const [usersSnap, propertiesSnap, leadsSnap, visitsSnap, bookingsSnap] = await Promise.all([
+      db.ref("usuarios").get(), db.ref("imoveis").get(), db.ref("leads").get(),
+      db.ref("visitas").get(), db.ref("agendamentos").get()
+    ]);
+    const equipe = Object.entries(usersSnap.val() || {})
+      .filter(([, user]) => user.papel === "corretor" && user.gerenteUid === req.user.uid && user.ativo === true && user.status === "ativo")
+      .map(([uid, user]) => ({ uid, nome: user.nome || user.email || uid, email: user.email || "" }));
+    const teamUids = new Set(equipe.map(user => user.uid));
+    const byTeam = (raw, key) => Object.entries(raw || {}).map(([id, item]) => ({ id, ...item }))
+      .filter(item => teamUids.has(item[key]));
+    const imoveis = byTeam(propertiesSnap.val(), "responsavelUid");
+    const leads = byTeam(leadsSnap.val(), "responsavelUid");
+    const visitas = byTeam(visitsSnap.val(), "corretorUid");
+    const agendamentos = byTeam(bookingsSnap.val(), "corretorUid");
+    const names = Object.fromEntries(equipe.map(user => [user.uid, user.nome]));
+    const annotate = items => items.map(item => ({ ...item, responsavelNome: names[item.responsavelUid || item.corretorUid] || "Corretor da equipe" }));
+    return res.json({
+      equipe, imoveis: annotate(imoveis),
+      leads: annotate(leads).sort((a,b) => String(b.criadoEm || "").localeCompare(String(a.criadoEm || ""))),
+      visitas: annotate(visitas), agendamentos: annotate(agendamentos),
+      resumo: { corretores: equipe.length, imoveis: imoveis.length, leads: leads.length, visitas: visitas.length + agendamentos.length }
+    });
+  } catch (error) {
+    return sendServerError(res, "Não foi possível carregar o painel da gerência.", error);
+  }
+});
 
 // --------------------------------------------------
 // IMÓVEIS PÚBLICOS
