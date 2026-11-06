@@ -25,7 +25,8 @@ async function api(url, options = {}) {
 }
 
 async function loadNotifications() {
-  const panel = document.createElement("section");
+  const previous = document.querySelector("#user-notifications"); if (previous) previous.remove();
+  const panel = document.createElement("section"); panel.id = "user-notifications";
   panel.style.cssText = "grid-column:1/-1;margin:0 0 22px;padding:18px;border:1px solid rgba(215,173,101,.35);border-radius:14px;background:rgba(20,24,34,.88);color:#f4f1e9";
   panel.innerHTML = "<h2>Notificações</h2><p>Carregando avisos…</p>";
   hubGrid.parentElement.insertBefore(panel, hubGrid);
