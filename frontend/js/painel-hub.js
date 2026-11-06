@@ -99,7 +99,7 @@ onAuthStateChanged(auth, async (user) => {
       );
     }
 
-    if (["corretor", "administrador"].includes(profile.papel)) {
+    if (["corretor", "administrador", "gerente"].includes(profile.papel)) {
       html += buildCard(
         "CRM de Leads",
         "Organize oportunidades em Kanban, acompanhe preferências e registre cada interação.",
