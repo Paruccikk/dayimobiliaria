@@ -1062,6 +1062,43 @@ app.post(
   }
 );
 
+// Upload de fotos e documentos (PDF) vinculados ao imóvel recém-cadastrado.
+const uploadPropertyFiles = multer({
+  storage,
+  limits: { fileSize: Number(process.env.MAX_UPLOAD_MB || 12) * 1024 * 1024, files: 20 },
+  fileFilter: (_req, file, cb) => {
+    const allowed = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
+    if (!allowed.includes(file.mimetype)) return cb(new Error("Formato não permitido. Envie imagens JPG/PNG/WEBP ou PDF."));
+    cb(null, true);
+  }
+});
+
+app.post("/api/admin/imoveis/:id/arquivos", requireFirebase, allowRoles("administrador", "corretor"), uploadPropertyFiles.array("arquivos", 20), async (req, res) => {
+  const id = cleanString(req.params.id, 100);
+  if (!id || id.includes("/")) return res.status(400).json({ error: "ID de imóvel inválido." });
+  try {
+    const ref = db.ref("imoveis/" + id);
+    const snap = await ref.get();
+    if (!snap.exists()) return res.status(404).json({ error: "Imóvel não encontrado." });
+    const property = snap.val();
+    if (req.profile.papel === "corretor" && property.responsavelUid !== req.user.uid) {
+      return res.status(403).json({ error: "Você só pode anexar arquivos aos imóveis da sua carteira." });
+    }
+    const fotos = Array.isArray(property.fotos) ? property.fotos : [];
+    const documentos = Array.isArray(property.documentos) ? property.documentos : [];
+    for (const file of (req.files || [])) {
+      const url = "/uploads/imoveis/" + id + "/" + path.basename(file.filename);
+      const meta = { nome: cleanString(file.originalname, 180), url, mime: file.mimetype, tamanho: file.size };
+      if (file.mimetype === "application/pdf") documentos.push(meta);
+      else fotos.push(url);
+    }
+    await ref.update({ fotos, documentos, atualizadoEm: new Date().toISOString() });
+    return res.status(201).json({ fotos, documentos });
+  } catch (error) {
+    return sendServerError(res, "Falha ao salvar arquivos do imóvel.", error);
+  }
+});
+
 // --------------------------------------------------
 // CADASTRAR IMÓVEL
 // --------------------------------------------------
