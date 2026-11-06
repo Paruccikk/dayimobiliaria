@@ -452,6 +452,8 @@ propertyForm.addEventListener("submit", async event => {
     areaM2: $("#prop-area").value,
     quartos: $("#prop-quartos").value,
     suites: $("#prop-suites").value,
+    situacaoObra: $("#prop-situacao").value,
+    minhaCasaMinhaVida: $("#prop-mcmv").checked,
     banheiros: $("#prop-banheiros").value,
     vagas: $("#prop-vagas").value,
     descricao: $("#prop-descricao").value.trim(),
