@@ -21,6 +21,7 @@ const inputs = {
   quartos: document.querySelector("#quartos"),
   situacaoObra: document.querySelector("#situacao-obra"),
   mcmv: document.querySelector("#mcmv"),
+  disponibilidade: document.querySelector("#disponibilidade"),
 };
 
 const params = new URLSearchParams(location.search);
@@ -74,6 +75,7 @@ const LABELS = {
   quartos: "Quartos (mín.)",
   situacaoObra: "Situação",
   mcmv: "Minha Casa, Minha Vida",
+  disponibilidade: "Disponibilidade",
 };
 
 function renderChips() {
@@ -133,7 +135,8 @@ function render() {
       (p.preco == null || Number(p.preco) <= max) &&
       (!inputs.quartos.value || Number(p.quartos || 0) >= Number(inputs.quartos.value)) &&
       (!inputs.situacaoObra.value || (p.situacaoObra || (p.categoria === "lancamento" ? "lancamento" : "")) === inputs.situacaoObra.value) &&
-      (!inputs.mcmv.value || p.minhaCasaMinhaVida === true)
+      (!inputs.mcmv.value || p.minhaCasaMinhaVida === true) &&
+      (!inputs.disponibilidade.value || (p.disponibilidade || "disponivel") === inputs.disponibilidade.value)
   );
 
   countEl.textContent = `${filtered.length} imóvel(is) encontrado(s)`;
