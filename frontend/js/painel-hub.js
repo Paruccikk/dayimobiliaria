@@ -129,32 +129,38 @@ async function renderHub(user) {
     const data = await api(user, "/api/auth/perfil");
     const profile = data.perfil;
     if (!profile) throw new Error("Perfil não encontrado. Entre em contato com o administrador.");
+    const aliases = { admin: "administrador", manager: "gerente", broker: "corretor", client: "cliente" };
+    const role = aliases[String(profile.papel || "").toLowerCase()] || String(profile.papel || "").toLowerCase();
     if (profile.ativo !== true || profile.status !== "ativo") {
-      throw new Error("Sua conta está aguardando aprovação ou está inativa.");
+      throw new Error("Sua conta está aguardando aprovação ou está inativa. Fale com a equipe pelo WhatsApp.");
     }
-    const role = profile.papel;
-    if (!["cliente", "corretor", "administrador", "gerente"].includes(role)) {
-      throw new Error("Seu perfil não possui um nível de acesso válido.");
+    if (!["cliente", "corretor", "gerente", "administrador"].includes(role)) {
+      throw new Error("Seu perfil ainda não possui um nível de acesso válido. Fale com o administrador.");
     }
 
-    if (role === "cliente") {
-      window.location.replace("/");
-      return;
-    } else {
-      hubGrid.append(buildCard("Painel do Corretor", "Gerencie sua carteira de imóveis, leads e agendamentos.", "/corretor.html", icons.corretor, "#e6b45a"));
-      hubGrid.append(buildCard("CRM de Leads", "Organize oportunidades, acompanhe preferências e registre interações.", "/crm.html", icons.corretor, "#d7ad65"));
-      hubGrid.append(buildCard("Agenda de Visitas", "Consulte visitas e acompanhe confirmações e resultados.", "/agenda.html", icons.corretor, "#57d9e0"));
-      if (role === "administrador") {
-        hubGrid.append(buildCard("Administração", "Gerencie usuários, permissões, imóveis e relatórios.", "/admin.html", icons.admin, "#f06ca8"));
-      }
-      if (role === "gerente") {
-        hubGrid.append(buildCard("Painel de Gerência", "Acompanhe a equipe, imóveis, leads e visitas.", "/gerencia.html", icons.admin, "#d7ad65"));
-      }
+    const cards = [];
+    if (role === "administrador") {
+      cards.push(buildCard("Administração", "Gestão completa de usuários, imóveis, permissões e relatórios.", "/admin.html", icons.admin, "#f06ca8"));
+      cards.push(buildCard("Painel do Gerente", "Audite equipes, produtividade, imóveis, leads e visitas.", "/gerencia.html", icons.admin, "#d7ad65"));
     }
-    if (!hubGrid.children.length) throw new Error("Nenhuma área está disponível para este perfil.");
+    if (["gerente", "corretor", "administrador"].includes(role)) {
+      if (role === "gerente") cards.push(buildCard("Painel do Gerente", "Acompanhe sua equipe, produtividade, imóveis, leads e visitas.", "/gerencia.html", icons.admin, "#d7ad65"));
+      cards.push(buildCard("Painel do Corretor", "Consulte e gerencie a carteira conforme suas permissões.", "/corretor.html", icons.corretor, "#e6b45a"));
+      cards.push(buildCard("CRM de Leads", "Organize oportunidades, acompanhe preferências e registre interações.", "/crm.html", icons.corretor, "#d7ad65"));
+      cards.push(buildCard("Agenda de Visitas", "Consulte visitas, agendamentos e resultados.", "/agenda.html", icons.corretor, "#57d9e0"));
+      cards.push(buildCard("Central de Materiais", "Acesse tabelas, plantas, imagens e PDFs dos empreendimentos autorizados.", "/materiais.html", icons.admin, "#8bc5a5"));
+    }
+    cards.push(buildCard("Área do Cliente", "Acesse seus imóveis favoritos, histórico e preferências.", "/cliente.html", icons.cliente, "#57d9e0"));
+    hubGrid.replaceChildren(...cards);
     await loadNotifications(user);
   } catch (error) {
-    showError(error.message || "Erro inesperado ao carregar os cartões.");
+    showError(error.message || "Não foi possível carregar os cartões.");
+    const retry = document.createElement("button");
+    retry.type = "button";
+    retry.className = "button button-gold";
+    retry.textContent = "Tentar novamente";
+    retry.addEventListener("click", () => renderHub(user));
+    hubGrid.append(retry);
   }
 }
 
