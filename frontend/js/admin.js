@@ -336,6 +336,32 @@ function renderLeads(leads) {
   `).join("");
 }
 
+function renderProductivity(productivity = {}) {
+  const managers = productivity.gerentes || [];
+  const brokers = productivity.corretores || [];
+  const num = (id, value) => { const el = $(id); if (el) el.textContent = Number(value || 0).toLocaleString("pt-BR"); };
+  num("#prod-gerentes", managers.length);
+  num("#prod-corretores", brokers.length);
+  num("#prod-visitas", productivity.visitasRealizadas);
+  num("#prod-propostas", productivity.propostas);
+  num("#prod-fechados", productivity.fechados);
+  const managerNames = Object.fromEntries(managers.map(item => [item.uid, item.nome]));
+  const managerBody = $("#prod-gerentes-lista");
+  managerBody.innerHTML = managers.length ? managers.map(item =>
+    "<tr><td><strong>" + escapeHtml(item.nome) + "</strong></td><td>" + item.corretores +
+    "</td><td>" + item.imoveis + "</td><td>" + item.leads + "</td><td>" + item.propostas +
+    "</td><td>" + item.fechados + "</td><td>" + item.visitas + "</td><td>" + item.visitasRealizadas + "</td></tr>"
+  ).join("") : '<tr><td colspan="8">Nenhum gerente cadastrado.</td></tr>';
+  const brokerBody = $("#prod-corretores-lista");
+  brokerBody.innerHTML = brokers.length ? brokers.map(item =>
+    "<tr><td><strong>" + escapeHtml(item.nome) + "</strong><div class=\"dash-subtitle\">" + escapeHtml(item.email) +
+    "</div></td><td>" + escapeHtml(managerNames[item.gerenteUid] || "Sem gerente") +
+    "</td><td>" + item.imoveis + "</td><td>" + item.leads + "</td><td>" + item.leadsNovos +
+    "</td><td>" + item.propostas + "</td><td>" + item.fechados + "</td><td>" + item.visitas +
+    "</td><td>" + item.visitasRealizadas + "</td></tr>"
+  ).join("") : '<tr><td colspan="9">Nenhum corretor cadastrado.</td></tr>';
+}
+
 async function carregarDashboard() {
   if (!currentUser || loading) return;
   loading = true;
@@ -367,6 +393,7 @@ async function carregarDashboard() {
     renderProperties(Array.isArray(data.imoveis) ? data.imoveis : []);
     renderUsers(Array.isArray(data.usuarios) ? data.usuarios : []);
     renderLeads(Array.isArray(data.leads) ? data.leads : []);
+    renderProductivity(data.produtividade || {});
 
     showAdmin();
     $("#admin-welcome").textContent =
