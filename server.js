@@ -838,14 +838,19 @@ app.get("/api/gerente/dashboard", requireFirebase, allowRoles("administrador", "
 // --------------------------------------------------
 
 // Dashboard do painel do corretor: dados restritos à carteira do usuário.
-app.get("/api/corretor/dashboard", requireFirebase, allowRoles("administrador", "corretor"), async (req, res) => {
+app.get("/api/corretor/dashboard", requireFirebase, allowRoles("administrador", "gerente", "corretor"), async (req, res) => {
   try {
     const [propertiesSnapshot, leadsSnapshot] = await Promise.all([db.ref("imoveis").get(), db.ref("leads").get()]);
     let imoveis = Object.entries(propertiesSnapshot.val() || {}).map(([id, item]) => ({ id, ...item }));
     let leads = Object.entries(leadsSnapshot.val() || {}).map(([id, item]) => ({ id, ...item }));
-    if (req.profile.papel !== "administrador") {
+    if (req.profile.papel === "corretor") {
       imoveis = imoveis.filter(item => item.responsavelUid === req.user.uid);
       leads = leads.filter(item => item.responsavelUid === req.user.uid);
+    } else if (req.profile.papel === "gerente") {
+      const users = (await db.ref("usuarios").get()).val() || {};
+      const team = new Set(Object.entries(users).filter(([,u]) => u.papel === "corretor" && u.ativo === true && u.status === "ativo" && u.gerenteUid === req.user.uid).map(([uid]) => uid));
+      imoveis = imoveis.filter(item => team.has(item.responsavelUid));
+      leads = leads.filter(item => team.has(item.responsavelUid));
     }
     imoveis.sort((a, b) => String(b.criadoEm || "").localeCompare(String(a.criadoEm || "")));
     leads.sort((a, b) => String(b.criadoEm || "").localeCompare(String(a.criadoEm || "")));
