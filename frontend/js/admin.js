@@ -227,7 +227,8 @@ function renderUsers(users) {
     return;
   }
 
-  const roles = ["cliente", "corretor", "administrador"];
+  const roles = ["cliente", "corretor", "gerente", "administrador"];
+  const managers = users.filter(user => user.papel === "gerente" && user.ativo === true && user.status === "ativo");
 
   tbody.innerHTML = users.map(user => {
     const roleOptions = roles.map(role => `
@@ -237,6 +238,7 @@ function renderUsers(users) {
     `).join("");
 
     const isActive = user.ativo === true && user.status === "ativo";
+    const managerOptions = `<option value="">Sem gerente</option>${managers.map(manager => `<option value="${escapeHtml(manager.uid)}" ${user.gerenteUid === manager.uid ? "selected" : ""}>${escapeHtml(manager.nome || manager.email || manager.uid)}</option>`).join("")}`;
 
     const pedido = user.solicitacaoPapel === "corretor"
       ? "Solicitou corretor"
@@ -251,6 +253,7 @@ function renderUsers(users) {
         <td>${escapeHtml(user.telefone || "—")}</td>
         <td>${escapeHtml(pedido)}</td>
         <td><select class="user-role" aria-label="Perfil do usuário">${roleOptions}</select></td>
+        <td><select class="user-manager" aria-label="Gerente responsável" ${user.papel !== "corretor" ? "disabled" : ""}>${managerOptions}</select></td>
         <td>${statusPill(isActive ? "ativo" : (user.status || "inativo"))}</td>
         <td>
           <button type="button" class="small-btn save-role">Salvar perfil</button>
@@ -268,13 +271,14 @@ function renderUsers(users) {
       const row = button.closest("tr");
       const uid = row.dataset.userUid;
       const papel = row.querySelector(".user-role").value;
+      const gerenteUid = papel === "corretor" ? row.querySelector(".user-manager").value : "";
 
       button.disabled = true;
 
       try {
         await api(`/api/admin/usuarios/${encodeURIComponent(uid)}`, {
           method: "PATCH",
-          body: JSON.stringify({ papel })
+          body: JSON.stringify({ papel, gerenteUid })
         });
         setMessage(dashboardFeedback, "Perfil atualizado.");
         await carregarDashboard();
@@ -380,6 +384,15 @@ async function carregarDashboard() {
   }
 }
 
+
+$("#usuarios-lista").addEventListener("change", event => {
+  if (event.target.matches(".user-role")) {
+    const row = event.target.closest("tr");
+    const manager = row.querySelector(".user-manager");
+    manager.disabled = event.target.value !== "corretor";
+    if (manager.disabled) manager.value = "";
+  }
+});
 
 refreshButton.addEventListener("click", carregarDashboard);
 
