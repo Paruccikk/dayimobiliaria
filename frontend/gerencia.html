@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Painel de Gerência | R&D PRIME IMÓVEIS</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body>
+  <main class="dashboard-wrap">
+    <header class="dash-top">
+      <div>
+        <div class="eyebrow">R&D PRIME IMÓVEIS</div>
+        <div class="dash-title">Painel de Gerência</div>
+        <p id="manager-welcome" class="dash-subtitle">Validando acesso…</p>
+      </div>
+      <div class="dash-actions">
+        <a class="button button-dark" href="/painel.html">Voltar ao painel</a>
+        <button class="button button-gold" id="manager-refresh" type="button">Atualizar ↻</button>
+        <button class="button button-dark" id="manager-logout" type="button">Sair</button>
+      </div>
+    </header>
+    <div id="manager-feedback" class="notice" role="status" aria-live="polite"></div>
+    <section class="dash-grid" aria-label="Indicadores da equipe">
+      <article class="dash-card"><small>Corretores ativos</small><strong class="dash-number" id="manager-stat-team">—</strong></article>
+      <article class="dash-card"><small>Imóveis da equipe</small><strong class="dash-number" id="manager-stat-properties">—</strong></article>
+      <article class="dash-card"><small>Leads da equipe</small><strong class="dash-number" id="manager-stat-leads">—</strong></article>
+      <article class="dash-card"><small>Visitas registradas</small><strong class="dash-number" id="manager-stat-visits">—</strong></article>
+    </section>
+    <section class="dash-panel">
+      <h2>Minha equipe</h2>
+      <div class="dash-table-wrap"><table class="dash-table">
+        <thead><tr><th>Corretor</th><th>E-mail</th><th>Imóveis</th><th>Leads</th></tr></thead>
+        <tbody id="manager-team"><tr><td colspan="4">Carregando…</td></tr></tbody>
+      </table></div>
+    </section>
+    <section class="dash-panel">
+      <h2>Leads recentes</h2>
+      <div class="dash-table-wrap"><table class="dash-table">
+        <thead><tr><th>Cliente</th><th>Telefone</th><th>Corretor</th><th>Status</th><th>Data</th></tr></thead>
+        <tbody id="manager-leads"><tr><td colspan="5">Carregando…</td></tr></tbody>
+      </table></div>
+    </section>
+    <section class="dash-panel">
+      <h2>Imóveis da equipe</h2>
+      <div class="dash-table-wrap"><table class="dash-table">
+        <thead><tr><th>Imóvel</th><th>Finalidade</th><th>Preço</th><th>Corretor</th><th>Status</th></tr></thead>
+        <tbody id="manager-properties"><tr><td colspan="5">Carregando…</td></tr></tbody>
+      </table></div>
+    </section>
+    <section class="dash-panel">
+      <h2>Visitas e agendamentos</h2>
+      <div class="dash-table-wrap"><table class="dash-table">
+        <thead><tr><th>Cliente</th><th>Imóvel</th><th>Data</th><th>Corretor</th><th>Status</th></tr></thead>
+        <tbody id="manager-visits"><tr><td colspan="5">Carregando…</td></tr></tbody>
+      </table></div>
+    </section>
+  </main>
+  <script type="module" src="/js/gerencia.js"></script>
+</body>
+</html>
