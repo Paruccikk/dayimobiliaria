@@ -454,3 +454,10 @@ body {
   .auth-card { margin: 4vh auto; padding: 24px; }
   .bar-row { grid-template-columns: 90px 1fr 35px; gap: 10px; }
 }
+/* Navegação entre áreas do dashboard administrativo */
+.admin-tabs{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 28px;padding-bottom:14px;border-bottom:1px solid var(--border)}
+.admin-tab{display:inline-flex;align-items:center;padding:11px 17px;border:1px solid var(--border-strong);border-radius:999px;color:var(--text-soft);text-decoration:none;font-size:13px;font-weight:600;background:rgba(255,255,255,.025)}
+.admin-tab:hover,.admin-tab:focus{color:var(--gold-2);border-color:rgba(230,180,90,.55);background:var(--gold-soft)}
+#produtividade h3{font-family:var(--font-display);font-size:1.05rem;margin:28px 0 14px;color:var(--text)}
+#produtividade .productivity-kpis{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin:22px 0}
+@media(max-width:720px){.admin-tabs{gap:7px}.admin-tab{font-size:12px;padding:9px 12px}}
