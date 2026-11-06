@@ -48,6 +48,7 @@ onAuthStateChanged(auth, async (user) => {
     // Valida o perfil no servidor
     const data = await api("/api/auth/perfil");
     const profile = data.perfil;
+    const managerCard = document.querySelector("#manager-panel-card");
 
     if (!profile) {
       throw new Error("Perfil não cadastrado. Entre em contato com o suporte.");
@@ -55,6 +56,8 @@ onAuthStateChanged(auth, async (user) => {
     if (profile.ativo !== true || profile.status !== "ativo") {
       throw new Error("Sua conta está inativa ou aguardando aprovação.");
     }
+
+    if (managerCard) managerCard.hidden = profile.papel !== "gerente";
 
     let html = "";
 
@@ -75,16 +78,6 @@ onAuthStateChanged(auth, async (user) => {
         "/corretor.html", // Rota futura do corretor
         icons.corretor,
         "#e6b45a" // Dourado
-      );
-    }
-
-    if (profile.papel === "gerente") {
-      html += buildCard(
-        "Painel de Gerência",
-        "Acompanhe os corretores vinculados, carteira, leads e visitas da sua equipe.",
-        "/gerencia.html",
-        icons.admin,
-        "#d7ad65"
       );
     }
 
