@@ -1365,7 +1365,7 @@ app.patch("/api/crm/leads/:id", requireFirebase, allowRoles("administrador","cor
 });
 app.post("/api/crm/leads/:id/interacoes", requireFirebase, allowRoles("administrador","corretor","gerente"), async(req,res)=>{
   const id=cleanString(req.params.id,128),texto=cleanString(req.body?.texto,2000);if(!id||id.includes("/")||!texto)return res.status(400).json({error:"Informe uma interação válida."});
-  try{const ref=db.ref("leads/"+id),snap=await ref.get();if(!snap.exists())return res.status(404).json({error:"Lead não encontrado."});if(!canAccessLead(req,snap.val()))return res.status(403).json({error:"Este lead não pertence à sua carteira."});const now=new Date().toISOString();await ref.child("historico").push({texto,autorUid:req.user.uid,autorNome:cleanString(req.profile.nome,120),data:now});await ref.update({atualizadoEm:now});return res.status(201).json({ok:true});}
+  try{const ref=db.ref("leads/"+id),snap=await ref.get();if(!snap.exists())return res.status(404).json({error:"Lead não encontrado."});if(!(await canAccessLead(req,snap.val())))return res.status(403).json({error:"Este lead não pertence à sua equipe ou carteira."});const now=new Date().toISOString();await ref.child("historico").push({texto,autorUid:req.user.uid,autorNome:cleanString(req.profile.nome,120),data:now});await ref.update({atualizadoEm:now});return res.status(201).json({ok:true});}
   catch(e){return sendServerError(res,"Não foi possível registrar a interação.",e);}
 });
 
