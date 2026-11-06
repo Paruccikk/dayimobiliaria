@@ -28,6 +28,7 @@ function roleHome(role) {
   const destinations = {
     administrador: "/admin.html",
     corretor: "/painel.html",
+    gerente: "/gerencia.html",
     cliente: "/"
   };
 
@@ -74,6 +75,7 @@ async function validateAndRedirect(user) {
     const allowedRoles = [
       "cliente",
       "corretor",
+      "gerente",
       "administrador"
     ];
 
