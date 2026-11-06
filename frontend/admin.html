@@ -40,7 +40,13 @@
 
     <div id="dashboard-feedback" class="notice" role="status" aria-live="polite"></div>
 
-    <section class="dash-grid" aria-label="Indicadores">
+    <nav class="admin-tabs" aria-label="Seções administrativas">
+      <a href="#visao-geral" class="admin-tab">Visão geral</a>
+      <a href="#produtividade" class="admin-tab">Produtividade da equipe</a>
+      <a href="#usuarios-lista" class="admin-tab">Usuários e vínculos</a>
+    </nav>
+
+    <section id="visao-geral" class="dash-grid" aria-label="Indicadores">
       <article class="dash-card"><small>Total de imóveis</small><strong class="dash-number" id="stat-imoveis">—</strong><span class="dash-note">Todos os status</span></article>
       <article class="dash-card"><small>Imóveis publicados</small><strong class="dash-number" id="stat-publicados">—</strong><span class="dash-note">Visíveis no site</span></article>
       <article class="dash-card"><small>Pendentes de aprovação</small><strong class="dash-number" id="stat-pendentes">—</strong><span class="dash-note">Aguardando análise</span></article>
@@ -111,6 +117,28 @@
           <tbody id="usuarios-lista"><tr><td colspan="7">Carregando…</td></tr></tbody>
         </table>
       </div>
+    </section>
+
+    <section id="produtividade" class="dash-panel">
+      <h2>Produtividade comercial — corretores e gerentes</h2>
+      <p class="dash-subtitle">Indicadores calculados com os leads, imóveis e visitas registrados no sistema.</p>
+      <div class="dash-grid productivity-kpis">
+        <article class="dash-card"><small>Gerentes</small><strong class="dash-number" id="prod-gerentes">—</strong></article>
+        <article class="dash-card"><small>Corretores</small><strong class="dash-number" id="prod-corretores">—</strong></article>
+        <article class="dash-card"><small>Visitas realizadas</small><strong class="dash-number" id="prod-visitas">—</strong></article>
+        <article class="dash-card"><small>Propostas</small><strong class="dash-number" id="prod-propostas">—</strong></article>
+        <article class="dash-card"><small>Negócios fechados</small><strong class="dash-number" id="prod-fechados">—</strong></article>
+      </div>
+      <h3>Desempenho por gerente / equipe</h3>
+      <div class="dash-table-wrap"><table class="dash-table">
+        <thead><tr><th>Gerente</th><th>Corretores</th><th>Imóveis</th><th>Leads</th><th>Propostas</th><th>Fechados</th><th>Visitas</th><th>Realizadas</th></tr></thead>
+        <tbody id="prod-gerentes-lista"><tr><td colspan="8">Carregando…</td></tr></tbody>
+      </table></div>
+      <h3>Desempenho individual dos corretores</h3>
+      <div class="dash-table-wrap"><table class="dash-table">
+        <thead><tr><th>Corretor</th><th>Gerente</th><th>Imóveis</th><th>Leads</th><th>Novos</th><th>Propostas</th><th>Fechados</th><th>Visitas</th><th>Realizadas</th></tr></thead>
+        <tbody id="prod-corretores-lista"><tr><td colspan="9">Carregando…</td></tr></tbody>
+      </table></div>
     </section>
 
     <section class="dash-panel">
