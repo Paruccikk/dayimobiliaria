@@ -1,7 +1,7 @@
 import { auth } from "./firebase-client.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { propertyCard } from "./common.js";
-import { RD_PRIME_WHATSAPP, RD_PRIME_WHATSAPP_URL } from "./contact.js";
+import { RD_PRIME_WHATSAPP_URL } from "./contact.js";
 
 const $ = selector => document.querySelector(selector);
 const grid = $("#wishlist-grid");
