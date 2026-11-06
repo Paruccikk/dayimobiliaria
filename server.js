@@ -484,6 +484,34 @@ function requireFirebase(req, res, next) {
   });
 }
 
+async function notifyUser(uid, data) {
+  if (!isValidUid(uid)) return;
+  const ref = db.ref("notificacoes/" + uid).push();
+  await ref.set({tipo:cleanString(data.tipo,40),titulo:cleanString(data.titulo,140),mensagem:cleanString(data.mensagem,500),link:cleanString(data.link,240),criadoEm:new Date().toISOString(),lida:false});
+}
+async function notifyActiveRole(role, data) {
+  const snap=await db.ref("usuarios").get();
+  await Promise.all(Object.entries(snap.val()||{}).filter(([,u])=>u.papel===role&&u.ativo===true&&u.status==="ativo").map(([uid])=>notifyUser(uid,data).catch(e=>console.error("[Notificações]",e.message))));
+}
+async function notifyBrokerTeam(uid, data) {
+  if(!uid)return; await notifyUser(uid,data);
+  const broker=(await db.ref("usuarios/"+uid).get()).val();
+  if(broker?.gerenteUid) await notifyUser(broker.gerenteUid,data);
+}
+async function scanVisitReminders() {
+  if(!db)return;
+  const now=Date.now(),limit=now+2*60*60*1000;
+  const [a,b]=await Promise.all([db.ref("visitas").get(),db.ref("agendamentos").get()]);
+  const visits=[...Object.entries(a.val()||{}).map(([id,v])=>({id,...v,source:"visitas"})),...Object.entries(b.val()||{}).map(([id,v])=>({id,...v,source:"agendamentos",inicio:v.inicio||v.data}))];
+  for(const v of visits){
+    const raw=String(v.inicio||""); const ts=raw.length===16?new Date(raw+":00-03:00").getTime():new Date(raw).getTime();
+    if(!Number.isFinite(ts)||ts<=now||ts>limit||["recusada","recusado","realizada","concluido","cliente_faltou"].includes(v.status||v.statusOperacional))continue;
+    const key=v.source+"_"+v.id, sent=db.ref("lembretesVisitas/"+key); if((await sent.get()).exists())continue;
+    const notice={tipo:"lembrete_visita",titulo:"Visita em aproximadamente 2 horas",mensagem:"Visita de "+(v.clienteNome||v.nome||"cliente")+".",link:"/agenda.html"};
+    await notifyBrokerTeam(v.corretorUid,notice); await notifyActiveRole("administrador",notice);
+    await sent.set({enviadoEm:new Date().toISOString()});
+  }
+}
 function allowRoles(...roles) {
   return (req, res, next) => {
     if (!req.profile || !roles.includes(req.profile.papel)) {
@@ -934,6 +962,7 @@ app.post("/api/leads", async (req, res) => {
       status: "novo",
       criadoEm: new Date().toISOString(),
     });
+    await notifyActiveRole("administrador",{tipo:"novo_lead",titulo:"Novo lead recebido",mensagem:nome+" entrou em contato pelo site.",link:"/crm.html"}).catch(e=>console.error("[Notificações]",e.message));
 
     return res.status(201).json({
       ok: true,
@@ -1612,5 +1641,7 @@ app.listen(PORT, () => {
     console.log(
       "Firebase Admin e Realtime Database prontos."
     );
+    scanVisitReminders().catch(e=>console.error("[Lembretes]",e.message));
+    setInterval(()=>scanVisitReminders().catch(e=>console.error("[Lembretes]",e.message)),60000);
   }
 });
