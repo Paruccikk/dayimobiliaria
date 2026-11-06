@@ -57,7 +57,7 @@ onAuthStateChanged(auth, async (user) => {
       throw new Error("Sua conta está inativa ou aguardando aprovação.");
     }
 
-    if (managerCard) managerCard.hidden = profile.papel !== "gerente";
+    if (managerCard) managerCard.hidden = !["gerente", "administrador"].includes(profile.papel);
 
     let html = "";
 
@@ -71,7 +71,7 @@ onAuthStateChanged(auth, async (user) => {
     );
 
     // 2. Corretores e Admins acessam o painel do corretor
-    if (["corretor", "administrador"].includes(profile.papel)) {
+    if (["corretor", "gerente", "administrador"].includes(profile.papel)) {
       html += buildCard(
         "Painel do Corretor",
         "Gerencie sua carteira de imóveis, leads e agendamentos.",
