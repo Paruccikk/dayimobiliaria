@@ -9,7 +9,8 @@ const userEmail = $("#user-email");
 const icons = {
   cliente: `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`,
   corretor: `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M20 7h-9"/><path d="M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg>`,
-  admin: `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/><path d="M13 8h5"/><path d="M13 12h5"/><path d="M13 16h5"/></svg>`
+  admin: `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/><path d="M13 8h5"/><path d="M13 12h5"/><path d="M13 16h5"/></svg>`,
+  gerente: `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>`
 };
 
 async function api(url, options = {}) {
@@ -57,9 +58,18 @@ onAuthStateChanged(auth, async (user) => {
       throw new Error("Sua conta está inativa ou aguardando aprovação.");
     }
 
-    if (managerCard) managerCard.hidden = !["gerente", "administrador"].includes(profile.papel);
-
     let html = "";
+
+    // Gerentes e administradores acessam o painel de gerência.
+    if (["gerente", "administrador"].includes(profile.papel)) {
+      html += buildCard(
+        "Painel do Gerente",
+        "Acompanhe a equipe, a produtividade dos corretores, imóveis, leads e visitas.",
+        "/gerencia.html",
+        icons.gerente,
+        "#d7ad65"
+      );
+    }
 
     // 1. Todos os usuários ativos têm acesso ao painel de cliente
     html += buildCard(
