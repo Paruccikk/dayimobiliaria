@@ -464,6 +464,23 @@ propertyForm.addEventListener("submit", async event => {
       body: JSON.stringify(body)
     });
 
+    const selectedFiles = [
+      ...Array.from($("#prop-fotos").files || []),
+      ...Array.from($("#prop-documentos").files || [])
+    ];
+    if (selectedFiles.length) {
+      const formData = new FormData();
+      selectedFiles.forEach(file => formData.append("arquivos", file));
+      const token = await currentUser.getIdToken();
+      const uploadResponse = await fetch("/api/admin/imoveis/" + encodeURIComponent(result.id) + "/arquivos", {
+        method: "POST",
+        headers: { Authorization: "Bearer " + token },
+        body: formData
+      });
+      const uploadData = await uploadResponse.json().catch(() => ({}));
+      if (!uploadResponse.ok) throw new Error(uploadData.error || "Imóvel cadastrado, mas houve falha ao enviar os arquivos.");
+    }
+
     propertyForm.reset();
     $("#prop-publicar").checked = true;
 
