@@ -73,14 +73,14 @@ app.use(
 app.use(express.static(FRONTEND_DIR));
 
 // Fotos dos imóveis
-app.use(
-  "/uploads/imoveis",
-  express.static(UPLOAD_ROOT, {
-    dotfiles: "deny",
-    index: false,
+app.use("/uploads/imoveis", (req, res, next) => {
+  // Materiais de lançamentos são servidos por rota autenticada abaixo.
+  if (req.path.startsWith("/empreendimentos/")) return next();
+  return express.static(UPLOAD_ROOT, {
+    dotfiles: "deny", index: false,
     maxAge: process.env.NODE_ENV === "production" ? "7d" : 0,
-  })
-);
+  })(req, res, next);
+});
 
 // --------------------------------------------------
 // FIREBASE ADMIN
@@ -1333,11 +1333,28 @@ app.post("/api/empreendimentos/:id/materiais", requireFirebase, allowRoles("admi
     if(!snap.exists()) return res.status(404).json({error:"Empreendimento não encontrado."});
     const item=snap.val(); const materiais=Array.isArray(item.materiais)?item.materiais:[];
     for(const file of req.files||[]) materiais.push({id:crypto.randomBytes(10).toString("hex"),
-      nome:cleanString(file.originalname,180),url:"/uploads/imoveis/empreendimentos/"+id+"/"+path.basename(file.filename),
+      nome:cleanString(file.originalname,180),url:"/api/empreendimentos/"+id+"/arquivos/"+path.basename(file.filename),
       mime:file.mimetype,tamanho:file.size,atualizadoEm:new Date().toISOString()});
     await ref.update({materiais,atualizadoEm:new Date().toISOString()});
     res.status(201).json({materiais});
   } catch(error) { sendServerError(res,"Não foi possível enviar os materiais.",error); }
+});
+
+app.get("/api/empreendimentos/:id/arquivos/:filename", requireFirebase, allowRoles("administrador","gerente","corretor"), async(req,res) => {
+  try {
+    const id=cleanString(req.params.id,100), filename=path.basename(req.params.filename);
+    const snap=await db.ref("empreendimentos/"+id).get();
+    if(!snap.exists()) return res.status(404).json({error:"Empreendimento não encontrado."});
+    const item=snap.val();
+    if(!canReadDevelopment(req,item)) return res.status(403).json({error:"Você não tem acesso a estes materiais."});
+    const material=(Array.isArray(item.materiais)?item.materiais:[]).find(m=>path.basename(String(m.url||""))===filename || String(m.url||"").endsWith("/"+filename));
+    if(!material) return res.status(404).json({error:"Arquivo não encontrado."});
+    const filePath=path.join(UPLOAD_ROOT,"empreendimentos",id,filename);
+    if(!fs.existsSync(filePath)) return res.status(404).json({error:"Arquivo não está disponível no servidor."});
+    res.setHeader("Content-Disposition", "inline; filename*=UTF-8''"+encodeURIComponent(material.nome||filename));
+    res.setHeader("X-Content-Type-Options","nosniff");
+    return res.sendFile(filePath);
+  } catch(error) { sendServerError(res,"Não foi possível abrir o material.",error); }
 });
 
 app.delete("/api/empreendimentos/:id/materiais/:materialId", requireFirebase, allowRoles("administrador"), async(req,res) => {
