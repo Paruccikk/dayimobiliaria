@@ -1286,9 +1286,14 @@ app.patch("/api/agenda/visitas/:id", requireFirebase, allowRoles("administrador"
 
 /* CRM OPERACIONAL */
 const crmStages = new Set(["novo","em_contato","visita_agendada","proposta_enviada","em_analise_contrato","fechado","perdido"]);
-function canAccessLead(req, lead) { return req.profile.papel === "administrador" || lead.responsavelUid === req.user.uid; }
-app.get("/api/crm/leads", requireFirebase, allowRoles("administrador","corretor"), async (req,res) => {
-  try { const snap=await db.ref("leads").get(); let items=Object.entries(snap.val()||{}).map(([id,v])=>({id,...v})); if(req.profile.papel!=="administrador")items=items.filter(x=>x.responsavelUid===req.user.uid); items.sort((a,b)=>String(b.atualizadoEm||b.criadoEm||"").localeCompare(String(a.atualizadoEm||a.criadoEm||""))); return res.json({items}); }
+async function canAccessLead(req, lead) {
+  if (req.profile.papel === "administrador" || lead.responsavelUid === req.user.uid) return true;
+  if (req.profile.papel !== "gerente" || !lead.responsavelUid) return false;
+  const broker = (await db.ref("usuarios/" + lead.responsavelUid).get()).val();
+  return broker?.papel === "corretor" && broker?.gerenteUid === req.user.uid;
+}
+app.get("/api/crm/leads", requireFirebase, allowRoles("administrador","corretor","gerente"), async (req,res) => {
+  try { const snap=await db.ref("leads").get(); let items=Object.entries(snap.val()||{}).map(([id,v])=>({id,...v})); if(req.profile.papel==="corretor")items=items.filter(x=>x.responsavelUid===req.user.uid); if(req.profile.papel==="gerente"){const snapUsers=await db.ref("usuarios").get();const team=new Set(Object.entries(snapUsers.val()||{}).filter(([,u])=>u.papel==="corretor"&&u.gerenteUid===req.user.uid).map(([uid])=>uid));items=items.filter(x=>team.has(x.responsavelUid));} items.sort((a,b)=>String(b.atualizadoEm||b.criadoEm||"").localeCompare(String(a.atualizadoEm||a.criadoEm||""))); return res.json({items}); }
   catch(e){return sendServerError(res,"Não foi possível carregar os leads.",e);}
 });
 app.post("/api/crm/leads", requireFirebase, allowRoles("administrador","corretor"), async(req,res)=>{
@@ -1297,16 +1302,16 @@ app.post("/api/crm/leads", requireFirebase, allowRoles("administrador","corretor
   try{const ref=db.ref("leads").push(),now=new Date().toISOString(),lead={nome,telefone,email:cleanString(b.email,160),imovelId:cleanString(b.imovelId,120),preferencias:cleanString(b.preferencias,3000),mensagem:cleanString(b.mensagem,2000),status,proximoContato:cleanString(b.proximoContato,20),responsavelUid,origem:"manual",criadoEm:now,atualizadoEm:now,historico:[{texto:"Lead cadastrado manualmente.",autorUid:req.user.uid,autorNome:cleanString(req.profile.nome,120),data:now}]};await ref.set(lead);return res.status(201).json({ok:true,id:ref.key});}
   catch(e){return sendServerError(res,"Não foi possível cadastrar o lead.",e);}
 });
-app.patch("/api/crm/leads/:id", requireFirebase, allowRoles("administrador","corretor"), async(req,res)=>{
+app.patch("/api/crm/leads/:id", requireFirebase, allowRoles("administrador","corretor","gerente"), async(req,res)=>{
   const id=cleanString(req.params.id,128),b=req.body||{};if(!id||id.includes("/"))return res.status(400).json({error:"ID inválido."});const updates={};
   for(const [k,n] of [["nome",120],["telefone",40],["email",160],["imovelId",120],["preferencias",3000],["mensagem",2000],["proximoContato",20]])if(Object.hasOwn(b,k))updates[k]=cleanString(b[k],n);
   if(Object.hasOwn(b,"status")){if(!crmStages.has(b.status))return res.status(400).json({error:"Etapa inválida."});updates.status=b.status;}
   if(!Object.keys(updates).length)return res.status(400).json({error:"Nenhuma alteração informada."});
   if((updates.nome!==undefined&&!updates.nome)||(updates.telefone!==undefined&&!updates.telefone))return res.status(400).json({error:"Nome e telefone são obrigatórios."});
-  try{const ref=db.ref("leads/"+id),snap=await ref.get();if(!snap.exists())return res.status(404).json({error:"Lead não encontrado."});if(!canAccessLead(req,snap.val()))return res.status(403).json({error:"Este lead não pertence à sua carteira."});updates.atualizadoEm=new Date().toISOString();await ref.update(updates);return res.json({ok:true,id});}
+  try{const ref=db.ref("leads/"+id),snap=await ref.get();if(!snap.exists())return res.status(404).json({error:"Lead não encontrado."});if(!(await canAccessLead(req,snap.val())))return res.status(403).json({error:"Este lead não pertence à sua equipe ou carteira."});updates.atualizadoEm=new Date().toISOString();await ref.update(updates);return res.json({ok:true,id});}
   catch(e){return sendServerError(res,"Não foi possível atualizar o lead.",e);}
 });
-app.post("/api/crm/leads/:id/interacoes", requireFirebase, allowRoles("administrador","corretor"), async(req,res)=>{
+app.post("/api/crm/leads/:id/interacoes", requireFirebase, allowRoles("administrador","corretor","gerente"), async(req,res)=>{
   const id=cleanString(req.params.id,128),texto=cleanString(req.body?.texto,2000);if(!id||id.includes("/")||!texto)return res.status(400).json({error:"Informe uma interação válida."});
   try{const ref=db.ref("leads/"+id),snap=await ref.get();if(!snap.exists())return res.status(404).json({error:"Lead não encontrado."});if(!canAccessLead(req,snap.val()))return res.status(403).json({error:"Este lead não pertence à sua carteira."});const now=new Date().toISOString();await ref.child("historico").push({texto,autorUid:req.user.uid,autorNome:cleanString(req.profile.nome,120),data:now});await ref.update({atualizadoEm:now});return res.status(201).json({ok:true});}
   catch(e){return sendServerError(res,"Não foi possível registrar a interação.",e);}
