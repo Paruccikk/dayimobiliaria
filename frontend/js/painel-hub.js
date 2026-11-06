@@ -78,6 +78,16 @@ onAuthStateChanged(auth, async (user) => {
       );
     }
 
+    if (profile.papel === "gerente") {
+      html += buildCard(
+        "Painel de Gerência",
+        "Acompanhe os corretores vinculados, carteira, leads e visitas da sua equipe.",
+        "/gerencia.html",
+        icons.admin,
+        "#d7ad65"
+      );
+    }
+
     // 3. Apenas Admins acessam o painel Admin
     if (profile.papel === "administrador") {
       html += buildCard(
