@@ -1160,6 +1160,8 @@ app.post(
         vagas: Math.max(0, Number(body.vagas) || 0),
         areaM2: Math.max(0, Number(body.areaM2) || 0),
         fotos: [],
+        documentos: [],
+        disponibilidade: ["disponivel","reservado","vendido"].includes(body.disponibilidade) ? body.disponibilidade : "disponivel",
         status,
         publicadoNoSite: status === "publicado",
         responsavelUid: req.user.uid,
@@ -1241,6 +1243,134 @@ app.patch(
   }
 );
 
+
+
+// --------------------------------------------------
+// CENTRAL DE MATERIAIS E GESTÃO DA CARTEIRA
+// --------------------------------------------------
+const materialStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const id = cleanString(req.params.id, 100).replace(/[^a-zA-Z0-9_-]/g, "");
+    if (!id) return cb(new Error("ID de empreendimento inválido."));
+    const dir = path.join(UPLOAD_ROOT, "empreendimentos", id);
+    fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (_req, file, cb) => {
+    const extByMime = {
+      "image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp",
+      "application/pdf": ".pdf",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": ".xlsx",
+      "application/vnd.ms-excel": ".xls",
+      "text/csv": ".csv"
+    };
+    const ext = extByMime[file.mimetype];
+    if (!ext) return cb(new Error("Formato não permitido. Use JPG, PNG, WEBP, PDF, XLS, XLSX ou CSV."));
+    cb(null, Date.now() + "-" + crypto.randomBytes(5).toString("hex") + ext);
+  }
+});
+const uploadMateriais = multer({
+  storage: materialStorage,
+  limits: { fileSize: Number(process.env.MAX_UPLOAD_MB || 12) * 1024 * 1024, files: 30 },
+  fileFilter: (_req, file, cb) => {
+    const allowed = ["image/jpeg","image/png","image/webp","application/pdf",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "application/vnd.ms-excel","text/csv"];
+    cb(allowed.includes(file.mimetype) ? null : new Error("Tipo de arquivo não permitido."), allowed.includes(file.mimetype));
+  }
+});
+
+function canReadDevelopment(req, item) {
+  if (req.profile.papel === "administrador") return true;
+  if (item.acessoTodosCorretores === true) return ["corretor","gerente"].includes(req.profile.papel);
+  const allowed = Array.isArray(item.corretoresPermitidos) ? item.corretoresPermitidos : [];
+  return allowed.includes(req.user.uid);
+}
+
+app.get("/api/empreendimentos", requireFirebase, allowRoles("administrador","gerente","corretor"), async (req,res) => {
+  try {
+    const snap = await db.ref("empreendimentos").get();
+    const items = Object.entries(snap.val() || {}).map(([id,v]) => ({id,...v}))
+      .filter(item => req.profile.papel === "administrador" || (item.ativo !== false && canReadDevelopment(req,item)))
+      .sort((a,b) => String(a.nome||"").localeCompare(String(b.nome||"")));
+    res.json({items});
+  } catch(error) { sendServerError(res,"Não foi possível carregar os empreendimentos.",error); }
+});
+
+app.post("/api/empreendimentos", requireFirebase, allowRoles("administrador"), async(req,res) => {
+  const nome = cleanString(req.body?.nome,160);
+  if (!nome) return res.status(400).json({error:"Informe o nome do empreendimento."});
+  try {
+    const ref = db.ref("empreendimentos").push();
+    const item = {nome, incorporadora:cleanString(req.body?.incorporadora,160),
+      descricao:cleanString(req.body?.descricao,4000), endereco:cleanString(req.body?.endereco,300),
+      acessoTodosCorretores:req.body?.acessoTodosCorretores === true,
+      corretoresPermitidos:Array.isArray(req.body?.corretoresPermitidos) ? req.body.corretoresPermitidos.filter(isValidUid).slice(0,500) : [],
+      ativo:true, materiais:[], criadoEm:new Date().toISOString(), atualizadoEm:new Date().toISOString()};
+    await ref.set(item);
+    res.status(201).json({id:ref.key,item});
+  } catch(error) { sendServerError(res,"Não foi possível cadastrar o empreendimento.",error); }
+});
+
+app.patch("/api/empreendimentos/:id", requireFirebase, allowRoles("administrador"), async(req,res) => {
+  const id=cleanString(req.params.id,100);
+  const updates={atualizadoEm:new Date().toISOString()};
+  for (const key of ["nome","incorporadora","descricao","endereco"]) if (Object.hasOwn(req.body||{},key)) updates[key]=cleanString(req.body[key],key==="descricao"?4000:300);
+  if (Object.hasOwn(req.body||{},"acessoTodosCorretores")) updates.acessoTodosCorretores=req.body.acessoTodosCorretores===true;
+  if (Object.hasOwn(req.body||{},"corretoresPermitidos")) updates.corretoresPermitidos=Array.isArray(req.body.corretoresPermitidos)?req.body.corretoresPermitidos.filter(isValidUid).slice(0,500):[];
+  if (Object.hasOwn(req.body||{},"ativo")) updates.ativo=req.body.ativo===true;
+  try {
+    const ref=db.ref("empreendimentos/"+id); const snap=await ref.get();
+    if(!snap.exists()) return res.status(404).json({error:"Empreendimento não encontrado."});
+    await ref.update(updates); res.json({ok:true});
+  } catch(error) { sendServerError(res,"Não foi possível atualizar o empreendimento.",error); }
+});
+
+app.post("/api/empreendimentos/:id/materiais", requireFirebase, allowRoles("administrador"), uploadMateriais.array("arquivos",30), async(req,res) => {
+  const id=cleanString(req.params.id,100);
+  try {
+    const ref=db.ref("empreendimentos/"+id); const snap=await ref.get();
+    if(!snap.exists()) return res.status(404).json({error:"Empreendimento não encontrado."});
+    const item=snap.val(); const materiais=Array.isArray(item.materiais)?item.materiais:[];
+    for(const file of req.files||[]) materiais.push({id:crypto.randomBytes(10).toString("hex"),
+      nome:cleanString(file.originalname,180),url:"/uploads/imoveis/empreendimentos/"+id+"/"+path.basename(file.filename),
+      mime:file.mimetype,tamanho:file.size,atualizadoEm:new Date().toISOString()});
+    await ref.update({materiais,atualizadoEm:new Date().toISOString()});
+    res.status(201).json({materiais});
+  } catch(error) { sendServerError(res,"Não foi possível enviar os materiais.",error); }
+});
+
+app.delete("/api/empreendimentos/:id/materiais/:materialId", requireFirebase, allowRoles("administrador"), async(req,res) => {
+  try {
+    const ref=db.ref("empreendimentos/"+cleanString(req.params.id,100)); const snap=await ref.get();
+    if(!snap.exists()) return res.status(404).json({error:"Empreendimento não encontrado."});
+    const item=snap.val(); const materiais=Array.isArray(item.materiais)?item.materiais:[];
+    const target=materiais.find(m=>m.id===req.params.materialId);
+    if(!target) return res.status(404).json({error:"Material não encontrado."});
+    const filePath=path.join(UPLOAD_ROOT,"empreendimentos",cleanString(req.params.id,100),path.basename(target.url));
+    if(fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    await ref.update({materiais:materiais.filter(m=>m.id!==req.params.materialId),atualizadoEm:new Date().toISOString()});
+    res.json({ok:true});
+  } catch(error) { sendServerError(res,"Não foi possível remover o material.",error); }
+});
+
+app.patch("/api/admin/imoveis/:id/gestao", requireFirebase, allowRoles("administrador"), async(req,res) => {
+  const id=cleanString(req.params.id,100); const body=req.body||{}; const updates={atualizadoEm:new Date().toISOString()};
+  if(Object.hasOwn(body,"disponibilidade")) {
+    if(!["disponivel","reservado","vendido"].includes(body.disponibilidade)) return res.status(400).json({error:"Disponibilidade inválida."});
+    updates.disponibilidade=body.disponibilidade;
+  }
+  if(Object.hasOwn(body,"responsavelUid")) {
+    const uid=body.responsavelUid ? cleanString(body.responsavelUid,128) : null;
+    if(uid) { const u=(await db.ref("usuarios/"+uid).get()).val(); if(!u || u.papel!=="corretor" || u.ativo!==true || u.status!=="ativo") return res.status(400).json({error:"Selecione um corretor ativo."}); }
+    updates.responsavelUid=uid;
+  }
+  try {
+    const ref=db.ref("imoveis/"+id); const snap=await ref.get();
+    if(!snap.exists()) return res.status(404).json({error:"Imóvel não encontrado."});
+    await ref.update(updates); res.json({ok:true,updates});
+  } catch(error) { sendServerError(res,"Não foi possível atualizar a gestão do imóvel.",error); }
+});
 
 // --------------------------------------------------
 // AGENDAMENTO DE VISITAS
