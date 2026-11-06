@@ -762,14 +762,14 @@ app.get(
 // --------------------------------------------------
 // PAINEL DE GERÊNCIA
 // --------------------------------------------------
-app.get("/api/gerente/dashboard", requireFirebase, allowRoles("gerente"), async (req, res) => {
+app.get("/api/gerente/dashboard", requireFirebase, allowRoles("administrador", "gerente"), async (req, res) => {
   try {
     const [usersSnap, propertiesSnap, leadsSnap, visitsSnap, bookingsSnap] = await Promise.all([
       db.ref("usuarios").get(), db.ref("imoveis").get(), db.ref("leads").get(),
       db.ref("visitas").get(), db.ref("agendamentos").get()
     ]);
     const equipe = Object.entries(usersSnap.val() || {})
-      .filter(([, user]) => user.papel === "corretor" && user.gerenteUid === req.user.uid && user.ativo === true && user.status === "ativo")
+      .filter(([, user]) => user.papel === "corretor" && user.ativo === true && user.status === "ativo" && (req.profile.papel === "administrador" || user.gerenteUid === req.user.uid))
       .map(([uid, user]) => ({ uid, nome: user.nome || user.email || uid, email: user.email || "" }));
     const teamUids = new Set(equipe.map(user => user.uid));
     const byTeam = (raw, key) => Object.entries(raw || {}).map(([id, item]) => ({ id, ...item }))
