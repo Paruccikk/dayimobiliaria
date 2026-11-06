@@ -94,7 +94,7 @@ if (!id) {
           ${featurePills ? `<div class="property-features">${featurePills}</div>` : ""}
 
           <a class="button button-gold detail-cta" target="_blank" rel="noopener"
-             href="https://wa.me/?text=${waMessage}">
+             href="https://wa.me/5511964294254?text=${waMessage}">
             <span>Consultar pelo WhatsApp</span>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7M7 7h10v10"/></svg>
           </a>
