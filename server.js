@@ -974,6 +974,7 @@ const storage = multer.diskStorage({
       "image/jpeg": ".jpg",
       "image/png": ".png",
       "image/webp": ".webp",
+      "application/pdf": ".pdf",
     };
 
     const ext = extensions[file.mimetype];
