@@ -26,7 +26,7 @@ function setLoading(loading) {
 
 function roleHome(role) {
   const destinations = {
-    administrador: "/admin.html",
+    administrador: "/painel.html",
     corretor: "/painel.html",
     gerente: "/gerencia.html",
     cliente: "/"
