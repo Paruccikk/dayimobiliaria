@@ -1,53 +1,160 @@
 import { auth } from "./firebase-client.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
-const $ = selector => document.querySelector(selector);
+const $ = (selector) => document.querySelector(selector);
 const hubGrid = $("#hub-grid");
 const userEmail = $("#user-email");
 
-// Ícones SVG para os cartões
 const icons = {
-  cliente: `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`,
-  corretor: `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M20 7h-9"/><path d="M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg>`,
-  admin: `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/><path d="M13 8h5"/><path d="M13 12h5"/><path d="M13 16h5"/></svg>`,
-  gerente: `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>`
+  cliente: '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+  corretor: '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M20 7h-9"/><path d="M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg>',
+  admin: '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M13 8h5M13 12h5M13 16h5"/></svg>'
 };
 
-async function api(url, options = {}) {
-  const token = await auth.currentUser.getIdToken();
-  const res = await fetch(url, {
+async function api(user, url, options = {}) {
+  if (!user) throw new Error("Sua sessão expirou. Entre novamente.");
+  const token = await user.getIdToken();
+  const response = await fetch(url, {
     ...options,
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, ...(options.headers || {}) }
+    headers: {
+      Accept: "application/json",
+      ...(options.body ? { "Content-Type": "application/json" } : {}),
+      ...(options.headers || {}),
+      Authorization: `Bearer ${token}`
+    },
+    cache: "no-store"
   });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || "Erro de conexão.");
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || `Falha ao consultar o servidor (${response.status}).`);
   return data;
 }
 
-async function loadNotifications() {
-  const previous = document.querySelector("#user-notifications"); if (previous) previous.remove();
-  const panel = document.createElement("section"); panel.id = "user-notifications";
-  panel.style.cssText = "grid-column:1/-1;margin:0 0 22px;padding:18px;border:1px solid rgba(215,173,101,.35);border-radius:14px;background:rgba(20,24,34,.88);color:#f4f1e9";
-  panel.innerHTML = "<h2>Notificações</h2><p>Carregando avisos…</p>";
-  hubGrid.parentElement.insertBefore(panel, hubGrid);
-  const esc = value => String(value ?? "").replace(/[&<>"\x27]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","\x27":"&#39;"}[c]));
-  try {
-    const data = await api("/api/notificacoes"); const items = data.items || [];
-    panel.innerHTML = "<h2>Notificações (" + (data.naoLidas || 0) + " não lidas)</h2>" + (items.length ? items.map(item => "<article style=\"padding:10px 0;border-top:1px solid #38343a\"><strong>" + esc(item.titulo) + "</strong><p>" + esc(item.mensagem) + "</p><small>" + esc(item.criadoEm ? new Date(item.criadoEm).toLocaleString(\"pt-BR\") : "") + "</small> " + (item.link ? "<a href=\"" + esc(item.link) + "\">Abrir</a> " : "") + (!item.lida ? "<button data-notification-read=\"" + esc(item.id) + "\">Marcar como lida</button>" : "") + "</article>").join("") : "<p>Nenhuma notificação no momento.</p>");
-    panel.querySelectorAll("[data-notification-read]").forEach(button => button.addEventListener("click", async () => { button.disabled = true; await api("/api/notificacoes/" + encodeURIComponent(button.dataset.notificationRead) + "/lida", {method:"PATCH"}); await loadNotifications(); }));
-  } catch(error) { panel.innerHTML = "<h2>Notificações</h2><p>" + esc(error.message) + "</p>"; }
+function buildCard(title, description, href, icon, color) {
+  const card = document.createElement("a");
+  card.className = "hub-card";
+  card.href = href;
+  const iconBox = document.createElement("div");
+  iconBox.className = "hub-icon";
+  iconBox.style.cssText = `background:${color}1A;color:${color};border-color:${color}40;`;
+  iconBox.innerHTML = icon;
+  const heading = document.createElement("h2");
+  heading.textContent = title;
+  const paragraph = document.createElement("p");
+  paragraph.textContent = description;
+  const action = document.createElement("div");
+  action.className = "hub-action";
+  action.textContent = "Acessar painel ↗";
+  card.append(iconBox, heading, paragraph, action);
+  return card;
 }
-function buildCard(title, desc, link, icon, color) {
-  return `
-    <a href="${link}" class="hub-card">
-      <div class="hub-icon" style="background:${color}1A; color:${color}; border-color:${color}40;">
-        ${icon}
-      </div>
-      <h2>${title}</h2>
-      <p>${desc}</p>
-      <div class="hub-action">Acessar painel <span>↗</span></div>
-    </a>
-  `;
+
+function showError(message) {
+  hubGrid.replaceChildren();
+  const box = document.createElement("div");
+  box.className = "empty-state";
+  box.style.cssText = "grid-column:1/-1;color:#f06ca8;border-color:rgba(240,108,168,.3)";
+  const title = document.createElement("strong");
+  title.textContent = "Não foi possível carregar seu painel";
+  const detail = document.createElement("p");
+  detail.textContent = message;
+  box.append(title, detail);
+  hubGrid.append(box);
+}
+
+async function loadNotifications(user) {
+  const panel = document.createElement("section");
+  panel.id = "user-notifications";
+  panel.style.cssText = "margin:0 0 22px;padding:18px;border:1px solid rgba(215,173,101,.35);border-radius:14px;background:rgba(20,24,34,.88);color:#f4f1e9";
+  const heading = document.createElement("h2");
+  heading.textContent = "Notificações";
+  const body = document.createElement("p");
+  body.textContent = "Carregando avisos…";
+  panel.append(heading, body);
+  hubGrid.insertAdjacentElement("beforebegin", panel);
+  try {
+    const data = await api(user, "/api/notificacoes");
+    const items = Array.isArray(data.items) ? data.items : [];
+    heading.textContent = `Notificações (${data.naoLidas || 0} não lidas)`;
+    body.remove();
+    if (!items.length) {
+      const empty = document.createElement("p");
+      empty.textContent = "Nenhuma notificação no momento.";
+      panel.append(empty);
+      return;
+    }
+    for (const item of items) {
+      const article = document.createElement("article");
+      article.style.cssText = "padding:10px 0;border-top:1px solid #38343a";
+      const title = document.createElement("strong");
+      title.textContent = item.titulo || "Aviso";
+      const message = document.createElement("p");
+      message.textContent = item.mensagem || "";
+      const date = document.createElement("small");
+      date.textContent = item.criadoEm ? new Date(item.criadoEm).toLocaleString("pt-BR") : "";
+      article.append(title, message, date);
+      if (item.link) {
+        const link = document.createElement("a");
+        link.href = item.link;
+        link.textContent = "Abrir";
+        article.append(" ", link);
+      }
+      if (!item.lida && item.id) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = "Marcar como lida";
+        button.addEventListener("click", async () => {
+          button.disabled = true;
+          try {
+            await api(user, `/api/notificacoes/${encodeURIComponent(item.id)}/lida`, { method: "PATCH" });
+            panel.remove();
+            await loadNotifications(user);
+          } catch (error) {
+            button.disabled = false;
+            button.textContent = error.message;
+          }
+        });
+        article.append(" ", button);
+      }
+      panel.append(article);
+    }
+  } catch (error) {
+    body.textContent = `Notificações indisponíveis: ${error.message}`;
+  }
+}
+
+async function renderHub(user) {
+  if (!hubGrid) return;
+  hubGrid.replaceChildren();
+  try {
+    const data = await api(user, "/api/auth/perfil");
+    const profile = data.perfil;
+    if (!profile) throw new Error("Perfil não encontrado. Entre em contato com o administrador.");
+    if (profile.ativo !== true || profile.status !== "ativo") {
+      throw new Error("Sua conta está aguardando aprovação ou está inativa.");
+    }
+    const role = profile.papel;
+    if (!["cliente", "corretor", "administrador", "gerente"].includes(role)) {
+      throw new Error("Seu perfil não possui um nível de acesso válido.");
+    }
+
+    if (role === "cliente") {
+      hubGrid.append(buildCard("Área do Cliente", "Acesse seus imóveis favoritos, histórico e preferências.", "/cliente.html", icons.cliente, "#57d9e0"));
+    } else {
+      hubGrid.append(buildCard("Painel do Corretor", "Gerencie sua carteira de imóveis, leads e agendamentos.", "/corretor.html", icons.corretor, "#e6b45a"));
+      hubGrid.append(buildCard("CRM de Leads", "Organize oportunidades, acompanhe preferências e registre interações.", "/crm.html", icons.corretor, "#d7ad65"));
+      hubGrid.append(buildCard("Agenda de Visitas", "Consulte visitas e acompanhe confirmações e resultados.", "/agenda.html", icons.corretor, "#57d9e0"));
+      if (role === "administrador") {
+        hubGrid.append(buildCard("Administração", "Gerencie usuários, permissões, imóveis e relatórios.", "/admin.html", icons.admin, "#f06ca8"));
+      }
+      if (role === "gerente") {
+        hubGrid.append(buildCard("Painel de Gerência", "Acompanhe a equipe, imóveis, leads e visitas.", "/gerencia.html", icons.admin, "#d7ad65"));
+      }
+    }
+    if (!hubGrid.children.length) throw new Error("Nenhuma área está disponível para este perfil.");
+    await loadNotifications(user);
+  } catch (error) {
+    showError(error.message || "Erro inesperado ao carregar os cartões.");
+  }
 }
 
 onAuthStateChanged(auth, async (user) => {
@@ -55,99 +162,16 @@ onAuthStateChanged(auth, async (user) => {
     window.location.replace("/login.html");
     return;
   }
-
-  userEmail.textContent = user.email;
-
-  try {
-    // Valida o perfil no servidor
-    const data = await api("/api/auth/perfil");
-    const profile = data.perfil;
-    const managerCard = document.querySelector("#manager-panel-card");
-
-    if (!profile) {
-      throw new Error("Perfil não cadastrado. Entre em contato com o suporte.");
-    }
-    if (profile.ativo !== true || profile.status !== "ativo") {
-      throw new Error("Sua conta está inativa ou aguardando aprovação.");
-    }
-
-    let html = "";
-
-    // Gerentes e administradores acessam o painel de gerência.
-    if (["gerente", "administrador"].includes(profile.papel)) {
-      html += buildCard(
-        "Painel do Gerente",
-        "Acompanhe a equipe, a produtividade dos corretores, imóveis, leads e visitas.",
-        "/gerencia.html",
-        icons.gerente,
-        "#d7ad65"
-      );
-    }
-
-    // 1. Todos os usuários ativos têm acesso ao painel de cliente
-    html += buildCard(
-      "Área do Cliente",
-      "Acesse seus imóveis favoritos, histórico e preferências.",
-      "/cliente.html",
-      icons.cliente,
-      "#57d9e0" // Azul ciano
-    );
-
-    // 2. Corretores e Admins acessam o painel do corretor
-    if (["corretor", "gerente", "administrador"].includes(profile.papel)) {
-      html += buildCard(
-        "Painel do Corretor",
-        "Gerencie sua carteira de imóveis, leads e agendamentos.",
-        "/corretor.html", // Rota futura do corretor
-        icons.corretor,
-        "#e6b45a" // Dourado
-      );
-    }
-
-    // 3. Apenas Admins acessam o painel Admin
-    if (profile.papel === "administrador") {
-      html += buildCard(
-        "Administração",
-        "Gestão completa de usuários, imóveis e relatórios da imobiliária.",
-        "/admin.html",
-        icons.admin,
-        "#f06ca8" // Rosa/Pink
-      );
-    }
-
-    if (["corretor", "administrador", "gerente"].includes(profile.papel)) {
-      html += buildCard(
-        "CRM de Leads",
-        "Organize oportunidades em Kanban, acompanhe preferências e registre cada interação.",
-        "/crm.html",
-        icons.corretor,
-        "#d7ad65"
-      );
-    }
-
-    if (["corretor", "administrador"].includes(profile.papel)) {
-      html += buildCard("Agenda de Visitas", "Consulte a agenda diária e semanal e acompanhe os resultados das visitas.", "/agenda.html", icons.corretor, "#d7ad65");
-    }
-
-    hubGrid.innerHTML = html;
-    await loadNotifications();
-
-  } catch (err) {
-    hubGrid.innerHTML = `
-      <div class="empty-state" style="grid-column:1/-1; color: #f06ca8; border-color: rgba(240,108,168,0.3);">
-        <strong>Acesso Negado</strong><br>
-        ${err.message}
-      </div>
-    `;
-  }
+  if (userEmail) userEmail.textContent = user.email || "Conta autenticada";
+  await renderHub(user);
 });
 
-// Botão de logout
-$("#btn-logout").addEventListener("click", async () => {
+$("#btn-logout")?.addEventListener("click", async () => {
+  const button = $("#btn-logout");
+  if (button) button.disabled = true;
   try {
     await signOut(auth);
+  } finally {
     window.location.replace("/login.html");
-  } catch (err) {
-    alert("Erro ao sair.");
   }
 });
