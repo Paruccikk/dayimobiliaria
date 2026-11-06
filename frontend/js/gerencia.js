@@ -54,6 +54,11 @@ async function load() {
       return '<tr><td><strong>' + esc(user.nome) + '</strong></td><td>' + esc(user.email || "—") +
         '</td><td>' + ownProperties + '</td><td>' + ownLeads + '</td></tr>';
     }, 4);
+    const performance = data.desempenhoCorretores || [];
+    rows("#manager-performance", performance, "Nenhum corretor vinculado.", item =>
+      '<tr><td><strong>' + esc(item.nome) + '</strong></td><td>' + item.imoveis +
+      '</td><td>' + item.leads + '</td><td>' + item.leadsNovos + '</td><td>' + item.propostas +
+      '</td><td>' + item.fechados + '</td><td>' + item.visitas + '</td><td>' + item.visitasRealizadas + '</td></tr>', 8);
     rows("#manager-leads", leads.slice(0, 100), "Nenhum lead da equipe.", lead =>
       '<tr><td><strong>' + esc(lead.nome || "—") + '</strong><div class="dash-subtitle">' + esc(lead.mensagem || "") +
       '</div></td><td>' + esc(lead.telefone || "—") + '</td><td>' + esc(lead.responsavelNome) +
