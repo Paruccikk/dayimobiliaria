@@ -189,6 +189,8 @@ $("#property-form").addEventListener("submit", async (e) => {
     areaM2: $("#prop-area").value,
     quartos: $("#prop-quartos").value,
     suites: $("#prop-suites").value,
+    situacaoObra: $("#prop-situacao").value,
+    minhaCasaMinhaVida: $("#prop-mcmv").checked,
     banheiros: $("#prop-banheiros").value,
     vagas: $("#prop-vagas").value,
     descricao: $("#prop-descricao").value,
@@ -196,7 +198,16 @@ $("#property-form").addEventListener("submit", async (e) => {
   };
 
   try {
-    await api("/api/admin/imoveis", { method: "POST", body: JSON.stringify(body) });
+    const result = await api("/api/admin/imoveis", { method: "POST", body: JSON.stringify(body) });
+    const files = [...Array.from($("#prop-fotos").files || []), ...Array.from($("#prop-documentos").files || [])];
+    if (files.length) {
+      const formData = new FormData();
+      files.forEach(file => formData.append("arquivos", file));
+      const token = await currentUser.getIdToken();
+      const response = await fetch("/api/admin/imoveis/" + encodeURIComponent(result.id) + "/arquivos", { method: "POST", headers: { Authorization: "Bearer " + token }, body: formData });
+      const uploadData = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(uploadData.error || "Imóvel salvo, mas não foi possível enviar os arquivos.");
+    }
     feedback.textContent = "Imóvel enviado para aprovação do administrador!";
     feedback.style.color = "var(--gold-2)";
     e.target.reset();
