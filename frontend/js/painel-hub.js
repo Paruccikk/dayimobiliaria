@@ -24,6 +24,18 @@ async function api(url, options = {}) {
   return data;
 }
 
+async function loadNotifications() {
+  const panel = document.createElement("section");
+  panel.style.cssText = "grid-column:1/-1;margin:0 0 22px;padding:18px;border:1px solid rgba(215,173,101,.35);border-radius:14px;background:rgba(20,24,34,.88);color:#f4f1e9";
+  panel.innerHTML = "<h2>Notificações</h2><p>Carregando avisos…</p>";
+  hubGrid.parentElement.insertBefore(panel, hubGrid);
+  const esc = value => String(value ?? "").replace(/[&<>"\x27]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","\x27":"&#39;"}[c]));
+  try {
+    const data = await api("/api/notificacoes"); const items = data.items || [];
+    panel.innerHTML = "<h2>Notificações (" + (data.naoLidas || 0) + " não lidas)</h2>" + (items.length ? items.map(item => "<article style=\"padding:10px 0;border-top:1px solid #38343a\"><strong>" + esc(item.titulo) + "</strong><p>" + esc(item.mensagem) + "</p><small>" + esc(item.criadoEm ? new Date(item.criadoEm).toLocaleString(\"pt-BR\") : "") + "</small> " + (item.link ? "<a href=\"" + esc(item.link) + "\">Abrir</a> " : "") + (!item.lida ? "<button data-notification-read=\"" + esc(item.id) + "\">Marcar como lida</button>" : "") + "</article>").join("") : "<p>Nenhuma notificação no momento.</p>");
+    panel.querySelectorAll("[data-notification-read]").forEach(button => button.addEventListener("click", async () => { button.disabled = true; await api("/api/notificacoes/" + encodeURIComponent(button.dataset.notificationRead) + "/lida", {method:"PATCH"}); await loadNotifications(); }));
+  } catch(error) { panel.innerHTML = "<h2>Notificações</h2><p>" + esc(error.message) + "</p>"; }
+}
 function buildCard(title, desc, link, icon, color) {
   return `
     <a href="${link}" class="hub-card">
@@ -117,6 +129,7 @@ onAuthStateChanged(auth, async (user) => {
     }
 
     hubGrid.innerHTML = html;
+    await loadNotifications();
 
   } catch (err) {
     hubGrid.innerHTML = `
