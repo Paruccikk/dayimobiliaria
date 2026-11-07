@@ -99,7 +99,7 @@ if (!id) {
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7M7 7h10v10"/></svg>
           </a>
           
-          <button class="button button-outline" style="width:100%; justify-content:center; margin-top:10px;" onclick="document.getElementById('modal-visita').style.display='flex'">
+          <button class="button button-outline" style="width:100%; justify-content:center; margin-top:10px;" id="btn-abrir-visita" type="button">
             📅 Agendar Visita
           </button>
 
@@ -112,7 +112,7 @@ if (!id) {
       <!-- MODAL DE AGENDAMENTO -->
       <div id="modal-visita" style="display:none; position:fixed; inset:0; background:rgba(5,6,10,0.85); z-index:9999; align-items:center; justify-content:center; backdrop-filter:blur(4px);">
         <div class="panel" style="width:100%; max-width:420px; position:relative; margin:20px; background:var(--bg-elev); border:1px solid var(--border-strong); box-shadow:var(--shadow-card);">
-          <button onclick="document.getElementById('modal-visita').style.display='none'" style="position:absolute; top:16px; right:16px; background:none; border:none; color:var(--text-mute); font-size:24px; cursor:pointer;">&times;</button>
+          <button id="btn-fechar-visita" type="button" style="position:absolute; top:16px; right:16px; background:none; border:none; color:var(--text-mute); font-size:24px; cursor:pointer;">&times;</button>
           
           <h3 style="font-family:var(--font-display); font-size:1.4rem; margin-bottom:20px; color:var(--text);">Agendar Visita</h3>
           
@@ -153,6 +153,19 @@ if (!id) {
         </div>
       </div>
     `;
+
+    // Eventos do modal (compatíveis com Content Security Policy)
+    const modalVisita = document.getElementById("modal-visita");
+    document.getElementById("btn-abrir-visita")?.addEventListener("click", () => {
+      modalVisita.style.display = "flex";
+      document.getElementById("visita-feedback").textContent = "";
+    });
+    document.getElementById("btn-fechar-visita")?.addEventListener("click", () => {
+      modalVisita.style.display = "none";
+    });
+    modalVisita?.addEventListener("click", (event) => {
+      if (event.target === modalVisita) modalVisita.style.display = "none";
+    });
 
     // Lógica para enviar o agendamento
     document.getElementById("btn-confirmar-visita").addEventListener("click", async () => {
