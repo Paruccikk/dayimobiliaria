@@ -25,14 +25,9 @@ function setLoading(loading) {
 }
 
 function roleHome(role) {
-  const destinations = {
-    administrador: "/painel.html",
-    corretor: "/painel.html",
-    gerente: "/gerencia.html",
-    cliente: "/"
-  };
-
-  return destinations[role] || null;
+  // Todos os perfis entram primeiro pelo hub central.
+  const allowedRoles = ["cliente", "corretor", "gerente", "administrador"];
+  return allowedRoles.includes(role) ? "/painel.html" : null;
 }
 
 async function validateAndRedirect(user) {
@@ -84,13 +79,6 @@ async function validateAndRedirect(user) {
       message(
         "Seu perfil não está configurado corretamente. Procure o administrador."
       );
-      return;
-    }
-
-    // Clientes podem acessar o site público.
-    if (profile.papel === "cliente") {
-      redirecting = true;
-      window.location.replace("/");
       return;
     }
 
