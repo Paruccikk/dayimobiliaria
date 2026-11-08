@@ -33,11 +33,12 @@ form?.addEventListener("submit", async event => {
 
   const nome = document.querySelector("#nome")?.value.trim() || "";
   const telefone = document.querySelector("#telefone")?.value.trim() || "";
+  const celular = document.querySelector("#celular")?.value.trim() || "";
   const email = document.querySelector("#email")?.value.trim() || "";
   const password = document.querySelector("#password")?.value || "";
   const confirmation = document.querySelector("#confirm-password")?.value || "";
 
-  if (!nome || !telefone || !email) return showMessage("Preencha todos os campos.");
+  if (!nome || !telefone || !celular || !email) return showMessage("Preencha todos os campos.");
   if (password.length < 6) return showMessage("A senha precisa ter pelo menos 6 caracteres.");
   if (password !== confirmation) return showMessage("As senhas não conferem.");
 
@@ -66,7 +67,7 @@ form?.addEventListener("submit", async event => {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`
       },
-      body: JSON.stringify({ nome, telefone })
+      body: JSON.stringify({ nome, telefone, celular })
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(result.error || "Não foi possível salvar seu perfil.");
