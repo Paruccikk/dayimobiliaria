@@ -819,3 +819,59 @@ img { max-width: 100%; display: block; }
   }
   .reveal { opacity: 1; transform: none; }
 }
+
+/* Correções globais de contraste e controles — R&D Prime */
+:root { color-scheme: dark; }
+input, select, textarea, button { font: inherit; }
+input, select, textarea {
+  color: var(--text, #f2f3f7);
+}
+input::placeholder, textarea::placeholder { color: var(--text-mute, #9299aa); opacity: 1; }
+select {
+  background-color: #151923 !important;
+  color: #f2f3f7 !important;
+  border: 1px solid rgba(230,180,90,.28);
+  border-radius: 10px;
+  min-height: 44px;
+}
+select option, select optgroup {
+  background: #151923 !important;
+  color: #f2f3f7 !important;
+}
+input[type="file"] {
+  display: block;
+  width: 100%;
+  color: #e9eaf0;
+  background: rgba(255,255,255,.045);
+  border: 1px dashed rgba(230,180,90,.45);
+  border-radius: 12px;
+  padding: 10px;
+  cursor: pointer;
+}
+input[type="file"]::file-selector-button {
+  border: 0;
+  border-radius: 8px;
+  padding: 10px 15px;
+  margin-right: 12px;
+  background: linear-gradient(120deg,#f7d78b,#e6b45a);
+  color: #17130b;
+  font-weight: 700;
+  cursor: pointer;
+  transition: filter .2s, transform .2s;
+}
+input[type="file"]::file-selector-button:hover { filter: brightness(1.08); transform: translateY(-1px); }
+button:not(.button):not(.nav-toggle) {
+  cursor: pointer;
+}
+button:disabled { opacity: .55; cursor: not-allowed !important; }
+.auth-register-link {
+  margin: 18px 0 0;
+  text-align: center;
+  color: var(--text-soft);
+  font-size: 14px;
+}
+.auth-register-link a { color: var(--gold-2); font-weight: 700; text-decoration: underline; }
+.auth-register-link a:hover { color: var(--gold); }
+@media (max-width: 720px) {
+  input[type="file"]::file-selector-button { display: block; margin: 0 0 10px; width: 100%; }
+}
