@@ -383,12 +383,13 @@ app.post("/api/auth/registrar", async (req, res) => {
 
   const nome = cleanString(req.body?.nome, 120);
   const telefone = cleanString(req.body?.telefone, 30);
+  const celular = cleanString(req.body?.celular, 30);
   const solicitacaoPapel =
     req.body?.tipoCadastro === "corretor" ? "corretor" : "cliente";
 
-  if (!nome || !telefone) {
+  if (!nome || !telefone || !celular) {
     return res.status(400).json({
-      error: "Nome e telefone são obrigatórios.",
+      error: "Nome, telefone e número de celular são obrigatórios.",
     });
   }
 
@@ -408,6 +409,7 @@ app.post("/api/auth/registrar", async (req, res) => {
       nome,
       email: userRecord.email || decoded.email || "",
       telefone,
+      celular,
       papel: "cliente",
       solicitacaoPapel,
       ativo: true,
