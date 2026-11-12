@@ -67,13 +67,17 @@ if (!id) {
             </p>
           </div>
 
-          <div class="detail-gallery">
-            <img class="detail-main-image" src="${safeText(cover)}" alt="${safeText(p.titulo)}">
+          <div class="detail-gallery" id="detail-gallery">
+            <img class="detail-main-image" id="detail-main-image" src="${safeText(cover)}" alt="${safeText(p.titulo)}">
+            ${photos.length > 1 ? `
+              <button class="detail-gallery-arrow prev" id="gallery-prev" type="button" aria-label="Foto anterior">‹</button>
+              <button class="detail-gallery-arrow next" id="gallery-next" type="button" aria-label="Próxima foto">›</button>
+              <span class="detail-gallery-count" id="gallery-count">1 / ${photos.length}</span>
+            ` : ""}
           </div>
-
-          ${gallery.length ? `<div class="detail-thumbs">
-              ${gallery.map((src) => `<img loading="lazy" src="${safeText(src)}" alt="Foto do imóvel ${safeText(p.titulo)}">`).join("")}
-            </div>` : ""}
+          ${photos.length > 1 ? `<div class="detail-thumbs" id="detail-thumbs">
+            ${photos.map((src, index) => `<button class="detail-thumb ${index === 0 ? "active" : ""}" type="button" data-photo-index="${index}" aria-label="Ver foto ${index + 1}"><img loading="lazy" src="${safeText(src)}" alt="Miniatura ${index + 1} do imóvel ${safeText(p.titulo)}"></button>`).join("")}
+          </div>` : ""}
 
           <section class="detail-about">
             <h2>Sobre o imóvel</h2>
@@ -153,6 +157,40 @@ if (!id) {
         </div>
       </div>
     `;
+
+    // Galeria navegável por setas, miniaturas e teclado.
+    if (photos.length > 1) {
+      let activePhoto = 0;
+      const mainImage = document.getElementById("detail-main-image");
+      const count = document.getElementById("gallery-count");
+      const thumbs = Array.from(document.querySelectorAll(".detail-thumb"));
+      const showPhoto = (index) => {
+        activePhoto = (index + photos.length) % photos.length;
+        mainImage.src = photos[activePhoto];
+        mainImage.alt = `Foto ${activePhoto + 1} de ${photos.length} — ${p.titulo}`;
+        count.textContent = `${activePhoto + 1} / ${photos.length}`;
+        thumbs.forEach((thumb, i) => {
+          thumb.classList.toggle("active", i === activePhoto);
+          if (i === activePhoto) thumb.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
+        });
+      };
+      document.getElementById("gallery-prev").addEventListener("click", () => showPhoto(activePhoto - 1));
+      document.getElementById("gallery-next").addEventListener("click", () => showPhoto(activePhoto + 1));
+      thumbs.forEach((thumb, index) => thumb.addEventListener("click", () => showPhoto(index)));
+      document.addEventListener("keydown", event => {
+        if (event.key === "ArrowLeft") showPhoto(activePhoto - 1);
+        if (event.key === "ArrowRight") showPhoto(activePhoto + 1);
+      });
+      let touchStartX = null;
+      const galleryElement = document.getElementById("detail-gallery");
+      galleryElement.addEventListener("touchstart", event => { touchStartX = event.changedTouches[0].screenX; }, { passive: true });
+      galleryElement.addEventListener("touchend", event => {
+        if (touchStartX === null) return;
+        const delta = event.changedTouches[0].screenX - touchStartX;
+        if (Math.abs(delta) > 45) showPhoto(activePhoto + (delta < 0 ? 1 : -1));
+        touchStartX = null;
+      }, { passive: true });
+    }
 
     // Eventos do modal (compatíveis com Content Security Policy)
     const modalVisita = document.getElementById("modal-visita");
