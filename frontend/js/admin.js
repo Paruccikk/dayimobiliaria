@@ -366,12 +366,12 @@ function renderProductivity(productivity = {}) {
 function renderCareerApplications(items) {
   const tbody=$("#career-applications-list");
   if(!tbody)return;
-  if(!items.length){tbody.innerHTML='<tr><td colspan="6">Nenhuma candidatura recebida ainda.</td></tr>';return;}
+  if(!items.length){tbody.innerHTML='<tr><td colspan="7">Nenhuma candidatura recebida ainda.</td></tr>';return;}
   const safeLink=(value)=>{try{const u=new URL(value);return ["https:","http:"].includes(u.protocol)?u.href:"";}catch{return "";}};
   tbody.innerHTML=items.map(item=>{
     const links=[["Instagram / rede",item.instagram],["LinkedIn / portfólio",item.linkedin],["Outros links",item.links]]
       .map(([label,value])=>{const url=safeLink(value);return url?'<a href="'+escapeHtml(url)+'" target="_blank" rel="noopener noreferrer">'+label+'</a>':(value?'<div>'+escapeHtml(value)+'</div>':"");}).join("<br>");
-    return '<tr><td><strong>'+escapeHtml(item.nome)+'</strong><div class="dash-subtitle">'+escapeHtml(item.email)+'</div><div>'+escapeHtml(item.cidade||"")+'</div></td><td>'+escapeHtml(item.telefone)+'</td><td>'+ (links||"—") +'</td><td>'+escapeHtml(item.descricao||"—")+'</td><td>'+escapeHtml(item.motivo||"—")+'</td><td>'+formatDate(item.criadoEm)+'</td></tr>';
+    return '<tr><td><strong>'+escapeHtml(item.nome)+'</strong><div class="dash-subtitle">'+escapeHtml(item.email)+'</div><div>'+escapeHtml(item.cidade||"")+'</div></td><td>'+escapeHtml(item.telefone)+'</td><td>'+ (links||"—") +'</td><td>'+escapeHtml(item.descricao||"—")+'</td><td>'+escapeHtml(item.mensagemContato||"—")+'</td><td>'+escapeHtml(item.motivo||"—")+'</td><td>'+formatDate(item.criadoEm)+'</td></tr>';
   }).join("");
 }
 
