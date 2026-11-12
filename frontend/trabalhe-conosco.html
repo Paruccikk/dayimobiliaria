@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#05060a">
+  <title>Trabalhe conosco | R&D Prime Imóveis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .career-wrap{width:min(980px,92%);margin:70px auto}.career-hero,.career-form{padding:clamp(25px,5vw,52px);border:1px solid var(--border-strong);border-radius:24px;background:rgba(14,16,25,.82);box-shadow:var(--shadow-card)}
+    .career-hero{margin-bottom:28px}.career-hero h1{font:700 clamp(2rem,5vw,3.4rem)/1.1 var(--font-display);margin:12px 0}.career-hero p,.career-form>p{color:var(--text-soft);line-height:1.8}
+    .career-benefits{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-top:26px}.career-benefits div{padding:17px;border:1px solid var(--border);border-radius:14px;color:var(--text-soft)}.career-benefits strong{display:block;color:var(--gold-2);margin-bottom:6px}
+    .career-form{display:grid;grid-template-columns:1fr 1fr;gap:18px}.career-form h2,.career-form>p,.career-form .full{grid-column:1/-1}.career-form h2{margin:0;font:600 1.8rem var(--font-display)}
+    .career-form input,.career-form textarea{width:100%;padding:13px 14px;border-radius:10px;border:1px solid var(--border-strong);background:#fff;color:#17221c;font:inherit}.career-form input::placeholder,.career-form textarea::placeholder{color:#6d7771}.career-form textarea{min-height:120px;resize:vertical}
+    .career-form label{display:block;color:var(--text-soft);font-size:12px;margin-bottom:7px}.career-form button{border:0;cursor:pointer}.career-feedback{min-height:22px;color:var(--gold-2)}
+    @media(max-width:650px){.career-form{grid-template-columns:1fr}.career-form h2,.career-form>p,.career-form .full{grid-column:auto}}
+  </style>
+</head>
+<body>
+  <div class="bg-aura" aria-hidden="true"><div class="aura aura-1"></div><div class="aura aura-2"></div><div class="aura aura-3"></div><div class="grid-overlay"></div></div>
+  <header class="navbar"><div class="container nav-inner"><a class="brand" href="/"><span class="brand-mark">R&D</span><span class="brand-text"><span class="brand-name">R&D PRIME</span><span class="brand-sub">IMÓVEIS</span></span></a><a class="button button-outline" href="/">Voltar ao site</a></div></header>
+  <main class="career-wrap">
+    <section class="career-hero">
+      <div class="eyebrow"><span class="eyebrow-line"></span>Oportunidade profissional</div>
+      <h1>Seu próximo passo pode ser com a <span class="grad-text">R&D Prime.</span></h1>
+      <p>Há 5 anos no mercado imobiliário, conectamos pessoas a oportunidades com inteligência de mercado, atendimento próximo e compromisso com cada negociação. Queremos conhecer profissionais que tenham iniciativa, ética, boa comunicação e vontade de construir resultados em equipe.</p>
+      <div class="career-benefits">
+        <div><strong>Desenvolvimento</strong>Espaço para aprender, evoluir e ampliar sua atuação no mercado.</div>
+        <div><strong>Parceria</strong>Trabalho colaborativo e troca de experiências com a equipe.</div>
+        <div><strong>Oportunidades</strong>Atuação em diferentes frentes do mercado imobiliário.</div>
+      </div>
+    </section>
+    <form id="career-form" class="career-form">
+      <h2>Candidate-se como corretor(a)</h2>
+      <p>Conte um pouco sobre você. Seus dados serão encaminhados à administração da R&D Prime Imóveis para avaliação.</p>
+      <div><label for="nome">Nome completo *</label><input id="nome" name="nome" maxlength="120" autocomplete="name" required></div>
+      <div><label for="email">E-mail *</label><input id="email" name="email" type="email" maxlength="160" autocomplete="email" required></div>
+      <div><label for="telefone">Telefone / WhatsApp *</label><input id="telefone" name="telefone" type="tel" maxlength="40" required></div>
+      <div><label for="cidade">Cidade / região</label><input id="cidade" name="cidade" maxlength="120"></div>
+      <div><label for="instagram">Instagram ou outra rede social</label><input id="instagram" name="instagram" type="url" maxlength="500" placeholder="https://..."></div>
+      <div><label for="linkedin">LinkedIn / portfólio (opcional)</label><input id="linkedin" name="linkedin" type="url" maxlength="500" placeholder="https://..."></div>
+      <div class="full"><label for="links">Outros links (site, perfil profissional etc.)</label><textarea id="links" name="links" maxlength="1500" placeholder="Cole aqui outros links que queira compartilhar"></textarea></div>
+      <div class="full"><label for="descricao">Breve apresentação e experiência</label><textarea id="descricao" name="descricao" maxlength="2500" placeholder="Conte sobre sua experiência no mercado imobiliário e suas principais habilidades."></textarea></div>
+      <div class="full"><label for="motivo">Por que deseja trabalhar com a R&D Prime Imóveis? *</label><textarea id="motivo" name="motivo" maxlength="2500" required placeholder="Conte o que motiva você a fazer parte do nosso time."></textarea></div>
+      <div class="full"><button class="button button-gold" type="submit">Enviar candidatura</button><p id="career-feedback" class="career-feedback" role="status" aria-live="polite"></p></div>
+    </form>
+  </main>
+  <script type="module" src="/js/trabalhe-conosco.js"></script>
+</body></html>
