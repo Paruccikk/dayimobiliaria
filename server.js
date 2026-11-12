@@ -1370,6 +1370,27 @@ app.patch("/api/admin/imoveis/:id", requireFirebase, allowRoles("administrador")
   }
 });
 
+/* Exclusão definitiva de anúncio: somente administrador. Remove também os arquivos locais vinculados. */
+app.delete("/api/admin/imoveis/:id", requireFirebase, allowRoles("administrador"), async (req, res) => {
+  const id = cleanString(req.params.id, 100);
+  if (!id || !/^[a-zA-Z0-9_-]+$/.test(id)) {
+    return res.status(400).json({ error: "ID de imóvel inválido." });
+  }
+  try {
+    const ref = db.ref("imoveis/" + id);
+    const snap = await ref.get();
+    if (!snap.exists()) return res.status(404).json({ error: "Imóvel não encontrado." });
+    await ref.remove();
+    const propertyDir = path.join(UPLOAD_ROOT, id);
+    if (fs.existsSync(propertyDir)) {
+      fs.rmSync(propertyDir, { recursive: true, force: true });
+    }
+    return res.json({ ok: true, id, message: "Anúncio e arquivos vinculados removidos." });
+  } catch (error) {
+    return sendServerError(res, "Não foi possível excluir o anúncio.", error);
+  }
+});
+
 // --------------------------------------------------
 // APROVAÇÃO DE IMÓVEIS
 // --------------------------------------------------
