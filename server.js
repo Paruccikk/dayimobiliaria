@@ -1316,6 +1316,60 @@ app.post(
   }
 );
 
+
+/* Edição dos dados dos imóveis existentes: somente administrador. */
+app.patch("/api/admin/imoveis/:id", requireFirebase, allowRoles("administrador"), async (req, res) => {
+  const id = cleanString(req.params.id, 100);
+  if (!id || id.includes("/")) return res.status(400).json({ error: "ID de imóvel inválido." });
+  const body = req.body || {};
+  const updates = { atualizadoEm: new Date().toISOString() };
+
+  if (Object.hasOwn(body, "titulo")) {
+    const titulo = cleanString(body.titulo, 180);
+    if (!titulo) return res.status(400).json({ error: "O título é obrigatório." });
+    updates.titulo = titulo;
+  }
+  if (Object.hasOwn(body, "categoria")) {
+    if (!allowedCategories.has(body.categoria)) return res.status(400).json({ error: "Categoria inválida." });
+    updates.categoria = body.categoria;
+  }
+  if (Object.hasOwn(body, "finalidade")) {
+    if (!allowedPurposes.has(body.finalidade)) return res.status(400).json({ error: "Finalidade inválida." });
+    updates.finalidade = body.finalidade;
+  }
+  for (const [key, max] of [["descricao", 10000], ["cidade", 100], ["estado", 2], ["bairro", 120]]) {
+    if (Object.hasOwn(body, key)) updates[key] = cleanString(body[key], max);
+  }
+  if (Object.hasOwn(body, "estado")) updates.estado = updates.estado.toUpperCase();
+  if (Object.hasOwn(body, "preco")) {
+    const value = body.preco === "" || body.preco == null ? null : Number(body.preco);
+    if (value !== null && (!Number.isFinite(value) || value < 0)) return res.status(400).json({ error: "Preço inválido." });
+    updates.preco = value;
+  }
+  for (const key of ["areaM2", "quartos", "suites", "banheiros", "vagas"]) {
+    if (Object.hasOwn(body, key)) {
+      const value = Number(body[key] || 0);
+      if (!Number.isFinite(value) || value < 0) return res.status(400).json({ error: "Valor inválido em " + key + "." });
+      updates[key] = value;
+    }
+  }
+  if (Object.hasOwn(body, "situacaoObra")) {
+    if (!["lancamento", "em_obras", "pronto"].includes(body.situacaoObra)) return res.status(400).json({ error: "Situação do imóvel inválida." });
+    updates.situacaoObra = body.situacaoObra;
+  }
+  if (Object.hasOwn(body, "minhaCasaMinhaVida")) updates.minhaCasaMinhaVida = body.minhaCasaMinhaVida === true;
+
+  try {
+    const ref = db.ref("imoveis/" + id);
+    const snap = await ref.get();
+    if (!snap.exists()) return res.status(404).json({ error: "Imóvel não encontrado." });
+    await ref.update(updates);
+    return res.json({ ok: true, id, updates });
+  } catch (error) {
+    return sendServerError(res, "Não foi possível editar o imóvel.", error);
+  }
+});
+
 // --------------------------------------------------
 // APROVAÇÃO DE IMÓVEIS
 // --------------------------------------------------
