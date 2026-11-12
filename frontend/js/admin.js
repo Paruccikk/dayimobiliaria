@@ -187,6 +187,7 @@ function renderProperties(properties) {
             ${actionLabel}
           </button>
           <a class="small-btn light" href="/detalhes.html?id=${encodeURIComponent(property.id)}">Ver</a>
+          <button type="button" class="small-btn property-delete" style="background:#7f1d1d;color:#fff;border-color:#991b1b">Excluir</button>
         </td>
       </tr>
     `;
@@ -218,6 +219,25 @@ function renderProperties(properties) {
       $("#prop-submit").textContent = "Salvar alterações";
       $("#property-feedback").textContent = "Editando: " + (property.titulo || property.id);
       propertyForm.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  });
+
+  tbody.querySelectorAll(".property-delete").forEach(button => {
+    button.addEventListener("click", async () => {
+      const row = button.closest("tr");
+      const id = row.dataset.propertyId;
+      const property = properties.find(item => item.id === id);
+      const title = property?.titulo || id;
+      if (!window.confirm(`Tem certeza que deseja excluir o anúncio "${title}"? Esta ação também remove as fotos e PDFs associados e não pode ser desfeita.`)) return;
+      button.disabled = true;
+      try {
+        await api("/api/admin/imoveis/" + encodeURIComponent(id), { method: "DELETE" });
+        setMessage(dashboardFeedback, "Anúncio removido com sucesso.");
+        await carregarDashboard();
+      } catch (error) {
+        setMessage(dashboardFeedback, error.message);
+        button.disabled = false;
+      }
     });
   });
 
@@ -550,19 +570,23 @@ propertyForm.addEventListener("submit", async event => {
     if (selectedFiles.length) {
       setMessage($("#property-feedback"), `Enviando ${selectedFiles.length} arquivo(s) para o servidor…`);
 
-      const formData = new FormData();
-      selectedFiles.forEach(file => formData.append("arquivos", file));
-
       const token = await currentUser.getIdToken();
-      const uploadResponse = await fetch(
-        "/api/admin/imoveis/" + encodeURIComponent(propertyId) + "/arquivos",
-        { method: "POST", headers: { Authorization: "Bearer " + token }, body: formData }
-      );
-      const uploadData = await uploadResponse.json().catch(() => ({}));
-
-      if (!uploadResponse.ok) {
-        const detail = uploadData.error || `Falha no envio dos arquivos (HTTP ${uploadResponse.status}).`;
-        throw new Error(`O imóvel ${published ? "foi publicado" : "foi cadastrado e aguarda aprovação"} com ID ${propertyId}, mas os arquivos não foram enviados: ${detail} Selecione novamente os arquivos e clique em “Tentar enviar arquivos”.`);
+      // O usuário seleciona vários arquivos de uma vez; cada arquivo é transmitido
+      // em uma requisição pequena para evitar limites de proxy/multipart no VPS.
+      for (let index = 0; index < selectedFiles.length; index++) {
+        const file = selectedFiles[index];
+        setMessage($("#property-feedback"), `Enviando arquivo ${index + 1} de ${selectedFiles.length}: ${file.name}`);
+        const formData = new FormData();
+        formData.append("arquivos", file);
+        const uploadResponse = await fetch(
+          "/api/admin/imoveis/" + encodeURIComponent(propertyId) + "/arquivos",
+          { method: "POST", headers: { Authorization: "Bearer " + token }, body: formData }
+        );
+        const uploadData = await uploadResponse.json().catch(() => ({}));
+        if (!uploadResponse.ok) {
+          const detail = uploadData.error || `Falha no envio de "${file.name}" (HTTP ${uploadResponse.status}).`;
+          throw new Error(`O imóvel foi salvo com ID ${propertyId}, mas o arquivo "${file.name}" não foi enviado: ${detail} Selecione novamente apenas os arquivos que faltaram e tente novamente.`);
+        }
       }
     }
 
