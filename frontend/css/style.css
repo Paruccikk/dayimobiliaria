@@ -898,3 +898,23 @@ button:disabled { opacity: .55; cursor: not-allowed !important; }
 .field input,.field select,.field textarea{color:#f2f3f7!important;-webkit-text-fill-color:#f2f3f7;caret-color:#f7d78b}
 .field input::placeholder,.field textarea::placeholder{color:#a7adc0!important;opacity:1}
 .field select option{background:#10131d;color:#f2f3f7}
+
+
+/* Padronização dos botões de ação do cabeçalho */
+.nav-links > .button {
+  width: 184px;
+  min-width: 184px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0 12px;
+  justify-content: center;
+  text-align: center;
+  font-size: 13px;
+}
+@media (max-width: 720px) {
+  .nav-links > .button {
+    width: 100%;
+    min-width: 0;
+    height: 44px;
+  }
+}
