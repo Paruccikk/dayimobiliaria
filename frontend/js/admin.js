@@ -181,6 +181,7 @@ function renderProperties(properties) {
         <td>${escapeHtml(responsible)}</td>
         <td>${statusPill(status)}</td>
         <td>
+          <button type="button" class="small-btn property-edit">Editar</button>
           <button type="button" class="small-btn gold property-status"
             data-status="${nextStatus}">
             ${actionLabel}
@@ -190,6 +191,35 @@ function renderProperties(properties) {
       </tr>
     `;
   }).join("");
+
+  tbody.querySelectorAll(".property-edit").forEach(button => {
+    button.addEventListener("click", () => {
+      const row = button.closest("tr");
+      const property = properties.find(item => item.id === row.dataset.propertyId);
+      if (!property) return;
+      const fields = {
+        "#prop-titulo": property.titulo, "#prop-categoria": property.categoria,
+        "#prop-finalidade": property.finalidade, "#prop-preco": property.preco ?? "",
+        "#prop-cidade": property.cidade, "#prop-estado": property.estado,
+        "#prop-bairro": property.bairro, "#prop-area": property.areaM2,
+        "#prop-quartos": property.quartos, "#prop-suites": property.suites,
+        "#prop-situacao": property.situacaoObra || "pronto",
+        "#prop-banheiros": property.banheiros, "#prop-vagas": property.vagas,
+        "#prop-descricao": property.descricao
+      };
+      Object.entries(fields).forEach(([selector, value]) => {
+        const field = $(selector);
+        if (field) field.value = value ?? "";
+      });
+      $("#prop-mcmv").checked = [true, "true", "sim", 1, "1"].includes(property.minhaCasaMinhaVida);
+      propertyForm.dataset.editingPropertyId = property.id;
+      delete propertyForm.dataset.pendingUploadId;
+      $("#prop-publicar").checked = property.publicadoNoSite === true || property.status === "publicado";
+      $("#prop-submit").textContent = "Salvar alterações";
+      $("#property-feedback").textContent = "Editando: " + (property.titulo || property.id);
+      propertyForm.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  });
 
   tbody.querySelectorAll(".property-status").forEach(button => {
     button.addEventListener("click", async () => {
@@ -496,16 +526,20 @@ propertyForm.addEventListener("submit", async event => {
     }
 
     let propertyId = propertyForm.dataset.pendingUploadId || "";
+    const editingId = propertyForm.dataset.editingPropertyId || "";
     let published = $("#prop-publicar").checked;
 
-    if (!propertyId) {
-      setMessage($("#property-feedback"), "Cadastrando imóvel…");
-
-      const result = await api("/api/admin/imoveis", {
-        method: "POST",
-        body: JSON.stringify(body)
+    if (editingId) {
+      setMessage($("#property-feedback"), "Salvando alterações do imóvel…");
+      await api("/api/admin/imoveis/" + encodeURIComponent(editingId), {
+        method: "PATCH", body: JSON.stringify(body)
       });
-
+      propertyId = editingId;
+    } else if (!propertyId) {
+      setMessage($("#property-feedback"), "Cadastrando imóvel…");
+      const result = await api("/api/admin/imoveis", {
+        method: "POST", body: JSON.stringify(body)
+      });
       propertyId = result.id;
       propertyForm.dataset.pendingUploadId = propertyId;
       published = result.item?.status === "publicado";
@@ -533,12 +567,14 @@ propertyForm.addEventListener("submit", async event => {
     }
 
     delete propertyForm.dataset.pendingUploadId;
+    delete propertyForm.dataset.editingPropertyId;
     propertyForm.reset();
     $("#prop-publicar").checked = true;
     submitButton.textContent = originalLabel;
 
     setMessage(
       $("#property-feedback"),
+      editingId ? `Alterações salvas com sucesso. ID: ${propertyId}` :
       `Imóvel ${published ? "cadastrado e publicado no site" : "cadastrado e enviado para aprovação"} com sucesso. ID: ${propertyId}`
     );
 
