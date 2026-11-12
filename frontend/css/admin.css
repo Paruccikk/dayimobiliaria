@@ -461,3 +461,17 @@ body {
 #produtividade h3{font-family:var(--font-display);font-size:1.05rem;margin:28px 0 14px;color:var(--text)}
 #produtividade .productivity-kpis{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin:22px 0}
 @media(max-width:720px){.admin-tabs{gap:7px}.admin-tab{font-size:12px;padding:9px 12px}}
+
+
+/* Controle acessível Minha Casa, Minha Vida */
+.dash-form .mcmv-field{display:flex;align-items:center}
+.dash-form .mcmv-toggle{display:flex;align-items:center;gap:13px;width:100%;padding:14px 16px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);background:rgba(255,255,255,.025);cursor:pointer;text-transform:none;letter-spacing:normal;margin:0}
+.dash-form .mcmv-toggle input{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
+.mcmv-switch{position:relative;flex:0 0 46px;width:46px;height:26px;border-radius:99px;background:#555;transition:background .2s}
+.mcmv-switch::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:transform .2s}
+.mcmv-toggle input:checked+.mcmv-switch{background:#b88a3b}
+.mcmv-toggle input:checked+.mcmv-switch::after{transform:translateX(20px)}
+.mcmv-toggle input:focus-visible+.mcmv-switch{outline:3px solid rgba(230,180,90,.4);outline-offset:3px}
+.dash-form .mcmv-toggle-copy{display:flex;flex-direction:column;gap:4px}
+.dash-form .mcmv-toggle-copy strong{font-size:13px;color:var(--text);letter-spacing:.02em}
+.dash-form .mcmv-toggle-copy small{font-size:12px;color:var(--text-mute);font-weight:400;text-transform:none;letter-spacing:normal}
