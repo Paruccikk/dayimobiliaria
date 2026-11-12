@@ -477,6 +477,24 @@ propertyForm.addEventListener("submit", async event => {
   };
 
   try {
+    const selectedFiles = [
+      ...Array.from($("#prop-fotos").files || []),
+      ...Array.from($("#prop-documentos").files || [])
+    ];
+    const totalBytes = selectedFiles.reduce((sum, file) => sum + file.size, 0);
+    const maxSingleBytes = 25 * 1024 * 1024;
+    const maxBatchBytes = 90 * 1024 * 1024;
+
+    if (selectedFiles.length > 40) {
+      throw new Error("Você pode enviar até 40 arquivos por imóvel (20 fotos e 20 PDFs).");
+    }
+    if (selectedFiles.some(file => file.size > maxSingleBytes)) {
+      throw new Error("Cada arquivo pode ter no máximo 25 MB.");
+    }
+    if (totalBytes > maxBatchBytes) {
+      throw new Error("O conjunto de arquivos ultrapassa 90 MB. Divida o envio em lotes menores.");
+    }
+
     let propertyId = propertyForm.dataset.pendingUploadId || "";
     let published = $("#prop-publicar").checked;
 
@@ -494,11 +512,6 @@ propertyForm.addEventListener("submit", async event => {
     } else {
       setMessage($("#property-feedback"), "Tentando enviar os arquivos novamente…");
     }
-
-    const selectedFiles = [
-      ...Array.from($("#prop-fotos").files || []),
-      ...Array.from($("#prop-documentos").files || [])
-    ];
 
     if (selectedFiles.length) {
       setMessage($("#property-feedback"), `Enviando ${selectedFiles.length} arquivo(s) para o servidor…`);
