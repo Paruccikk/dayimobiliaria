@@ -1054,10 +1054,10 @@ const storage = multer.diskStorage({
       "application/pdf": ".pdf",
     };
 
-    const ext = extensions[file.mimetype];
+    const ext = extensions[file.mimetype] || path.extname(file.originalname || "").toLowerCase();
 
-    if (!ext) {
-      return cb(new Error("Formato de imagem não permitido."));
+    if (![".jpg", ".jpeg", ".png", ".webp", ".pdf"].includes(ext)) {
+      return cb(new Error("Formato de arquivo não permitido."));
     }
 
     const filename = `${Date.now()}-${crypto
@@ -1140,42 +1140,93 @@ app.post(
   }
 );
 
-// Upload de fotos e documentos (PDF) vinculados ao imóvel recém-cadastrado.
+// Upload local de fotos e PDFs dos imóveis.
+const PROPERTY_UPLOAD_MAX_MB = Math.max(1, Number(process.env.PROPERTY_UPLOAD_MAX_MB || process.env.MAX_UPLOAD_MB || 25));
+const PROPERTY_UPLOAD_MAX_FILES = 40;
+const propertyFileTypes = {
+  ".jpg": { mime: "image/jpeg", kind: "image" },
+  ".jpeg": { mime: "image/jpeg", kind: "image" },
+  ".png": { mime: "image/png", kind: "image" },
+  ".webp": { mime: "image/webp", kind: "image" },
+  ".pdf": { mime: "application/pdf", kind: "pdf" }
+};
+
 const uploadPropertyFiles = multer({
   storage,
-  limits: { fileSize: Number(process.env.MAX_UPLOAD_MB || 12) * 1024 * 1024, files: 20 },
+  limits: {
+    fileSize: PROPERTY_UPLOAD_MAX_MB * 1024 * 1024,
+    files: PROPERTY_UPLOAD_MAX_FILES
+  },
   fileFilter: (_req, file, cb) => {
-    const allowed = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
-    if (!allowed.includes(file.mimetype)) return cb(new Error("Formato não permitido. Envie imagens JPG/PNG/WEBP ou PDF."));
+    const extension = path.extname(file.originalname || "").toLowerCase();
+    const definition = propertyFileTypes[extension];
+    if (!definition) {
+      return cb(new Error("Arquivo não permitido. Envie JPG, JPEG, PNG, WEBP ou PDF."));
+    }
+    // Alguns navegadores enviam PDF como application/octet-stream; a extensão também é validada.
+    if (file.mimetype !== definition.mime && file.mimetype !== "application/octet-stream") {
+      return cb(new Error("O tipo do arquivo não corresponde à extensão: " + cleanString(file.originalname, 120)));
+    }
+    file.mimetype = definition.mime;
     cb(null, true);
   }
 });
 
-app.post("/api/admin/imoveis/:id/arquivos", requireFirebase, allowRoles("administrador", "corretor"), uploadPropertyFiles.array("arquivos", 20), async (req, res) => {
-  const id = cleanString(req.params.id, 100);
-  if (!id || id.includes("/")) return res.status(400).json({ error: "ID de imóvel inválido." });
-  try {
-    const ref = db.ref("imoveis/" + id);
-    const snap = await ref.get();
-    if (!snap.exists()) return res.status(404).json({ error: "Imóvel não encontrado." });
-    const property = snap.val();
-    if (req.profile.papel === "corretor" && property.responsavelUid !== req.user.uid) {
-      return res.status(403).json({ error: "Você só pode anexar arquivos aos imóveis da sua carteira." });
+app.post(
+  "/api/admin/imoveis/:id/arquivos",
+  requireFirebase,
+  allowRoles("administrador", "corretor"),
+  uploadPropertyFiles.array("arquivos", PROPERTY_UPLOAD_MAX_FILES),
+  async (req, res) => {
+    const id = cleanString(req.params.id, 100).replace(/[^a-zA-Z0-9_-]/g, "");
+    if (!id) return res.status(400).json({ error: "ID de imóvel inválido." });
+
+    const savedFiles = (req.files || []).map(file => path.join(UPLOAD_ROOT, id, path.basename(file.filename)));
+
+    try {
+      const ref = db.ref("imoveis/" + id);
+      const snap = await ref.get();
+      if (!snap.exists()) return res.status(404).json({ error: "Imóvel não encontrado." });
+
+      const property = snap.val();
+      if (req.profile.papel === "corretor" && property.responsavelUid !== req.user.uid) {
+        return res.status(403).json({ error: "Você só pode anexar arquivos aos imóveis da sua carteira." });
+      }
+
+      const fotos = Array.isArray(property.fotos) ? [...property.fotos] : [];
+      const documentos = Array.isArray(property.documentos) ? [...property.documentos] : [];
+      let fotosEnviadas = 0;
+      let pdfsEnviados = 0;
+
+      for (const file of (req.files || [])) {
+        const url = "/uploads/imoveis/" + id + "/" + path.basename(file.filename);
+        if (file.mimetype === "application/pdf") {
+          documentos.push({
+            nome: cleanString(file.originalname, 180),
+            url,
+            mime: file.mimetype,
+            tamanho: file.size,
+            criadoEm: new Date().toISOString()
+          });
+          pdfsEnviados++;
+        } else {
+          fotos.push(url);
+          fotosEnviadas++;
+        }
+      }
+
+      await ref.update({ fotos, documentos, atualizadoEm: new Date().toISOString() });
+      return res.status(201).json({ ok: true, fotos, documentos, enviados: { fotos: fotosEnviadas, pdfs: pdfsEnviados } });
+    } catch (error) {
+      for (const filePath of savedFiles) {
+        try { if (fs.existsSync(filePath)) fs.unlinkSync(filePath); } catch (cleanupError) {
+          console.error("[Upload imóvel] Falha ao remover arquivo temporário:", cleanupError.message);
+        }
+      }
+      return sendServerError(res, "Falha ao registrar os arquivos do imóvel no banco de dados.", error);
     }
-    const fotos = Array.isArray(property.fotos) ? property.fotos : [];
-    const documentos = Array.isArray(property.documentos) ? property.documentos : [];
-    for (const file of (req.files || [])) {
-      const url = "/uploads/imoveis/" + id + "/" + path.basename(file.filename);
-      const meta = { nome: cleanString(file.originalname, 180), url, mime: file.mimetype, tamanho: file.size };
-      if (file.mimetype === "application/pdf") documentos.push(meta);
-      else fotos.push(url);
-    }
-    await ref.update({ fotos, documentos, atualizadoEm: new Date().toISOString() });
-    return res.status(201).json({ fotos, documentos });
-  } catch (error) {
-    return sendServerError(res, "Falha ao salvar arquivos do imóvel.", error);
   }
-});
+);
 
 // --------------------------------------------------
 // CADASTRAR IMÓVEL
@@ -1213,9 +1264,10 @@ app.post(
     try {
       const ref = db.ref("imoveis").push();
 
+      const requestedImmediatePublish =
+        body.publicarImediatamente === true || body.publicadoNoSite === true;
       const status =
-        req.profile.papel === "administrador" &&
-        body.publicadoNoSite === true
+        req.profile.papel === "administrador" && requestedImmediatePublish
           ? "publicado"
           : "aguardando_aprovacao";
 
@@ -1250,6 +1302,8 @@ app.post(
 
       return res.status(201).json({
         id: ref.key,
+        status: item.status,
+        publicadoNoSite: item.publicadoNoSite,
         item,
       });
     } catch (error) {
@@ -1656,9 +1710,17 @@ app.post("/api/crm/leads/:id/interacoes", requireFirebase, allowRoles("administr
 
 app.use((err, _req, res, _next) => {
   if (err instanceof multer.MulterError) {
-    return res.status(400).json({
-      error: "Upload inválido ou arquivo acima do limite permitido.",
-    });
+    if (err.code === "LIMIT_FILE_SIZE") {
+      return res.status(413).json({
+        error: `Um arquivo ultrapassou o limite de ${PROPERTY_UPLOAD_MAX_MB || 25} MB.`
+      });
+    }
+    if (err.code === "LIMIT_FILE_COUNT" || err.code === "LIMIT_UNEXPECTED_FILE") {
+      return res.status(400).json({
+        error: `Limite de arquivos excedido. Envie até ${PROPERTY_UPLOAD_MAX_FILES || 40} arquivos por vez.`
+      });
+    }
+    return res.status(400).json({ error: err.message || "Upload inválido." });
   }
 
   console.error("Erro na requisição:", err.stack || err.message || err);
