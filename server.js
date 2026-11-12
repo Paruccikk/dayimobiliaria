@@ -445,7 +445,7 @@ app.post("/api/oportunidades-corretor", async (req,res)=>{
     nome:cleanString(b.nome,120),email:cleanString(b.email,160).toLowerCase(),
     telefone:cleanString(b.telefone,40),cidade:cleanString(b.cidade,120),
     instagram:cleanString(b.instagram,500),linkedin:cleanString(b.linkedin,500),
-    links:cleanString(b.links,1500),descricao:cleanString(b.descricao,2500),
+    links:cleanString(b.links,1500),descricao:cleanString(b.descricao,2500),mensagemContato:cleanString(b.mensagemContato,1200),
     motivo:cleanString(b.motivo,2500),status:"nova",criadoEm:new Date().toISOString()
   };
   if(!item.nome||!item.email||!/^\\S+@\\S+\\.\\S+$/.test(item.email)||!item.telefone||!item.motivo)
