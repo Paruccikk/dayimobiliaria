@@ -875,3 +875,26 @@ button:disabled { opacity: .55; cursor: not-allowed !important; }
 @media (max-width: 720px) {
   input[type="file"]::file-selector-button { display: block; margin: 0 0 10px; width: 100%; }
 }
+
+
+/* Melhor contraste para formulários em páginas claras e escuras */
+.auth-page .auth-form input,
+.auth-page .auth-form select,
+.auth-page .auth-form textarea {
+  color: #18231f !important;
+  -webkit-text-fill-color: #18231f;
+  caret-color: #173b2e;
+}
+.auth-page .auth-form input::placeholder,
+.auth-page .auth-form textarea::placeholder { color: #77827c !important; opacity: 1; }
+.auth-page .auth-form input:-webkit-autofill,
+.auth-page .auth-form input:-webkit-autofill:hover,
+.auth-page .auth-form input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #18231f;
+  box-shadow: 0 0 0 1000px #fbfcfb inset;
+}
+
+/* Campos do site em tema escuro: texto e opções sempre legíveis */
+.field input,.field select,.field textarea{color:#f2f3f7!important;-webkit-text-fill-color:#f2f3f7;caret-color:#f7d78b}
+.field input::placeholder,.field textarea::placeholder{color:#a7adc0!important;opacity:1}
+.field select option{background:#10131d;color:#f2f3f7}
