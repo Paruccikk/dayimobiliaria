@@ -438,19 +438,38 @@ app.post("/api/auth/registrar", async (req, res) => {
 
 
 // Candidaturas públicas para oportunidades de corretor. O acesso de leitura é exclusivo do administrador.
-app.post("/api/oportunidades-corretor", async (req,res)=>{
-  if(!db)return firebaseUnavailable(res);
-  const b=req.body||{};
-  const item={
-    nome:cleanString(b.nome,120),
-    telefone:cleanString(b.telefone,40),
-    status:"nova",
-    criadoEm:new Date().toISOString()
+app.post("/api/oportunidades-corretor", async (req, res) => {
+  if (!db) return firebaseUnavailable(res);
+
+  const b = req.body || {};
+  const email = cleanString(b.email, 160).toLowerCase();
+  const item = {
+    nome: cleanString(b.nome, 120),
+    telefone: cleanString(b.telefone, 40),
+    email,
+    status: "nova",
+    criadoEm: new Date().toISOString()
   };
-  if(!item.nome||!item.telefone)
-    return res.status(400).json({error:"Informe seu nome completo e telefone."});
-  try{const ref=db.ref("oportunidadesCorretor").push();await ref.set(item);return res.status(201).json({ok:true,id:ref.key});}
-  catch(error){return sendServerError(res,"Não foi possível registrar sua candidatura.",error);}
+
+  if (!item.nome || !item.telefone) {
+    return res.status(400).json({
+      error: "Informe seu nome completo e telefone."
+    });
+  }
+
+  if (email && !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {
+    return res.status(400).json({
+      error: "Informe um endereço de e-mail válido ou deixe o campo em branco."
+    });
+  }
+
+  try {
+    const ref = db.ref("oportunidadesCorretor").push();
+    await ref.set(item);
+    return res.status(201).json({ ok: true, id: ref.key });
+  } catch (error) {
+    return sendServerError(res, "Não foi possível registrar sua candidatura.", error);
+  }
 });
 
 app.get("/api/admin/oportunidades-corretor",requireFirebase,allowRoles("administrador"),async(_req,res)=>{
