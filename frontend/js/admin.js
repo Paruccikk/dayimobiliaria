@@ -453,8 +453,8 @@ propertyForm.addEventListener("submit", async event => {
   event.preventDefault();
 
   const submitButton = $("#prop-submit");
+  const originalLabel = submitButton.textContent;
   submitButton.disabled = true;
-  setMessage($("#property-feedback"), "Cadastrando imóvel…");
 
   const body = {
     titulo: $("#prop-titulo").value.trim(),
@@ -472,44 +472,68 @@ propertyForm.addEventListener("submit", async event => {
     banheiros: $("#prop-banheiros").value,
     vagas: $("#prop-vagas").value,
     descricao: $("#prop-descricao").value.trim(),
-    publicadoNoSite: $("#prop-publicar").checked
+    publicadoNoSite: $("#prop-publicar").checked,
+    publicarImediatamente: $("#prop-publicar").checked
   };
 
   try {
-    const result = await api("/api/admin/imoveis", {
-      method: "POST",
-      body: JSON.stringify(body)
-    });
+    let propertyId = propertyForm.dataset.pendingUploadId || "";
+    let published = $("#prop-publicar").checked;
+
+    if (!propertyId) {
+      setMessage($("#property-feedback"), "Cadastrando imóvel…");
+
+      const result = await api("/api/admin/imoveis", {
+        method: "POST",
+        body: JSON.stringify(body)
+      });
+
+      propertyId = result.id;
+      propertyForm.dataset.pendingUploadId = propertyId;
+      published = result.item?.status === "publicado";
+    } else {
+      setMessage($("#property-feedback"), "Tentando enviar os arquivos novamente…");
+    }
 
     const selectedFiles = [
       ...Array.from($("#prop-fotos").files || []),
       ...Array.from($("#prop-documentos").files || [])
     ];
+
     if (selectedFiles.length) {
+      setMessage($("#property-feedback"), `Enviando ${selectedFiles.length} arquivo(s) para o servidor…`);
+
       const formData = new FormData();
       selectedFiles.forEach(file => formData.append("arquivos", file));
+
       const token = await currentUser.getIdToken();
-      const uploadResponse = await fetch("/api/admin/imoveis/" + encodeURIComponent(result.id) + "/arquivos", {
-        method: "POST",
-        headers: { Authorization: "Bearer " + token },
-        body: formData
-      });
+      const uploadResponse = await fetch(
+        "/api/admin/imoveis/" + encodeURIComponent(propertyId) + "/arquivos",
+        { method: "POST", headers: { Authorization: "Bearer " + token }, body: formData }
+      );
       const uploadData = await uploadResponse.json().catch(() => ({}));
-      if (!uploadResponse.ok) throw new Error(uploadData.error || "Imóvel cadastrado, mas houve falha ao enviar os arquivos.");
+
+      if (!uploadResponse.ok) {
+        const detail = uploadData.error || `Falha no envio dos arquivos (HTTP ${uploadResponse.status}).`;
+        throw new Error(`O imóvel ${published ? "foi publicado" : "foi cadastrado e aguarda aprovação"} com ID ${propertyId}, mas os arquivos não foram enviados: ${detail} Selecione novamente os arquivos e clique em “Tentar enviar arquivos”.`);
+      }
     }
 
+    delete propertyForm.dataset.pendingUploadId;
     propertyForm.reset();
     $("#prop-publicar").checked = true;
+    submitButton.textContent = originalLabel;
 
     setMessage(
       $("#property-feedback"),
-      body.publicadoNoSite
-        ? `Imóvel cadastrado e publicado. ID: ${result.id}`
-        : `Imóvel cadastrado e enviado para aprovação. ID: ${result.id}`
+      `Imóvel ${published ? "cadastrado e publicado no site" : "cadastrado e enviado para aprovação"} com sucesso. ID: ${propertyId}`
     );
 
     await carregarDashboard();
   } catch (error) {
+    if (propertyForm.dataset.pendingUploadId) {
+      submitButton.textContent = "Tentar enviar arquivos";
+    }
     setMessage($("#property-feedback"), error.message);
   } finally {
     submitButton.disabled = false;
