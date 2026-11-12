@@ -442,15 +442,13 @@ app.post("/api/oportunidades-corretor", async (req,res)=>{
   if(!db)return firebaseUnavailable(res);
   const b=req.body||{};
   const item={
-    nome:cleanString(b.nome,120),email:cleanString(b.email,160).toLowerCase(),
-    telefone:cleanString(b.telefone,40),cidade:cleanString(b.cidade,120),
-    instagram:cleanString(b.instagram,500),linkedin:cleanString(b.linkedin,500),
-    links:cleanString(b.links,1500),descricao:cleanString(b.descricao,2500),mensagemContato:cleanString(b.mensagemContato,1200),
-    motivo:cleanString(b.motivo,2500),status:"nova",criadoEm:new Date().toISOString()
+    nome:cleanString(b.nome,120),
+    telefone:cleanString(b.telefone,40),
+    status:"nova",
+    criadoEm:new Date().toISOString()
   };
-  if(!item.nome||!item.email||!/^\\S+@\\S+\\.\\S+$/.test(item.email)||!item.telefone||!item.motivo)
-    return res.status(400).json({error:"Informe nome, e-mail válido, telefone e o motivo para trabalhar conosco."});
-  for(const key of ["instagram","linkedin"]){if(item[key]){try{const u=new URL(item[key]);if(!["http:","https:"].includes(u.protocol))throw new Error();}catch{return res.status(400).json({error:"Informe links válidos começando com https://."});}}}
+  if(!item.nome||!item.telefone)
+    return res.status(400).json({error:"Informe seu nome completo e telefone."});
   try{const ref=db.ref("oportunidadesCorretor").push();await ref.set(item);return res.status(201).json({ok:true,id:ref.key});}
   catch(error){return sendServerError(res,"Não foi possível registrar sua candidatura.",error);}
 });
