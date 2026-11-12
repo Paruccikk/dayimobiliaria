@@ -457,7 +457,7 @@ app.post("/api/oportunidades-corretor", async (req, res) => {
     });
   }
 
-  if (email && !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return res.status(400).json({
       error: "Informe um endereço de e-mail válido ou deixe o campo em branco."
     });
