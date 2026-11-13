@@ -155,56 +155,79 @@ function renderSummary(summary) {
   setBar("#bar-inativos", "#bar-inativos-num", summary.inativos, propertyMax);
 }
 
-function renderPropertyFiles(properties) {
-  const container = $("#property-files-list");
-  if (!container) return;
+function renderPropertyFiles(property) {
+  const panel = $("#editing-property-files");
+  const container = $("#editing-property-files-list");
+  if (!panel || !container) return;
 
-  const withFiles = properties.filter(property =>
-    (Array.isArray(property.fotos) && property.fotos.length) ||
-    (Array.isArray(property.documentos) && property.documentos.length)
-  );
-
-  if (!withFiles.length) {
-    container.innerHTML = '<p class="dash-subtitle">Ainda não há imagens ou PDFs cadastrados nos imóveis.</p>';
+  if (!property) {
+    panel.hidden = true;
+    container.innerHTML = "";
     return;
   }
 
-  container.innerHTML = withFiles.map(property => {
-    const photos = Array.isArray(property.fotos) ? property.fotos : [];
-    const documents = Array.isArray(property.documentos) ? property.documentos : [];
-    const metadata = Array.isArray(property.arquivos) ? property.arquivos : [];
-    const metadataByUrl = new Map(metadata.map(file => [file.url, file]));
-    const photoCards = photos.map(url => {
-      const info = metadataByUrl.get(url) || {};
-      const filename = info.nome || decodeURIComponent(String(url).split("/").pop() || "imagem");
-      return `
-        <a class="property-file-card" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">
+  const photos = Array.isArray(property.fotos) ? property.fotos : [];
+  const documents = Array.isArray(property.documentos) ? property.documentos : [];
+  const metadata = Array.isArray(property.arquivos) ? property.arquivos : [];
+  const metadataByUrl = new Map(metadata.map(file => [file.url, file]));
+  const photoCards = photos.map(url => {
+    const info = metadataByUrl.get(url) || {};
+    const filename = info.nome || decodeURIComponent(String(url).split("/").pop() || "imagem");
+    return `
+      <article class="property-file-card">
+        <a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">
           <img src="${escapeHtml(url)}" alt="${escapeHtml(filename)}" loading="lazy">
           <span class="property-file-name" title="${escapeHtml(filename)}">${escapeHtml(filename)}</span>
           <small>Imagem</small>
-        </a>`;
-    }).join("");
-    const pdfCards = documents.map(file => {
-      const filename = file.nome || decodeURIComponent(String(file.url || "").split("/").pop() || "documento.pdf");
-      return `
-        <a class="property-file-card property-pdf-card" href="${escapeHtml(file.url || "#")}" target="_blank" rel="noopener noreferrer">
+        </a>
+        <button type="button" class="small-btn property-file-delete" data-file-url="${escapeHtml(url)}">Excluir imagem</button>
+      </article>`;
+  }).join("");
+  const pdfCards = documents.map(file => {
+    const filename = file.nome || decodeURIComponent(String(file.url || "").split("/").pop() || "documento.pdf");
+    return `
+      <article class="property-file-card property-pdf-card">
+        <a href="${escapeHtml(file.url || "#")}" target="_blank" rel="noopener noreferrer">
           <span class="property-pdf-icon" aria-hidden="true">PDF</span>
           <span class="property-file-name" title="${escapeHtml(filename)}">${escapeHtml(filename)}</span>
           <small>Documento PDF</small>
-        </a>`;
-    }).join("");
-
-    return `
-      <article class="property-files-group">
-        <header>
-          <div><strong>${escapeHtml(property.titulo || "Imóvel sem título")}</strong>
-            <p>${escapeHtml(property.cidade || "")}${property.estado ? " / " + escapeHtml(property.estado) : ""}</p>
-          </div>
-          <span>${photos.length} imagem(ns) · ${documents.length} PDF(s)</span>
-        </header>
-        <div class="property-files-grid">${photoCards}${pdfCards}</div>
+        </a>
+        <button type="button" class="small-btn property-file-delete" data-file-url="${escapeHtml(file.url || "")}">Excluir PDF</button>
       </article>`;
   }).join("");
+
+  panel.hidden = false;
+  container.innerHTML = photos.length || documents.length
+    ? `<p class="dash-subtitle">${photos.length} imagem(ns) · ${documents.length} PDF(s)</p><div class="property-files-grid">${photoCards}${pdfCards}</div>`
+    : '<p class="dash-subtitle">Este imóvel ainda não possui imagens ou PDFs cadastrados.</p>';
+
+  container.querySelectorAll(".property-file-delete").forEach(button => {
+    button.addEventListener("click", async () => {
+      const url = button.dataset.fileUrl;
+      if (!url) return;
+      const isPdf = button.textContent.includes("PDF");
+      const file = isPdf
+        ? documents.find(item => item.url === url)
+        : null;
+      const name = file?.nome || decodeURIComponent(String(url).split("/").pop() || "arquivo");
+      if (!window.confirm(`Deseja excluir definitivamente "${name}" deste imóvel?`)) return;
+
+      button.disabled = true;
+      try {
+        await api("/api/admin/imoveis/" + encodeURIComponent(property.id) + "/arquivos", {
+          method: "DELETE",
+          body: JSON.stringify({ url })
+        });
+        await carregarDashboard();
+        const refreshed = (dashboardData?.imoveis || []).find(item => item.id === property.id);
+        renderPropertyFiles(refreshed || null);
+        setMessage($("#property-feedback"), "Arquivo excluído com sucesso.");
+      } catch (error) {
+        setMessage($("#property-feedback"), error.message);
+        button.disabled = false;
+      }
+    });
+  });
 }
 
 function renderProperties(properties) {
@@ -269,6 +292,7 @@ function renderProperties(properties) {
       delete propertyForm.dataset.pendingUploadId;
       $("#prop-publicar").checked = property.publicadoNoSite === true || property.status === "publicado";
       $("#prop-submit").textContent = "Salvar alterações";
+      renderPropertyFiles(property);
       $("#property-feedback").textContent = "Editando: " + (property.titulo || property.id);
       propertyForm.scrollIntoView({ behavior: "smooth", block: "start" });
     });
@@ -508,7 +532,6 @@ async function carregarDashboard() {
     const summary = data.resumo || {};
     renderSummary(summary);
     renderProperties(Array.isArray(data.imoveis) ? data.imoveis : []);
-    renderPropertyFiles(Array.isArray(data.imoveis) ? data.imoveis : []);
     renderUsers(Array.isArray(data.usuarios) ? data.usuarios : []);
     renderLeads(Array.isArray(data.leads) ? data.leads : []);
     renderProductivity(data.produtividade || {});
@@ -649,6 +672,7 @@ propertyForm.addEventListener("submit", async event => {
     delete propertyForm.dataset.pendingUploadId;
     delete propertyForm.dataset.editingPropertyId;
     propertyForm.reset();
+    renderPropertyFiles(null);
     $("#prop-publicar").checked = true;
     submitButton.textContent = originalLabel;
 
