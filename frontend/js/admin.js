@@ -155,6 +155,58 @@ function renderSummary(summary) {
   setBar("#bar-inativos", "#bar-inativos-num", summary.inativos, propertyMax);
 }
 
+function renderPropertyFiles(properties) {
+  const container = $("#property-files-list");
+  if (!container) return;
+
+  const withFiles = properties.filter(property =>
+    (Array.isArray(property.fotos) && property.fotos.length) ||
+    (Array.isArray(property.documentos) && property.documentos.length)
+  );
+
+  if (!withFiles.length) {
+    container.innerHTML = '<p class="dash-subtitle">Ainda não há imagens ou PDFs cadastrados nos imóveis.</p>';
+    return;
+  }
+
+  container.innerHTML = withFiles.map(property => {
+    const photos = Array.isArray(property.fotos) ? property.fotos : [];
+    const documents = Array.isArray(property.documentos) ? property.documentos : [];
+    const metadata = Array.isArray(property.arquivos) ? property.arquivos : [];
+    const metadataByUrl = new Map(metadata.map(file => [file.url, file]));
+    const photoCards = photos.map(url => {
+      const info = metadataByUrl.get(url) || {};
+      const filename = info.nome || decodeURIComponent(String(url).split("/").pop() || "imagem");
+      return `
+        <a class="property-file-card" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">
+          <img src="${escapeHtml(url)}" alt="${escapeHtml(filename)}" loading="lazy">
+          <span class="property-file-name" title="${escapeHtml(filename)}">${escapeHtml(filename)}</span>
+          <small>Imagem</small>
+        </a>`;
+    }).join("");
+    const pdfCards = documents.map(file => {
+      const filename = file.nome || decodeURIComponent(String(file.url || "").split("/").pop() || "documento.pdf");
+      return `
+        <a class="property-file-card property-pdf-card" href="${escapeHtml(file.url || "#")}" target="_blank" rel="noopener noreferrer">
+          <span class="property-pdf-icon" aria-hidden="true">PDF</span>
+          <span class="property-file-name" title="${escapeHtml(filename)}">${escapeHtml(filename)}</span>
+          <small>Documento PDF</small>
+        </a>`;
+    }).join("");
+
+    return `
+      <article class="property-files-group">
+        <header>
+          <div><strong>${escapeHtml(property.titulo || "Imóvel sem título")}</strong>
+            <p>${escapeHtml(property.cidade || "")}${property.estado ? " / " + escapeHtml(property.estado) : ""}</p>
+          </div>
+          <span>${photos.length} imagem(ns) · ${documents.length} PDF(s)</span>
+        </header>
+        <div class="property-files-grid">${photoCards}${pdfCards}</div>
+      </article>`;
+  }).join("");
+}
+
 function renderProperties(properties) {
   const tbody = $("#imoveis-lista");
 
@@ -456,6 +508,7 @@ async function carregarDashboard() {
     const summary = data.resumo || {};
     renderSummary(summary);
     renderProperties(Array.isArray(data.imoveis) ? data.imoveis : []);
+    renderPropertyFiles(Array.isArray(data.imoveis) ? data.imoveis : []);
     renderUsers(Array.isArray(data.usuarios) ? data.usuarios : []);
     renderLeads(Array.isArray(data.leads) ? data.leads : []);
     renderProductivity(data.produtividade || {});
@@ -531,22 +584,25 @@ propertyForm.addEventListener("submit", async event => {
       ...Array.from($("#prop-fotos").files || []),
       ...Array.from($("#prop-documentos").files || [])
     ];
-    const totalBytes = selectedFiles.reduce((sum, file) => sum + file.size, 0);
+    const imageFiles = Array.from($("#prop-fotos").files || []);
+    const pdfFiles = Array.from($("#prop-documentos").files || []);
     const maxSingleBytes = 25 * 1024 * 1024;
-    const maxBatchBytes = 90 * 1024 * 1024;
 
-    if (selectedFiles.length > 40) {
-      throw new Error("Você pode enviar até 40 arquivos por imóvel (20 fotos e 20 PDFs).");
+    if (imageFiles.length > 40 || pdfFiles.length > 40) {
+      throw new Error("O limite é de 40 imagens e 40 PDFs por imóvel.");
     }
     if (selectedFiles.some(file => file.size > maxSingleBytes)) {
       throw new Error("Cada arquivo pode ter no máximo 25 MB.");
     }
-    if (totalBytes > maxBatchBytes) {
-      throw new Error("O conjunto de arquivos ultrapassa 90 MB. Divida o envio em lotes menores.");
-    }
 
     let propertyId = propertyForm.dataset.pendingUploadId || "";
     const editingId = propertyForm.dataset.editingPropertyId || "";
+    const currentProperty = (dashboardData?.imoveis || []).find(item => item.id === editingId);
+    const existingImages = currentProperty?.fotos?.length || 0;
+    const existingPdfs = currentProperty?.documentos?.length || 0;
+    if (existingImages + imageFiles.length > 40 || existingPdfs + pdfFiles.length > 40) {
+      throw new Error(`Este imóvel já possui ${existingImages} imagem(ns) e ${existingPdfs} PDF(s). O limite é de 40 de cada tipo.`);
+    }
     let published = $("#prop-publicar").checked;
 
     if (editingId) {
