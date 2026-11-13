@@ -1142,7 +1142,7 @@ app.post(
 
 // Upload local de fotos e PDFs dos imóveis.
 const PROPERTY_UPLOAD_MAX_MB = Math.max(1, Number(process.env.PROPERTY_UPLOAD_MAX_MB || process.env.MAX_UPLOAD_MB || 25));
-const PROPERTY_UPLOAD_MAX_FILES = 40;
+const PROPERTY_UPLOAD_MAX_FILES = 80; // até 40 imagens + 40 PDFs por imóvel
 const propertyFileTypes = {
   ".jpg": { mime: "image/jpeg", kind: "image" },
   ".jpeg": { mime: "image/jpeg", kind: "image" },
@@ -1195,19 +1195,34 @@ app.post(
 
       const fotos = Array.isArray(property.fotos) ? [...property.fotos] : [];
       const documentos = Array.isArray(property.documentos) ? [...property.documentos] : [];
+      const arquivos = Array.isArray(property.arquivos) ? [...property.arquivos] : [];
+      const incomingImages = (req.files || []).filter(file => file.mimetype !== "application/pdf").length;
+      const incomingPdfs = (req.files || []).filter(file => file.mimetype === "application/pdf").length;
+
+      if (fotos.length + incomingImages > 40 || documentos.length + incomingPdfs > 40) {
+        for (const filePath of savedFiles) {
+          try { if (fs.existsSync(filePath)) fs.unlinkSync(filePath); } catch (_) {}
+        }
+        return res.status(400).json({
+          error: "Limite por imóvel atingido: são permitidas até 40 imagens e 40 PDFs."
+        });
+      }
+
       let fotosEnviadas = 0;
       let pdfsEnviados = 0;
 
       for (const file of (req.files || [])) {
         const url = "/uploads/imoveis/" + id + "/" + path.basename(file.filename);
+        const metadata = {
+          nome: cleanString(file.originalname, 180),
+          url,
+          mime: file.mimetype,
+          tamanho: file.size,
+          criadoEm: new Date().toISOString()
+        };
+        arquivos.push(metadata);
         if (file.mimetype === "application/pdf") {
-          documentos.push({
-            nome: cleanString(file.originalname, 180),
-            url,
-            mime: file.mimetype,
-            tamanho: file.size,
-            criadoEm: new Date().toISOString()
-          });
+          documentos.push(metadata);
           pdfsEnviados++;
         } else {
           fotos.push(url);
@@ -1215,7 +1230,7 @@ app.post(
         }
       }
 
-      await ref.update({ fotos, documentos, atualizadoEm: new Date().toISOString() });
+      await ref.update({ fotos, documentos, arquivos, atualizadoEm: new Date().toISOString() });
       return res.status(201).json({ ok: true, fotos, documentos, enviados: { fotos: fotosEnviadas, pdfs: pdfsEnviados } });
     } catch (error) {
       for (const filePath of savedFiles) {
