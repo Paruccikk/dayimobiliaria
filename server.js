@@ -1243,6 +1243,56 @@ app.post(
   }
 );
 
+/* Remove um único arquivo do imóvel sem excluir o anúncio. Somente administrador. */
+app.delete("/api/admin/imoveis/:id/arquivos", requireFirebase, allowRoles("administrador"), async (req, res) => {
+  const id = cleanString(req.params.id, 100);
+  const url = cleanString(req.body?.url, 1000);
+  if (!id || !/^[a-zA-Z0-9_-]+$/.test(id) || !url) {
+    return res.status(400).json({ error: "Imóvel ou arquivo inválido." });
+  }
+
+  try {
+    const ref = db.ref("imoveis/" + id);
+    const snap = await ref.get();
+    if (!snap.exists()) return res.status(404).json({ error: "Imóvel não encontrado." });
+
+    const property = snap.val();
+    const fotos = Array.isArray(property.fotos) ? [...property.fotos] : [];
+    const documentos = Array.isArray(property.documentos) ? [...property.documentos] : [];
+    const arquivos = Array.isArray(property.arquivos) ? [...property.arquivos] : [];
+    const photoIndex = fotos.indexOf(url);
+    const documentIndex = documentos.findIndex(file => file?.url === url);
+    const metadataIndex = arquivos.findIndex(file => file?.url === url);
+
+    if (photoIndex < 0 && documentIndex < 0 && metadataIndex < 0) {
+      return res.status(404).json({ error: "Arquivo não encontrado neste imóvel." });
+    }
+
+    if (photoIndex >= 0) fotos.splice(photoIndex, 1);
+    if (documentIndex >= 0) documentos.splice(documentIndex, 1);
+    if (metadataIndex >= 0) arquivos.splice(metadataIndex, 1);
+
+    const filename = path.basename(url.split("?")[0]);
+    const propertyDir = path.resolve(UPLOAD_ROOT, id);
+    const filePath = path.resolve(propertyDir, filename);
+    if (!filePath.startsWith(propertyDir + path.sep)) {
+      return res.status(400).json({ error: "Caminho de arquivo inválido." });
+    }
+
+    await ref.update({ fotos, documentos, arquivos, atualizadoEm: new Date().toISOString() });
+    try {
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    } catch (fileError) {
+      console.error("[Excluir arquivo imóvel] Não foi possível remover o arquivo físico:", fileError.message);
+      return res.status(500).json({ error: "O vínculo foi removido, mas não foi possível apagar o arquivo físico. Verifique as permissões da pasta de uploads." });
+    }
+
+    return res.json({ ok: true, fotos, documentos, message: "Arquivo removido do imóvel." });
+  } catch (error) {
+    return sendServerError(res, "Não foi possível excluir o arquivo do imóvel.", error);
+  }
+});
+
 // --------------------------------------------------
 // CADASTRAR IMÓVEL
 // --------------------------------------------------
