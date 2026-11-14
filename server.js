@@ -31,11 +31,12 @@ app.use(
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "https://www.gstatic.com"],
+        scriptSrc: ["'self'", "https://www.gstatic.com", "https://unpkg.com"],
         styleSrc: [
           "'self'",
           "'unsafe-inline'",
           "https://fonts.googleapis.com",
+          "https://unpkg.com",
         ],
         fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
         imgSrc: ["'self'", "data:", "blob:", "https:"],
@@ -46,7 +47,11 @@ app.use(
           "https://*.firebasedatabase.app",
           "https://*.firebaseapp.com",
           "https://securetoken.googleapis.com",
+          "https://fcmregistrations.googleapis.com",
+          "https://firebaseinstallations.googleapis.com",
+          "https://fcm.googleapis.com",
         ],
+        workerSrc: ["'self'", "blob:"],
         objectSrc: ["'none'"],
         upgradeInsecureRequests:
           process.env.NODE_ENV === "production" ? [] : null,
@@ -697,6 +702,163 @@ app.patch(
 );
 
 // --------------------------------------------------
+// --------------------------------------------------
+// ALERTA DAY — consentimentos e campanhas geolocalizadas
+// --------------------------------------------------
+function alertaVisitorKey(value) {
+  const id = cleanString(value, 100);
+  return /^[a-zA-Z0-9-]{16,100}$/.test(id) ? crypto.createHash('sha256').update(id).digest('hex') : null;
+}
+function alertaDistance(lat1, lng1, lat2, lng2) {
+  const r = n => n * Math.PI / 180, dLat = r(lat2-lat1), dLng = r(lng2-lng1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(r(lat1))*Math.cos(r(lat2))*Math.sin(dLng/2)**2;
+  return 6371000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+function alertaPhone(value) {
+  const digits = String(value || '').replace(/\D/g, '');
+  if (digits.length < 10 || digits.length > 15) return '';
+  return digits.startsWith('55') ? digits : '55' + digits;
+}
+function alertaEncryptionKey() {
+  const key = Buffer.from(process.env.ALERTA_DAY_ENCRYPTION_KEY || "", "base64");
+  if (key.length !== 32) throw new Error("ALERTA_DAY_ENCRYPTION_KEY precisa conter 32 bytes em Base64.");
+  return key;
+}
+function alertaEncryptPhone(value) {
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv("aes-256-gcm", alertaEncryptionKey(), iv);
+  const encrypted = Buffer.concat([cipher.update(String(value), "utf8"), cipher.final()]);
+  return [iv.toString("base64"), cipher.getAuthTag().toString("base64"), encrypted.toString("base64")].join(".");
+}
+function alertaDecryptPhone(value) {
+  const parts = String(value || "").split(".");
+  if (parts.length !== 3) throw new Error("Telefone protegido inválido.");
+  const decipher = crypto.createDecipheriv("aes-256-gcm", alertaEncryptionKey(), Buffer.from(parts[0], "base64"));
+  decipher.setAuthTag(Buffer.from(parts[1], "base64"));
+  return Buffer.concat([decipher.update(Buffer.from(parts[2], "base64")), decipher.final()]).toString("utf8");
+}
+
+async function alertaPruneExpiredVisitors() {
+  if (!db) return;
+  try {
+    const ref = db.ref("alertaDay/visitantes");
+    const snapshot = await ref.get();
+    const now = Date.now();
+    const updates = {};
+    for (const [key, visitor] of Object.entries(snapshot.val() || {})) {
+      if (visitor.expiraEm && Date.parse(visitor.expiraEm) <= now) updates[key] = null;
+    }
+    if (Object.keys(updates).length) await ref.update(updates);
+  } catch (error) {
+    console.warn("[Alerta Day] Limpeza de consentimentos expirados falhou:", error.message);
+  }
+}
+const alertaCleanupTimer = setInterval(alertaPruneExpiredVisitors, 6 * 60 * 60 * 1000);
+if (typeof alertaCleanupTimer.unref === "function") alertaCleanupTimer.unref();
+setTimeout(alertaPruneExpiredVisitors, 60 * 1000).unref?.();
+
+app.get('/api/alerta-day/config', (_req, res) => res.json({ vapidKey: process.env.FIREBASE_VAPID_KEY || null }));
+app.post('/api/alerta-day/localizacao', async (req, res) => {
+  if (!db) return firebaseUnavailable(res);
+  const key = alertaVisitorKey(req.body?.visitorId), lat = Number(req.body?.latitude), lng = Number(req.body?.longitude), accuracy = Number(req.body?.accuracy);
+  if (!key || req.body?.consentimento !== true || !Number.isFinite(lat) || lat < -90 || lat > 90 || !Number.isFinite(lng) || lng < -180 || lng > 180) return res.status(400).json({ error: 'Consentimento ou coordenadas inválidas.' });
+  try {
+    await db.ref('alertaDay/visitantes/' + key).update({ latitude: lat, longitude: lng, accuracy: Number.isFinite(accuracy) ? Math.min(Math.max(accuracy,0),100000) : null, consentimentoLocalizacao: true, consentimentoLocalizacaoEm: new Date().toISOString(), consentimentoVersao: '2026-11-14', expiraEm: new Date(Date.now()+90*86400000).toISOString(), atualizadoEm: new Date().toISOString() });
+    return res.json({ ok: true });
+  } catch (error) { return sendServerError(res, 'Não foi possível salvar sua preferência.', error); }
+});
+app.post('/api/alerta-day/push', async (req, res) => {
+  if (!db) return firebaseUnavailable(res);
+  const key = alertaVisitorKey(req.body?.visitorId), token = cleanString(req.body?.token, 4096);
+  if (!key || req.body?.consentimento !== true || token.length < 40) return res.status(400).json({ error: 'Autorização ou token Push inválido.' });
+  try {
+    await db.ref('alertaDay/visitantes/' + key).update({ fcmToken: token, pushConsent: true, pushConsentEm: new Date().toISOString(), consentimentoPushVersao: '2026-11-14', atualizadoEm: new Date().toISOString() });
+    return res.json({ ok: true });
+  } catch (error) { return sendServerError(res, 'Não foi possível ativar as notificações.', error); }
+});
+app.post('/api/alerta-day/whatsapp', async (req, res) => {
+  if (!db) return firebaseUnavailable(res);
+  const key = alertaVisitorKey(req.body?.visitorId), phone = alertaPhone(req.body?.telefone);
+  if (!key || req.body?.consentimento !== true || !phone) return res.status(400).json({ error: 'Informe um telefone válido e autorize as mensagens.' });
+  if (!process.env.ALERTA_DAY_ENCRYPTION_KEY) return res.status(503).json({ error: 'Canal WhatsApp temporariamente indisponível.' });
+  try {
+    const telefoneWhatsAppEnc = alertaEncryptPhone(phone);
+    await db.ref('alertaDay/visitantes/' + key).update({ telefoneWhatsAppEnc, whatsappConsent: true, whatsappConsentEm: new Date().toISOString(), consentimentoWhatsAppVersao: '2026-11-14', atualizadoEm: new Date().toISOString() });
+    return res.json({ ok: true });
+  } catch (error) { return sendServerError(res, 'Não foi possível salvar sua autorização.', error); }
+});
+app.delete('/api/alerta-day/preferencias', async (req, res) => {
+  if (!db) return firebaseUnavailable(res);
+  const key = alertaVisitorKey(req.body?.visitorId);
+  if (!key) return res.status(400).json({ error: 'Identificador inválido.' });
+  try { await db.ref('alertaDay/visitantes/' + key).remove(); return res.json({ ok: true }); }
+  catch (error) { return sendServerError(res, 'Não foi possível remover suas preferências.', error); }
+});
+app.get('/api/admin/alerta-day/dados', requireFirebase, allowRoles('administrador'), async (_req, res) => {
+  try {
+    const [propertiesSnap, visitorsSnap, campaignsSnap] = await Promise.all([db.ref('imoveis').get(), db.ref('alertaDay/visitantes').get(), db.ref('alertaDay/campanhas').get()]);
+    const imoveis = Object.entries(propertiesSnap.val() || {}).map(([id,item]) => ({id,...item})).filter(p => p.status === 'publicado' && p.publicadoNoSite === true);
+    const visitors = Object.values(visitorsSnap.val() || {}).filter(v => v.consentimentoLocalizacao === true && (!v.expiraEm || Date.parse(v.expiraEm) > Date.now()));
+    const campanhas = Object.entries(campaignsSnap.val() || {}).map(([id,item]) => ({id,...item})).sort((a,b) => String(b.criadoEm||'').localeCompare(String(a.criadoEm||''))).slice(0,30);
+    return res.json({ imoveis, campanhas, resumo: { localizacao: visitors.length, push: visitors.filter(v => v.pushConsent === true && v.fcmToken).length, whatsapp: visitors.filter(v => v.whatsappConsent === true && v.telefoneWhatsAppEnc).length, campanhas: Object.keys(campaignsSnap.val()||{}).length } });
+  } catch (error) { return sendServerError(res, 'Não foi possível carregar o Alerta Day.', error); }
+});
+app.get('/api/admin/alerta-day/alcance', requireFirebase, allowRoles('administrador'), async (req,res) => {
+  const lat=Number(req.query.lat), lng=Number(req.query.lng), radius=Number(req.query.raio);
+  const channels=(req.query.canais===undefined?'push,whatsapp':String(req.query.canais)).split(',').filter(c=>['push','whatsapp'].includes(c));
+  if (!Number.isFinite(lat)||lat < -90||lat > 90||!Number.isFinite(lng)||lng < -180||lng > 180||!Number.isFinite(radius)||radius < 100||radius > 30000) return res.status(400).json({error:'Centro ou raio inválido.'});
+  try {
+    const snap=await db.ref('alertaDay/visitantes').get();
+    const targets=Object.values(snap.val()||{}).filter(v => v.consentimentoLocalizacao===true && (!v.expiraEm||Date.parse(v.expiraEm)>Date.now()) && Number.isFinite(Number(v.latitude)) && Number.isFinite(Number(v.longitude)) && alertaDistance(lat,lng,Number(v.latitude),Number(v.longitude))<=radius);
+    return res.json({totalElegiveis:targets.filter(v => (channels.includes('push')&&v.pushConsent===true&&v.fcmToken)||(channels.includes('whatsapp')&&v.whatsappConsent===true&&v.telefoneWhatsAppEnc)).length, totalLocalizacao:targets.length});
+  } catch(error) { return sendServerError(res,'Não foi possível calcular o público.',error); }
+});
+async function alertaSendWhatsApp(phone,title,message,link) {
+  const phoneId=process.env.WHATSAPP_PHONE_NUMBER_ID, token=process.env.WHATSAPP_ACCESS_TOKEN, template=process.env.WHATSAPP_ALERT_TEMPLATE, graphVersion=process.env.WHATSAPP_GRAPH_VERSION;
+  if (!phoneId||!token||!template||!/^v\d+\.\d+$/.test(graphVersion||'')) throw new Error('Configure as credenciais, o modelo aprovado e WHATSAPP_GRAPH_VERSION da WhatsApp Cloud API.');
+  const response=await fetch('https://graph.facebook.com/'+graphVersion+'/'+encodeURIComponent(phoneId)+'/messages',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({messaging_product:'whatsapp',to:phone,type:'template',template:{name:template,language:{code:process.env.WHATSAPP_TEMPLATE_LANGUAGE||'pt_BR'},components:[{type:'body',parameters:[{type:'text',text:title},{type:'text',text:message},{type:'text',text:link}]}]}})});
+  const result=await response.json().catch(()=>({})); if(!response.ok) throw new Error(result.error?.message||'Falha no WhatsApp'); return result;
+}
+app.post('/api/admin/alerta-day/disparar', requireFirebase, allowRoles('administrador'), async (req,res) => {
+  const b=req.body||{}, propertyId=cleanString(b.imovelId,100), title=cleanString(b.titulo,90), message=cleanString(b.mensagem,220), channels=Array.isArray(b.canais)?[...new Set(b.canais)]:[];
+  const lat=Number(b.centro?.lat), lng=Number(b.centro?.lng), radius=Number(b.raioMetros);
+  if (!propertyId||!title||!message||!Number.isFinite(lat)||lat < -90||lat > 90||!Number.isFinite(lng)||lng < -180||lng > 180||!Number.isFinite(radius)||radius < 100||radius > 30000||!channels.length||channels.some(c=>!['push','whatsapp'].includes(c))) return res.status(400).json({error:'Dados da campanha inválidos.'});
+  if (channels.includes('push') && (!admin || typeof admin.messaging!=='function')) return res.status(503).json({error:'Firebase Cloud Messaging indisponível.'});
+  if (channels.includes('whatsapp') && (!process.env.WHATSAPP_PHONE_NUMBER_ID||!process.env.WHATSAPP_ACCESS_TOKEN||!process.env.WHATSAPP_ALERT_TEMPLATE||!process.env.ALERTA_DAY_ENCRYPTION_KEY||!/^v\d+\.\d+$/.test(process.env.WHATSAPP_GRAPH_VERSION||''))) return res.status(503).json({error:'Configure a WhatsApp Cloud API, a chave de criptografia, a versão Graph e o modelo aprovado antes do disparo.'});
+  const baseUrl=(process.env.PUBLIC_SITE_URL||'').replace(/\/$/,'');
+  if (!/^https:\/\/[^/]+$/i.test(baseUrl)) return res.status(503).json({error:'Configure PUBLIC_SITE_URL com o endereço HTTPS público do site.'});
+  try {
+    const propertySnap=await db.ref('imoveis/'+propertyId).get(), property=propertySnap.val();
+    if (!property||property.status!=='publicado'||property.publicadoNoSite!==true) return res.status(404).json({error:'Imóvel não publicado ou inexistente.'});
+    const visitorsSnap=await db.ref('alertaDay/visitantes').get();
+    const visitors=Object.entries(visitorsSnap.val()||{}).filter(([,v])=>v.consentimentoLocalizacao===true&&(!v.expiraEm||Date.parse(v.expiraEm)>Date.now())&&Number.isFinite(Number(v.latitude))&&Number.isFinite(Number(v.longitude))&&alertaDistance(lat,lng,Number(v.latitude),Number(v.longitude))<=radius);
+    const pushTargets=channels.includes('push')?visitors.filter(([,v])=>v.pushConsent===true&&v.fcmToken):[];
+    const waTargets=channels.includes('whatsapp')?visitors.filter(([,v])=>v.whatsappConsent===true&&v.telefoneWhatsAppEnc):[];
+    const pathLink=cleanString(b.link,500)||('/detalhes.html?id='+encodeURIComponent(propertyId));
+    const firstPhoto=Array.isArray(property.fotos)?property.fotos[0]:null;
+    const imageUrl=firstPhoto?(/^https:\/\//i.test(firstPhoto)?firstPhoto:baseUrl+'/'+String(firstPhoto).replace(/^\//,'')):null;
+    const pushLink=/^https:\/\//i.test(pathLink)?pathLink:(baseUrl?baseUrl+'/'+pathLink.replace(/^\//,''):null);
+    const campaignRef=db.ref('alertaDay/campanhas').push();
+    await campaignRef.set({imovelId:propertyId,imovelTitulo:cleanString(property.titulo,180),titulo:title,mensagem:message,link:pathLink,centro:{lat,lng},raioMetros:radius,canais:channels,status:'processando',pushAlvo:pushTargets.length,whatsappAlvo:waTargets.length,criadoEm:new Date().toISOString(),criadoPor:req.user.uid});
+    let pushEnviados=0, whatsappEnviados=0, erros=[];
+    if (channels.includes('push')&&pushTargets.length) {
+      if (!pushLink) throw new Error('Configure PUBLIC_SITE_URL com a URL HTTPS pública do site para links de Push.');
+      const tokens=pushTargets.map(([,v])=>v.fcmToken);
+      for(let i=0;i<tokens.length;i+=500) {
+        const batch=tokens.slice(i,i+500), result=await admin.messaging().sendEachForMulticast({tokens:batch,notification:{title,body:message,...(imageUrl?{image:imageUrl}:{})},data:{url:pushLink,campaignId:campaignRef.key},webpush:{notification:imageUrl?{image:imageUrl}:{},fcmOptions:{link:pushLink}}});
+        pushEnviados+=result.successCount;
+        result.responses.forEach((item,index)=>{if(!item.success){erros.push({canal:'push',tokenFinal:batch[index].slice(-8),erro:item.error?.code||'falha'});if(['messaging/registration-token-not-registered','messaging/invalid-registration-token'].includes(item.error?.code)){const entry=pushTargets.find(([,v])=>v.fcmToken===batch[index]);if(entry)db.ref('alertaDay/visitantes/'+entry[0]).update({fcmToken:null,pushConsent:false}).catch(()=>{});}}});
+      }
+    }
+    if (channels.includes('whatsapp')) for(const [key,v] of waTargets) {
+      try { await alertaSendWhatsApp(alertaDecryptPhone(v.telefoneWhatsAppEnc),title,message,pushLink||((baseUrl||'')+'/'+pathLink.replace(/^\//,''))); whatsappEnviados++; }
+      catch(error) { erros.push({canal:'whatsapp',erro:cleanString(error.message,180)}); }
+    }
+    const status=erros.length?(pushEnviados+whatsappEnviados?'parcial':'falhou'):'enviada';
+    await campaignRef.update({status,pushEnviados,whatsappEnviados,erros:erros.slice(0,50),concluidoEm:new Date().toISOString()});
+    return res.json({ok:true,campaignId:campaignRef.key,status,pushEnviados,whatsappEnviados,pushAlvo:pushTargets.length,whatsappAlvo:waTargets.length,erros:erros.length});
+  } catch(error) { return sendServerError(res,'Não foi possível concluir o disparo do Alerta Day.',error); }
+});
 // DASHBOARD ADMINISTRATIVO
 // --------------------------------------------------
 
@@ -1321,6 +1483,11 @@ app.post(
       body.preco !== "";
 
     const preco = precoInformado ? Number(body.preco) : null;
+    const latitude = body.latitude === "" || body.latitude == null ? null : Number(body.latitude);
+    const longitude = body.longitude === "" || body.longitude == null ? null : Number(body.longitude);
+    if ((latitude === null) !== (longitude === null) || (latitude !== null && (!Number.isFinite(latitude) || latitude < -90 || latitude > 90 || !Number.isFinite(longitude) || longitude < -180 || longitude > 180))) {
+      return res.status(400).json({ error: "Informe latitude e longitude válidas em conjunto." });
+    }
 
     if (precoInformado && (!Number.isFinite(preco) || preco < 0)) {
       return res.status(400).json({ error: "Preço inválido." });
@@ -1348,6 +1515,8 @@ app.post(
         cidade: cleanString(body.cidade, 100),
         estado: cleanString(body.estado, 2).toUpperCase(),
         bairro: cleanString(body.bairro, 120),
+        latitude,
+        longitude,
         quartos: Math.max(0, Number(body.quartos) || 0),
         suites: Math.max(0, Number(body.suites) || 0),
         banheiros: Math.max(0, Number(body.banheiros) || 0),
@@ -1406,6 +1575,13 @@ app.patch("/api/admin/imoveis/:id", requireFirebase, allowRoles("administrador")
     if (Object.hasOwn(body, key)) updates[key] = cleanString(body[key], max);
   }
   if (Object.hasOwn(body, "estado")) updates.estado = updates.estado.toUpperCase();
+  if (Object.hasOwn(body, "latitude") || Object.hasOwn(body, "longitude")) {
+    const latitude = body.latitude === "" || body.latitude == null ? null : Number(body.latitude);
+    const longitude = body.longitude === "" || body.longitude == null ? null : Number(body.longitude);
+    if ((latitude === null) !== (longitude === null) || (latitude !== null && (!Number.isFinite(latitude) || latitude < -90 || latitude > 90 || !Number.isFinite(longitude) || longitude < -180 || longitude > 180))) return res.status(400).json({ error: "Informe latitude e longitude válidas em conjunto." });
+    updates.latitude = latitude;
+    updates.longitude = longitude;
+  }
   if (Object.hasOwn(body, "preco")) {
     const value = body.preco === "" || body.preco == null ? null : Number(body.preco);
     if (value !== null && (!Number.isFinite(value) || value < 0)) return res.status(400).json({ error: "Preço inválido." });

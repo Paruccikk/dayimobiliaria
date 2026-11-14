@@ -34,6 +34,7 @@
         <a class="button button-dark" href="/painel.html">Painel geral</a>
         <a class="button button-dark" href="/crm.html">CRM de Leads</a>
         <a class="button button-dark" href="/materiais.html">Materiais e carteira</a>
+        <a class="button button-gold" href="/alerta-day.html">Alerta Day</a>
         <button class="button button-gold" id="admin-refresh" type="button">Atualizar dados ↻</button>
         <button class="button button-dark" id="admin-logout" type="button">Sair</button>
       </div>
@@ -89,6 +90,8 @@
         <div class="field"><label for="prop-cidade">Cidade</label><input id="prop-cidade" maxlength="100"></div>
         <div class="field"><label for="prop-estado">UF</label><input id="prop-estado" maxlength="2" placeholder="SP"></div>
         <div class="field"><label for="prop-bairro">Bairro</label><input id="prop-bairro" maxlength="120"></div>
+        <div class="field"><label for="prop-latitude">Latitude (opcional)</label><input id="prop-latitude" type="number" min="-90" max="90" step="any" placeholder="-23.68"></div>
+        <div class="field"><label for="prop-longitude">Longitude (opcional)</label><input id="prop-longitude" type="number" min="-180" max="180" step="any" placeholder="-46.62"></div>
         <div class="field"><label for="prop-area">Área (m²)</label><input id="prop-area" type="number" min="0"></div>
         <div class="field"><label for="prop-quartos">Quartos</label><input id="prop-quartos" type="number" min="0"></div>
         <div class="field"><label for="prop-suites">Suítes</label><input id="prop-suites" type="number" min="0"></div><div class="field"><label for="prop-situacao">Situação do imóvel</label><select id="prop-situacao"><option value="pronto">Pronto / Usado</option><option value="lancamento">Lançamento</option><option value="em_obras">Em obras</option></select></div><div class="field full mcmv-field"><label class="mcmv-toggle" for="prop-mcmv"><input id="prop-mcmv" type="checkbox"><span class="mcmv-switch" aria-hidden="true"></span><span class="mcmv-toggle-copy"><strong>Minha Casa, Minha Vida</strong><small>Ative para identificar este imóvel como elegível ao programa.</small></span></label></div>
