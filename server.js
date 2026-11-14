@@ -781,7 +781,8 @@ app.post('/api/alerta-day/whatsapp', async (req, res) => {
   const key = alertaVisitorKey(req.body?.visitorId), phone = alertaPhone(req.body?.telefone);
   if (!key || req.body?.consentimento !== true || !phone) return res.status(400).json({ error: 'Informe um telefone válido e autorize as mensagens.' });
   try {
-    const telefoneWhatsAppEnc = alertaEncryptPhone(phone);\n    await db.ref('alertaDay/visitantes/' + key).update({ telefoneWhatsAppEnc, whatsappConsent: true, whatsappConsentEm: new Date().toISOString(), consentimentoWhatsAppVersao: '2026-11-14', atualizadoEm: new Date().toISOString() });
+    const telefoneWhatsAppEnc = alertaEncryptPhone(phone);
+    await db.ref('alertaDay/visitantes/' + key).update({ telefoneWhatsAppEnc, whatsappConsent: true, whatsappConsentEm: new Date().toISOString(), consentimentoWhatsAppVersao: '2026-11-14', atualizadoEm: new Date().toISOString() });
     return res.json({ ok: true });
   } catch (error) { return sendServerError(res, 'Não foi possível salvar sua autorização.', error); }
 });
