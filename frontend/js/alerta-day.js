@@ -54,10 +54,10 @@ async function loadData() {
 }
 function escapeHtml(v) { return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 function selectedProperty() { return properties.find(p => p.id === $("#property").value); }
-function updatePreview() { $("#preview-title").textContent=$("#title").value.trim()||"Alerta Day"; $("#preview-message").textContent=$("#message").value.trim()||"Confira esta oportunidade imobiliária."; }
+function updatePreview() { $("#preview-title").textContent=$("#title").value.trim()||"Alerta Day"; $("#preview-message").textContent=$("#message").value.trim()||"Confira esta oportunidade imobiliária."; const photo=selectedProperty()?.fotos?.[0]; const image=$("#preview-image"); if(photo){image.src=new URL(photo,window.location.origin).href;image.hidden=false;}else{image.removeAttribute("src");image.hidden=true;} }
 $("#login-form").addEventListener("submit", async e => { e.preventDefault(); try { await signInWithEmailAndPassword(auth,$("#email").value.trim(),$("#password").value); } catch(err) { $("#login-feedback").textContent=err.message; } });
 $("#logout").addEventListener("click",()=>signOut(auth));
-$("#property").addEventListener("change",()=>{ const p=selectedProperty(); if(!p)return; $("#link").value=`/detalhes.html?id=${encodeURIComponent(p.id)}`; if(p.latitude!==null&&p.latitude!==""&&p.latitude!==undefined&&p.longitude!==null&&p.longitude!==""&&p.longitude!==undefined&&Number.isFinite(Number(p.latitude))&&Number.isFinite(Number(p.longitude)))setCenter(Number(p.latitude),Number(p.longitude)); else message("Este imóvel ainda não possui coordenadas. Clique no mapa para posicionar o círculo manualmente."); });
+$("#property").addEventListener("change",()=>{ const p=selectedProperty(); if(!p)return; $("#link").value=`/detalhes.html?id=${encodeURIComponent(p.id)}`; if(p.latitude!==null&&p.latitude!==""&&p.latitude!==undefined&&p.longitude!==null&&p.longitude!==""&&p.longitude!==undefined&&Number.isFinite(Number(p.latitude))&&Number.isFinite(Number(p.longitude)))setCenter(Number(p.latitude),Number(p.longitude)); else message("Este imóvel ainda não possui coordenadas. Clique no mapa para posicionar o círculo manualmente."); updatePreview(); });
 $("#radius").addEventListener("input",drawCircle);
 $("#channel-push").addEventListener("change",refreshReach); $("#channel-whatsapp").addEventListener("change",refreshReach);
 $("#title").addEventListener("input",updatePreview); $("#message").addEventListener("input",updatePreview);
