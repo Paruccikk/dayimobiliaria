@@ -719,6 +719,25 @@ function alertaPhone(value) {
   if (digits.length < 10 || digits.length > 15) return '';
   return digits.startsWith('55') ? digits : '55' + digits;
 }
+function alertaEncryptionKey() {
+  const key = Buffer.from(process.env.ALERTA_DAY_ENCRYPTION_KEY || "", "base64");
+  if (key.length !== 32) throw new Error("ALERTA_DAY_ENCRYPTION_KEY precisa conter 32 bytes em Base64.");
+  return key;
+}
+function alertaEncryptPhone(value) {
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv("aes-256-gcm", alertaEncryptionKey(), iv);
+  const encrypted = Buffer.concat([cipher.update(String(value), "utf8"), cipher.final()]);
+  return [iv.toString("base64"), cipher.getAuthTag().toString("base64"), encrypted.toString("base64")].join(".");
+}
+function alertaDecryptPhone(value) {
+  const parts = String(value || "").split(".");
+  if (parts.length !== 3) throw new Error("Telefone protegido inválido.");
+  const decipher = crypto.createDecipheriv("aes-256-gcm", alertaEncryptionKey(), Buffer.from(parts[0], "base64"));
+  decipher.setAuthTag(Buffer.from(parts[1], "base64"));
+  return Buffer.concat([decipher.update(Buffer.from(parts[2], "base64")), decipher.final()]).toString("utf8");
+}
+
 async function alertaPruneExpiredVisitors() {
   if (!db) return;
   try {
@@ -762,7 +781,7 @@ app.post('/api/alerta-day/whatsapp', async (req, res) => {
   const key = alertaVisitorKey(req.body?.visitorId), phone = alertaPhone(req.body?.telefone);
   if (!key || req.body?.consentimento !== true || !phone) return res.status(400).json({ error: 'Informe um telefone válido e autorize as mensagens.' });
   try {
-    await db.ref('alertaDay/visitantes/' + key).update({ telefoneWhatsApp: phone, whatsappConsent: true, whatsappConsentEm: new Date().toISOString(), consentimentoWhatsAppVersao: '2026-11-14', atualizadoEm: new Date().toISOString() });
+    const telefoneWhatsAppEnc = alertaEncryptPhone(phone);\n    await db.ref('alertaDay/visitantes/' + key).update({ telefoneWhatsAppEnc, whatsappConsent: true, whatsappConsentEm: new Date().toISOString(), consentimentoWhatsAppVersao: '2026-11-14', atualizadoEm: new Date().toISOString() });
     return res.json({ ok: true });
   } catch (error) { return sendServerError(res, 'Não foi possível salvar sua autorização.', error); }
 });
@@ -779,7 +798,7 @@ app.get('/api/admin/alerta-day/dados', requireFirebase, allowRoles('administrado
     const imoveis = Object.entries(propertiesSnap.val() || {}).map(([id,item]) => ({id,...item})).filter(p => p.status === 'publicado' && p.publicadoNoSite === true);
     const visitors = Object.values(visitorsSnap.val() || {}).filter(v => v.consentimentoLocalizacao === true && (!v.expiraEm || Date.parse(v.expiraEm) > Date.now()));
     const campanhas = Object.entries(campaignsSnap.val() || {}).map(([id,item]) => ({id,...item})).sort((a,b) => String(b.criadoEm||'').localeCompare(String(a.criadoEm||''))).slice(0,30);
-    return res.json({ imoveis, campanhas, resumo: { localizacao: visitors.length, push: visitors.filter(v => v.pushConsent === true && v.fcmToken).length, whatsapp: visitors.filter(v => v.whatsappConsent === true && v.telefoneWhatsApp).length, campanhas: Object.keys(campaignsSnap.val()||{}).length } });
+    return res.json({ imoveis, campanhas, resumo: { localizacao: visitors.length, push: visitors.filter(v => v.pushConsent === true && v.fcmToken).length, whatsapp: visitors.filter(v => v.whatsappConsent === true && v.telefoneWhatsAppEnc).length, campanhas: Object.keys(campaignsSnap.val()||{}).length } });
   } catch (error) { return sendServerError(res, 'Não foi possível carregar o Alerta Day.', error); }
 });
 app.get('/api/admin/alerta-day/alcance', requireFirebase, allowRoles('administrador'), async (req,res) => {
@@ -788,7 +807,7 @@ app.get('/api/admin/alerta-day/alcance', requireFirebase, allowRoles('administra
   try {
     const snap=await db.ref('alertaDay/visitantes').get();
     const targets=Object.values(snap.val()||{}).filter(v => v.consentimentoLocalizacao===true && (!v.expiraEm||Date.parse(v.expiraEm)>Date.now()) && Number.isFinite(Number(v.latitude)) && Number.isFinite(Number(v.longitude)) && alertaDistance(lat,lng,Number(v.latitude),Number(v.longitude))<=radius);
-    return res.json({totalElegiveis:targets.filter(v => (v.pushConsent===true&&v.fcmToken)||(v.whatsappConsent===true&&v.telefoneWhatsApp)).length, totalLocalizacao:targets.length});
+    return res.json({totalElegiveis:targets.filter(v => (v.pushConsent===true&&v.fcmToken)||(v.whatsappConsent===true&&v.telefoneWhatsAppEnc)).length, totalLocalizacao:targets.length});
   } catch(error) { return sendServerError(res,'Não foi possível calcular o público.',error); }
 });
 async function alertaSendWhatsApp(phone,title,message,link) {
@@ -802,7 +821,7 @@ app.post('/api/admin/alerta-day/disparar', requireFirebase, allowRoles('administ
   const lat=Number(b.centro?.lat), lng=Number(b.centro?.lng), radius=Number(b.raioMetros);
   if (!propertyId||!title||!message||!Number.isFinite(lat)||lat < -90||lat > 90||!Number.isFinite(lng)||lng < -180||lng > 180||!Number.isFinite(radius)||radius < 100||radius > 30000||!channels.length||channels.some(c=>!['push','whatsapp'].includes(c))) return res.status(400).json({error:'Dados da campanha inválidos.'});
   if (channels.includes('push') && (!admin || typeof admin.messaging!=='function')) return res.status(503).json({error:'Firebase Cloud Messaging indisponível.'});
-  if (channels.includes('whatsapp') && (!process.env.WHATSAPP_PHONE_NUMBER_ID||!process.env.WHATSAPP_ACCESS_TOKEN||!process.env.WHATSAPP_ALERT_TEMPLATE||!/^v\d+\.\d+$/.test(process.env.WHATSAPP_GRAPH_VERSION||''))) return res.status(503).json({error:'Configure a WhatsApp Cloud API, a versão Graph e o modelo aprovado antes do disparo.'});
+  if (channels.includes('whatsapp') && (!process.env.WHATSAPP_PHONE_NUMBER_ID||!process.env.WHATSAPP_ACCESS_TOKEN||!process.env.WHATSAPP_ALERT_TEMPLATE||!process.env.ALERTA_DAY_ENCRYPTION_KEY||!/^v\d+\.\d+$/.test(process.env.WHATSAPP_GRAPH_VERSION||''))) return res.status(503).json({error:'Configure a WhatsApp Cloud API, a chave de criptografia, a versão Graph e o modelo aprovado antes do disparo.'});
   const baseUrl=(process.env.PUBLIC_SITE_URL||'').replace(/\/$/,'');
   if (!/^https:\/\/[^/]+$/i.test(baseUrl)) return res.status(503).json({error:'Configure PUBLIC_SITE_URL com o endereço HTTPS público do site.'});
   try {
@@ -827,7 +846,7 @@ app.post('/api/admin/alerta-day/disparar', requireFirebase, allowRoles('administ
       }
     }
     if (channels.includes('whatsapp')) for(const [key,v] of waTargets) {
-      try { await alertaSendWhatsApp(v.telefoneWhatsApp,title,message,pushLink||((baseUrl||'')+'/'+pathLink.replace(/^\//,''))); whatsappEnviados++; }
+      try { await alertaSendWhatsApp(alertaDecryptPhone(v.telefoneWhatsAppEnc),title,message,pushLink||((baseUrl||'')+'/'+pathLink.replace(/^\//,''))); whatsappEnviados++; }
       catch(error) { erros.push({canal:'whatsapp',erro:cleanString(error.message,180)}); }
     }
     const status=erros.length?(pushEnviados+whatsappEnviados?'parcial':'falhou'):'enviada';
