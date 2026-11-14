@@ -1439,6 +1439,11 @@ app.post(
       body.preco !== "";
 
     const preco = precoInformado ? Number(body.preco) : null;
+    const latitude = body.latitude === "" || body.latitude == null ? null : Number(body.latitude);
+    const longitude = body.longitude === "" || body.longitude == null ? null : Number(body.longitude);
+    if ((latitude === null) !== (longitude === null) || (latitude !== null && (!Number.isFinite(latitude) || latitude < -90 || latitude > 90 || !Number.isFinite(longitude) || longitude < -180 || longitude > 180))) {
+      return res.status(400).json({ error: "Informe latitude e longitude válidas em conjunto." });
+    }
 
     if (precoInformado && (!Number.isFinite(preco) || preco < 0)) {
       return res.status(400).json({ error: "Preço inválido." });
@@ -1465,7 +1470,7 @@ app.post(
         moeda: "BRL",
         cidade: cleanString(body.cidade, 100),
         estado: cleanString(body.estado, 2).toUpperCase(),
-        bairro: cleanString(body.bairro, 120),
+        bairro: cleanString(body.bairro, 120),\n        latitude,\n        longitude,
         quartos: Math.max(0, Number(body.quartos) || 0),
         suites: Math.max(0, Number(body.suites) || 0),
         banheiros: Math.max(0, Number(body.banheiros) || 0),
@@ -1524,6 +1529,13 @@ app.patch("/api/admin/imoveis/:id", requireFirebase, allowRoles("administrador")
     if (Object.hasOwn(body, key)) updates[key] = cleanString(body[key], max);
   }
   if (Object.hasOwn(body, "estado")) updates.estado = updates.estado.toUpperCase();
+  if (Object.hasOwn(body, "latitude") || Object.hasOwn(body, "longitude")) {
+    const latitude = body.latitude === "" || body.latitude == null ? null : Number(body.latitude);
+    const longitude = body.longitude === "" || body.longitude == null ? null : Number(body.longitude);
+    if ((latitude === null) !== (longitude === null) || (latitude !== null && (!Number.isFinite(latitude) || latitude < -90 || latitude > 90 || !Number.isFinite(longitude) || longitude < -180 || longitude > 180))) return res.status(400).json({ error: "Informe latitude e longitude válidas em conjunto." });
+    updates.latitude = latitude;
+    updates.longitude = longitude;
+  }
   if (Object.hasOwn(body, "preco")) {
     const value = body.preco === "" || body.preco == null ? null : Number(body.preco);
     if (value !== null && (!Number.isFinite(value) || value < 0)) return res.status(400).json({ error: "Preço inválido." });
