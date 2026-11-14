@@ -804,12 +804,12 @@ app.get('/api/admin/alerta-day/dados', requireFirebase, allowRoles('administrado
   } catch (error) { return sendServerError(res, 'Não foi possível carregar o Alerta Day.', error); }
 });
 app.get('/api/admin/alerta-day/alcance', requireFirebase, allowRoles('administrador'), async (req,res) => {
-  const lat=Number(req.query.lat), lng=Number(req.query.lng), radius=Number(req.query.raio);
+  const lat=Number(req.query.lat), lng=Number(req.query.lng), radius=Number(req.query.raio);\n  const channels=String(req.query.canais||'push,whatsapp').split(',').filter(c=>['push','whatsapp'].includes(c));
   if (!Number.isFinite(lat)||lat < -90||lat > 90||!Number.isFinite(lng)||lng < -180||lng > 180||!Number.isFinite(radius)||radius < 100||radius > 30000) return res.status(400).json({error:'Centro ou raio inválido.'});
   try {
     const snap=await db.ref('alertaDay/visitantes').get();
     const targets=Object.values(snap.val()||{}).filter(v => v.consentimentoLocalizacao===true && (!v.expiraEm||Date.parse(v.expiraEm)>Date.now()) && Number.isFinite(Number(v.latitude)) && Number.isFinite(Number(v.longitude)) && alertaDistance(lat,lng,Number(v.latitude),Number(v.longitude))<=radius);
-    return res.json({totalElegiveis:targets.filter(v => (v.pushConsent===true&&v.fcmToken)||(v.whatsappConsent===true&&v.telefoneWhatsAppEnc)).length, totalLocalizacao:targets.length});
+    return res.json({totalElegiveis:targets.filter(v => (channels.includes('push')&&v.pushConsent===true&&v.fcmToken)||(channels.includes('whatsapp')&&v.whatsappConsent===true&&v.telefoneWhatsAppEnc)).length, totalLocalizacao:targets.length});
   } catch(error) { return sendServerError(res,'Não foi possível calcular o público.',error); }
 });
 async function alertaSendWhatsApp(phone,title,message,link) {
