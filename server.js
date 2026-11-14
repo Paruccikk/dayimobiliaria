@@ -779,7 +779,7 @@ app.post('/api/alerta-day/push', async (req, res) => {
 app.post('/api/alerta-day/whatsapp', async (req, res) => {
   if (!db) return firebaseUnavailable(res);
   const key = alertaVisitorKey(req.body?.visitorId), phone = alertaPhone(req.body?.telefone);
-  if (!key || req.body?.consentimento !== true || !phone) return res.status(400).json({ error: 'Informe um telefone válido e autorize as mensagens.' });
+  if (!key || req.body?.consentimento !== true || !phone) return res.status(400).json({ error: 'Informe um telefone válido e autorize as mensagens.' });\n  if (!process.env.ALERTA_DAY_ENCRYPTION_KEY) return res.status(503).json({ error: 'Canal WhatsApp temporariamente indisponível.' });
   try {
     const telefoneWhatsAppEnc = alertaEncryptPhone(phone);
     await db.ref('alertaDay/visitantes/' + key).update({ telefoneWhatsAppEnc, whatsappConsent: true, whatsappConsentEm: new Date().toISOString(), consentimentoWhatsAppVersao: '2026-11-14', atualizadoEm: new Date().toISOString() });
@@ -831,7 +831,7 @@ app.post('/api/admin/alerta-day/disparar', requireFirebase, allowRoles('administ
     const visitorsSnap=await db.ref('alertaDay/visitantes').get();
     const visitors=Object.entries(visitorsSnap.val()||{}).filter(([,v])=>v.consentimentoLocalizacao===true&&(!v.expiraEm||Date.parse(v.expiraEm)>Date.now())&&Number.isFinite(Number(v.latitude))&&Number.isFinite(Number(v.longitude))&&alertaDistance(lat,lng,Number(v.latitude),Number(v.longitude))<=radius);
     const pushTargets=channels.includes('push')?visitors.filter(([,v])=>v.pushConsent===true&&v.fcmToken):[];
-    const waTargets=channels.includes('whatsapp')?visitors.filter(([,v])=>v.whatsappConsent===true&&v.telefoneWhatsApp):[];
+    const waTargets=channels.includes('whatsapp')?visitors.filter(([,v])=>v.whatsappConsent===true&&v.telefoneWhatsAppEnc):[];
     const pathLink=cleanString(b.link,500)||('/detalhes.html?id='+encodeURIComponent(propertyId));
     const pushLink=/^https:\/\//i.test(pathLink)?pathLink:(baseUrl?baseUrl+'/'+pathLink.replace(/^\//,''):null);
     const campaignRef=db.ref('alertaDay/campanhas').push();
