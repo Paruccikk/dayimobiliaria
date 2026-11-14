@@ -34,7 +34,7 @@ function buildModal() {
   close.addEventListener("click", () => { localStorage.setItem(DECISION, "deferred"); overlay.remove(); });
   const mark = $("div", { className: "ad-visitor-mark" }, "DAY");
   const title = $("h2", { id: "ad-visitor-title" }, "Descubra oportunidades perto de você");
-  const copy = $("p", {}, "Compartilhe sua localização para receber alertas de imóveis na região que escolher. Você decide se quer ativar e pode retirar sua autorização quando quiser.");
+  const copy = $("p", {}, "Compartilhe sua localização para receber alertas de imóveis na região que escolher. Você decide se quer ativar e pode retirar sua autorização quando quiser. No iPhone, adicione o site à Tela de Início para habilitar notificações Push.");
   const privacy = $("p", { className: "ad-visitor-privacy" }, "Usaremos a localização autorizada para calcular a proximidade de imóveis. Não rastreamos seus deslocamentos. Os dados de localização expiram em até 90 dias ou antes, se você retirar a autorização.");
   const feedback = $("p", { className: "ad-visitor-feedback", role: "status", "aria-live": "polite" });
   const location = $("button", { className: "ad-visitor-primary", type: "button" }, "Permitir uso da minha localização");
@@ -80,6 +80,7 @@ function buildModal() {
         later.textContent = "Concluir";
       } catch (error) { feedback.textContent = error.message; location.disabled = false; }
     }, error => {
+      localStorage.setItem(DECISION, "deferred");
       feedback.textContent = error.code === 1 ? "Você não autorizou a localização. Não salvamos nenhuma coordenada. Se quiser, pode tentar novamente nas permissões do navegador." : "Não conseguimos obter sua localização. Você pode tentar novamente ou escolher o WhatsApp.";
       location.disabled = false;
       whatsappForm.hidden = false;
