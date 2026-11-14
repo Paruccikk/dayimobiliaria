@@ -719,6 +719,25 @@ function alertaPhone(value) {
   if (digits.length < 10 || digits.length > 15) return '';
   return digits.startsWith('55') ? digits : '55' + digits;
 }
+async function alertaPruneExpiredVisitors() {
+  if (!db) return;
+  try {
+    const ref = db.ref("alertaDay/visitantes");
+    const snapshot = await ref.get();
+    const now = Date.now();
+    const updates = {};
+    for (const [key, visitor] of Object.entries(snapshot.val() || {})) {
+      if (visitor.expiraEm && Date.parse(visitor.expiraEm) <= now) updates[key] = null;
+    }
+    if (Object.keys(updates).length) await ref.update(updates);
+  } catch (error) {
+    console.warn("[Alerta Day] Limpeza de consentimentos expirados falhou:", error.message);
+  }
+}
+const alertaCleanupTimer = setInterval(alertaPruneExpiredVisitors, 6 * 60 * 60 * 1000);
+if (typeof alertaCleanupTimer.unref === "function") alertaCleanupTimer.unref();
+setTimeout(alertaPruneExpiredVisitors, 60 * 1000).unref?.();
+
 app.get('/api/alerta-day/config', (_req, res) => res.json({ vapidKey: process.env.FIREBASE_VAPID_KEY || null }));
 app.post('/api/alerta-day/localizacao', async (req, res) => {
   if (!db) return firebaseUnavailable(res);
