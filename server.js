@@ -835,6 +835,8 @@ app.post('/api/admin/alerta-day/disparar', requireFirebase, allowRoles('administ
     const pushTargets=channels.includes('push')?visitors.filter(([,v])=>v.pushConsent===true&&v.fcmToken):[];
     const waTargets=channels.includes('whatsapp')?visitors.filter(([,v])=>v.whatsappConsent===true&&v.telefoneWhatsAppEnc):[];
     const pathLink=cleanString(b.link,500)||('/detalhes.html?id='+encodeURIComponent(propertyId));
+    const firstPhoto=Array.isArray(property.fotos)?property.fotos[0]:null;
+    const imageUrl=firstPhoto?(/^https:\/\//i.test(firstPhoto)?firstPhoto:baseUrl+'/'+String(firstPhoto).replace(/^\//,'')):null;
     const pushLink=/^https:\/\//i.test(pathLink)?pathLink:(baseUrl?baseUrl+'/'+pathLink.replace(/^\//,''):null);
     const campaignRef=db.ref('alertaDay/campanhas').push();
     await campaignRef.set({imovelId:propertyId,imovelTitulo:cleanString(property.titulo,180),titulo:title,mensagem:message,link:pathLink,centro:{lat,lng},raioMetros:radius,canais:channels,status:'processando',pushAlvo:pushTargets.length,whatsappAlvo:waTargets.length,criadoEm:new Date().toISOString(),criadoPor:req.user.uid});
