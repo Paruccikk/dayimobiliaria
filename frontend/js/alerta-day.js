@@ -37,7 +37,8 @@ async function refreshReach() {
   if (!marker) { $("#audience-count").textContent = "Selecione o imóvel"; return; }
   const p = marker.getLatLng(), radius = Number($("#radius").value);
   try {
-    const channels = []; if ($("#channel-push").checked) channels.push("push"); if ($("#channel-whatsapp").checked) channels.push("whatsapp");\n    const data = await api(`/api/admin/alerta-day/alcance?lat=${p.lat}&lng=${p.lng}&raio=${radius}&canais=${channels.join(",")}`);
+    const channels = []; if ($("#channel-push").checked) channels.push("push"); if ($("#channel-whatsapp").checked) channels.push("whatsapp");
+    const data = await api(`/api/admin/alerta-day/alcance?lat=${p.lat}&lng=${p.lng}&raio=${radius}&canais=${channels.join(",")}`);
     $("#audience-count").textContent = Number(data.totalElegiveis || 0).toLocaleString("pt-BR");
   } catch (e) { $("#audience-count").textContent = "indisponível"; message(e.message); }
 }
@@ -57,7 +58,8 @@ function updatePreview() { $("#preview-title").textContent=$("#title").value.tri
 $("#login-form").addEventListener("submit", async e => { e.preventDefault(); try { await signInWithEmailAndPassword(auth,$("#email").value.trim(),$("#password").value); } catch(err) { $("#login-feedback").textContent=err.message; } });
 $("#logout").addEventListener("click",()=>signOut(auth));
 $("#property").addEventListener("change",()=>{ const p=selectedProperty(); if(!p)return; $("#link").value=`/detalhes.html?id=${encodeURIComponent(p.id)}`; if(p.latitude!==null&&p.latitude!==""&&p.latitude!==undefined&&p.longitude!==null&&p.longitude!==""&&p.longitude!==undefined&&Number.isFinite(Number(p.latitude))&&Number.isFinite(Number(p.longitude)))setCenter(Number(p.latitude),Number(p.longitude)); else message("Este imóvel ainda não possui coordenadas. Clique no mapa para posicionar o círculo manualmente."); });
-$("#radius").addEventListener("input",drawCircle);\n$("#channel-push").addEventListener("change",refreshReach); $("#channel-whatsapp").addEventListener("change",refreshReach);
+$("#radius").addEventListener("input",drawCircle);
+$("#channel-push").addEventListener("change",refreshReach); $("#channel-whatsapp").addEventListener("change",refreshReach);
 $("#title").addEventListener("input",updatePreview); $("#message").addEventListener("input",updatePreview);
 $("#preview-button").addEventListener("click",updatePreview);
 $("#send-button").addEventListener("click",()=>{ const p=selectedProperty(), channels=[]; if($("#channel-push").checked)channels.push("Push"); if($("#channel-whatsapp").checked)channels.push("WhatsApp"); if(!p)return message("Selecione um imóvel."); if(!marker)return message("Defina o centro do raio no mapa."); if(!channels.length)return message("Selecione ao menos um canal."); $("#confirm-summary").textContent=`${p.titulo} · raio de ${$("#radius-label").textContent} · canais: ${channels.join(" + ")}. O servidor fará a validação final de consentimento e destinatários.`; $("#confirm-dialog").showModal(); });
