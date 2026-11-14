@@ -1,5 +1,5 @@
 import { app } from "../firebase-config.js";
-import { getMessaging, getToken, isSupported } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js";
+import { getMessaging, getToken, isSupported, onMessage } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js";
 
 const KEY = "rdprime.alertaDay.visitor.v1";
 const DECISION = "rdprime.alertaDay.invite.v1";
