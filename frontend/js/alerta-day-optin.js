@@ -66,7 +66,7 @@ function buildModal() {
     } catch (error) { feedback.textContent = "Não foi possível remover agora. Tente novamente."; remove.disabled = false; }
   });
   location.addEventListener("click", () => {
-    if (!navigator.geolocation) { feedback.textContent = "Seu navegador não disponibiliza localização. Você ainda pode receber alertas pelo WhatsApp se preferir."; whatsappForm.hidden = false; return; }
+    if (!navigator.geolocation) { feedback.textContent = "Seu navegador não disponibiliza localização. Para receber alertas por proximidade, tente em um navegador compatível."; return; }
     location.disabled = true;
     feedback.textContent = "Aguardando sua autorização de localização…";
     navigator.geolocation.getCurrentPosition(async position => {
@@ -83,7 +83,6 @@ function buildModal() {
       localStorage.setItem(DECISION, "deferred");
       feedback.textContent = error.code === 1 ? "Você não autorizou a localização. Não salvamos nenhuma coordenada. Se quiser, pode tentar novamente nas permissões do navegador." : "Não conseguimos obter sua localização. Você pode tentar novamente ou escolher o WhatsApp.";
       location.disabled = false;
-      whatsappForm.hidden = false;
     }, { enableHighAccuracy: false, timeout: 12000, maximumAge: 300000 });
   });
   push.addEventListener("click", async () => {
