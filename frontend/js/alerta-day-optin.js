@@ -58,7 +58,8 @@ function buildModal() {
   remove.addEventListener("click", async () => {
     remove.disabled = true;
     try {
-      await fetch("/api/alerta-day/preferencias", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ visitorId: visitorId() }) });
+      const response = await fetch("/api/alerta-day/preferencias", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ visitorId: visitorId() }) });
+      if (!response.ok) throw new Error("Falha ao remover as preferências.");
       localStorage.removeItem(KEY);
       localStorage.setItem(DECISION, "deferred");
       feedback.textContent = "Suas preferências foram removidas e os envios para este cadastro foram interrompidos.";
