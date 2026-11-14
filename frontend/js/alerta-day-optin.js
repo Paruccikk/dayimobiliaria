@@ -3,6 +3,7 @@ import { getMessaging, getToken, isSupported, onMessage } from "https://www.gsta
 
 const KEY = "rdprime.alertaDay.visitor.v1";
 const DECISION = "rdprime.alertaDay.invite.v1";
+let foregroundHandlerAttached = false;
 const $ = (tag, attrs = {}, text = "") => {
   const node = document.createElement(tag);
   Object.entries(attrs).forEach(([key, value]) => {
@@ -20,6 +21,14 @@ function visitorId() {
     localStorage.setItem(KEY, id);
   }
   return id;
+}
+function attachForegroundHandler(messaging, registration) {
+  if (foregroundHandlerAttached) return;
+  onMessage(messaging, payload => {
+    const title = payload.notification?.title || "Alerta Day";
+    registration.showNotification(title, { body: payload.notification?.body || "Confira esta oportunidade da Day.", data: { url: payload.data?.url || "/" }, tag: payload.data?.campaignId || "alerta-day" });
+  });
+  foregroundHandlerAttached = true;
 }
 async function post(url, body) {
   const response = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -96,10 +105,7 @@ function buildModal() {
       if (permission !== "granted") throw new Error("Permissão de notificações não concedida.");
       const registration = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
       const messaging = getMessaging(app);
-      onMessage(messaging, payload => {
-        const title = payload.notification?.title || "Alerta Day";
-        registration.showNotification(title, { body: payload.notification?.body || "Confira esta oportunidade da Day.", data: { url: payload.data?.url || "/" }, tag: payload.data?.campaignId || "alerta-day" });
-      });
+      attachForegroundHandler(messaging, registration);
       const token = await getToken(messaging, { vapidKey: config.vapidKey, serviceWorkerRegistration: registration });
       await post("/api/alerta-day/push", { visitorId: visitorId(), consentimento: true, token });
       feedback.textContent = "Notificações ativadas! Você poderá receber oportunidades da Day.";
@@ -132,6 +138,14 @@ function addPreferencesLink() {
 }
 async function init() {
   if (!window.isSecureContext) return;
+  if ("Notification" in window && Notification.permission === "granted") {
+    try {
+      if (await isSupported()) {
+        const registration = await navigator.serviceWorker.getRegistration("/");
+        if (registration) attachForegroundHandler(getMessaging(app), registration);
+      }
+    } catch (error) { console.warn("[Alerta Day] Handler Push em primeiro plano indisponível:", error.message); }
+  }
   addPreferencesLink();
   if (!localStorage.getItem(DECISION)) {
     window.setTimeout(() => { if (!document.getElementById("ad-visitor-overlay")) buildModal(); }, 1800);
