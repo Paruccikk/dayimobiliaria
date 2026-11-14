@@ -31,11 +31,12 @@ app.use(
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "https://www.gstatic.com"],
+        scriptSrc: ["'self'", "https://www.gstatic.com", "https://unpkg.com"],
         styleSrc: [
           "'self'",
           "'unsafe-inline'",
           "https://fonts.googleapis.com",
+          "https://unpkg.com",
         ],
         fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
         imgSrc: ["'self'", "data:", "blob:", "https:"],
@@ -46,7 +47,11 @@ app.use(
           "https://*.firebasedatabase.app",
           "https://*.firebaseapp.com",
           "https://securetoken.googleapis.com",
+          "https://fcmregistrations.googleapis.com",
+          "https://firebaseinstallations.googleapis.com",
+          "https://fcm.googleapis.com",
         ],
+        workerSrc: ["'self'", "blob:"],
         objectSrc: ["'none'"],
         upgradeInsecureRequests:
           process.env.NODE_ENV === "production" ? [] : null,
