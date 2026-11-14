@@ -753,7 +753,7 @@ app.post('/api/alerta-day/push', async (req, res) => {
   const key = alertaVisitorKey(req.body?.visitorId), token = cleanString(req.body?.token, 4096);
   if (!key || req.body?.consentimento !== true || token.length < 40) return res.status(400).json({ error: 'Autorização ou token Push inválido.' });
   try {
-    await db.ref('alertaDay/visitantes/' + key).update({ fcmToken: token, pushConsent: true, pushConsentEm: new Date().toISOString(), atualizadoEm: new Date().toISOString() });
+    await db.ref('alertaDay/visitantes/' + key).update({ fcmToken: token, pushConsent: true, pushConsentEm: new Date().toISOString(), consentimentoPushVersao: '2026-11-14', atualizadoEm: new Date().toISOString() });
     return res.json({ ok: true });
   } catch (error) { return sendServerError(res, 'Não foi possível ativar as notificações.', error); }
 });
@@ -762,7 +762,7 @@ app.post('/api/alerta-day/whatsapp', async (req, res) => {
   const key = alertaVisitorKey(req.body?.visitorId), phone = alertaPhone(req.body?.telefone);
   if (!key || req.body?.consentimento !== true || !phone) return res.status(400).json({ error: 'Informe um telefone válido e autorize as mensagens.' });
   try {
-    await db.ref('alertaDay/visitantes/' + key).update({ telefoneWhatsApp: phone, whatsappConsent: true, whatsappConsentEm: new Date().toISOString(), atualizadoEm: new Date().toISOString() });
+    await db.ref('alertaDay/visitantes/' + key).update({ telefoneWhatsApp: phone, whatsappConsent: true, whatsappConsentEm: new Date().toISOString(), consentimentoWhatsAppVersao: '2026-11-14', atualizadoEm: new Date().toISOString() });
     return res.json({ ok: true });
   } catch (error) { return sendServerError(res, 'Não foi possível salvar sua autorização.', error); }
 });
@@ -792,9 +792,9 @@ app.get('/api/admin/alerta-day/alcance', requireFirebase, allowRoles('administra
   } catch(error) { return sendServerError(res,'Não foi possível calcular o público.',error); }
 });
 async function alertaSendWhatsApp(phone,title,message,link) {
-  const phoneId=process.env.WHATSAPP_PHONE_NUMBER_ID, token=process.env.WHATSAPP_ACCESS_TOKEN, template=process.env.WHATSAPP_ALERT_TEMPLATE;
-  if (!phoneId||!token||!template) throw new Error('WhatsApp Cloud API ou modelo aprovado não configurado.');
-  const response=await fetch('https://graph.facebook.com/v21.0/'+encodeURIComponent(phoneId)+'/messages',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({messaging_product:'whatsapp',to:phone,type:'template',template:{name:template,language:{code:process.env.WHATSAPP_TEMPLATE_LANGUAGE||'pt_BR'},components:[{type:'body',parameters:[{type:'text',text:title},{type:'text',text:message},{type:'text',text:link}]}]}})});
+  const phoneId=process.env.WHATSAPP_PHONE_NUMBER_ID, token=process.env.WHATSAPP_ACCESS_TOKEN, template=process.env.WHATSAPP_ALERT_TEMPLATE, graphVersion=process.env.WHATSAPP_GRAPH_VERSION;
+  if (!phoneId||!token||!template||!/^v\\d+\\.\\d+$/.test(graphVersion||'')) throw new Error('Configure as credenciais, o modelo aprovado e WHATSAPP_GRAPH_VERSION da WhatsApp Cloud API.');
+  const response=await fetch('https://graph.facebook.com/'+graphVersion+'/'+encodeURIComponent(phoneId)+'/messages',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({messaging_product:'whatsapp',to:phone,type:'template',template:{name:template,language:{code:process.env.WHATSAPP_TEMPLATE_LANGUAGE||'pt_BR'},components:[{type:'body',parameters:[{type:'text',text:title},{type:'text',text:message},{type:'text',text:link}]}]}})});
   const result=await response.json().catch(()=>({})); if(!response.ok) throw new Error(result.error?.message||'Falha no WhatsApp'); return result;
 }
 app.post('/api/admin/alerta-day/disparar', requireFirebase, allowRoles('administrador'), async (req,res) => {
@@ -802,7 +802,7 @@ app.post('/api/admin/alerta-day/disparar', requireFirebase, allowRoles('administ
   const lat=Number(b.centro?.lat), lng=Number(b.centro?.lng), radius=Number(b.raioMetros);
   if (!propertyId||!title||!message||!Number.isFinite(lat)||lat < -90||lat > 90||!Number.isFinite(lng)||lng < -180||lng > 180||!Number.isFinite(radius)||radius < 100||radius > 30000||!channels.length||channels.some(c=>!['push','whatsapp'].includes(c))) return res.status(400).json({error:'Dados da campanha inválidos.'});
   if (channels.includes('push') && (!admin || typeof admin.messaging!=='function')) return res.status(503).json({error:'Firebase Cloud Messaging indisponível.'});
-  if (channels.includes('whatsapp') && (!process.env.WHATSAPP_PHONE_NUMBER_ID||!process.env.WHATSAPP_ACCESS_TOKEN||!process.env.WHATSAPP_ALERT_TEMPLATE)) return res.status(503).json({error:'Configure a WhatsApp Cloud API e o modelo aprovado antes do disparo.'});
+  if (channels.includes('whatsapp') && (!process.env.WHATSAPP_PHONE_NUMBER_ID||!process.env.WHATSAPP_ACCESS_TOKEN||!process.env.WHATSAPP_ALERT_TEMPLATE||!/^v\\d+\\.\\d+$/.test(process.env.WHATSAPP_GRAPH_VERSION||''))) return res.status(503).json({error:'Configure a WhatsApp Cloud API, a versão Graph e o modelo aprovado antes do disparo.'});\n  const baseUrl=(process.env.PUBLIC_SITE_URL||'').replace(/\\/$/,'');\n  if (!/^https:\\/\\/[^/]+$/i.test(baseUrl)) return res.status(503).json({error:'Configure PUBLIC_SITE_URL com o endereço HTTPS público do site.'});
   try {
     const propertySnap=await db.ref('imoveis/'+propertyId).get(), property=propertySnap.val();
     if (!property||property.status!=='publicado'||property.publicadoNoSite!==true) return res.status(404).json({error:'Imóvel não publicado ou inexistente.'});
