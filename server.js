@@ -779,7 +779,8 @@ app.post('/api/alerta-day/push', async (req, res) => {
 app.post('/api/alerta-day/whatsapp', async (req, res) => {
   if (!db) return firebaseUnavailable(res);
   const key = alertaVisitorKey(req.body?.visitorId), phone = alertaPhone(req.body?.telefone);
-  if (!key || req.body?.consentimento !== true || !phone) return res.status(400).json({ error: 'Informe um telefone válido e autorize as mensagens.' });\n  if (!process.env.ALERTA_DAY_ENCRYPTION_KEY) return res.status(503).json({ error: 'Canal WhatsApp temporariamente indisponível.' });
+  if (!key || req.body?.consentimento !== true || !phone) return res.status(400).json({ error: 'Informe um telefone válido e autorize as mensagens.' });
+  if (!process.env.ALERTA_DAY_ENCRYPTION_KEY) return res.status(503).json({ error: 'Canal WhatsApp temporariamente indisponível.' });
   try {
     const telefoneWhatsAppEnc = alertaEncryptPhone(phone);
     await db.ref('alertaDay/visitantes/' + key).update({ telefoneWhatsAppEnc, whatsappConsent: true, whatsappConsentEm: new Date().toISOString(), consentimentoWhatsAppVersao: '2026-11-14', atualizadoEm: new Date().toISOString() });
