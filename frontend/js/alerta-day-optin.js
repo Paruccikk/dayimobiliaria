@@ -81,7 +81,7 @@ function buildModal() {
       } catch (error) { feedback.textContent = error.message; location.disabled = false; }
     }, error => {
       localStorage.setItem(DECISION, "deferred");
-      feedback.textContent = error.code === 1 ? "Você não autorizou a localização. Não salvamos nenhuma coordenada. Se quiser, pode tentar novamente nas permissões do navegador." : "Não conseguimos obter sua localização. Você pode tentar novamente ou escolher o WhatsApp.";
+      feedback.textContent = error.code === 1 ? "Você não autorizou a localização. Não salvamos nenhuma coordenada. Se quiser, pode tentar novamente nas permissões do navegador." : "Não conseguimos obter sua localização. Verifique as permissões do navegador e tente novamente.";
       location.disabled = false;
     }, { enableHighAccuracy: false, timeout: 12000, maximumAge: 300000 });
   });
