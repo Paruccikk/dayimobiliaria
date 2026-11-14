@@ -1,4 +1,4 @@
-import { app, firebaseConfig } from "../firebase-config.js";
+import { app } from "../firebase-config.js";
 import { getMessaging, getToken, isSupported } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js";
 
 const KEY = "rdprime.alertaDay.visitor.v1";
@@ -39,6 +39,7 @@ function buildModal() {
   const feedback = $("p", { className: "ad-visitor-feedback", role: "status", "aria-live": "polite" });
   const location = $("button", { className: "ad-visitor-primary", type: "button" }, "Permitir uso da minha localização");
   const later = $("button", { className: "ad-visitor-secondary", type: "button" }, "Agora não");
+  const remove = $("button", { className: "ad-visitor-remove", type: "button" }, "Remover meus dados e cancelar alertas");
   const push = $("button", { className: "ad-visitor-primary", type: "button" }, "Ativar notificações no celular");
   const whatsappForm = $("form", { className: "ad-visitor-whatsapp" });
   const whatsappTitle = $("h3", {}, "Prefere receber pelo WhatsApp?");
@@ -50,10 +51,20 @@ function buildModal() {
   whatsappForm.append(whatsappTitle, phone, consentLabel, submit);
   push.hidden = true;
   whatsappForm.hidden = true;
-  panel.append(close, mark, title, copy, privacy, location, feedback, push, whatsappForm, later);
+  panel.append(close, mark, title, copy, privacy, location, feedback, push, whatsappForm, later, remove);
   overlay.append(panel);
   document.body.append(overlay);
   later.addEventListener("click", () => { localStorage.setItem(DECISION, "deferred"); overlay.remove(); });
+  remove.addEventListener("click", async () => {
+    remove.disabled = true;
+    try {
+      await fetch("/api/alerta-day/preferencias", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ visitorId: visitorId() }) });
+      localStorage.removeItem(KEY);
+      localStorage.setItem(DECISION, "deferred");
+      feedback.textContent = "Suas preferências foram removidas e os envios para este cadastro foram interrompidos.";
+      location.disabled = true; push.disabled = true; submit.disabled = true; remove.textContent = "Preferências removidas";
+    } catch (error) { feedback.textContent = "Não foi possível remover agora. Tente novamente."; remove.disabled = false; }
+  });
   location.addEventListener("click", () => {
     if (!navigator.geolocation) { feedback.textContent = "Seu navegador não disponibiliza localização. Você ainda pode receber alertas pelo WhatsApp se preferir."; whatsappForm.hidden = false; return; }
     location.disabled = true;
@@ -115,7 +126,7 @@ function addPreferencesLink() {
   footer.append(document.createTextNode(" · "), button);
 }
 async function init() {
-  if (!window.isSecureContext || !navigator.geolocation) return;
+  if (!window.isSecureContext) return;
   addPreferencesLink();
   if (!localStorage.getItem(DECISION)) {
     window.setTimeout(() => { if (!document.getElementById("ad-visitor-overlay")) buildModal(); }, 1800);
