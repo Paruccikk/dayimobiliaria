@@ -96,6 +96,10 @@ function buildModal() {
       if (permission !== "granted") throw new Error("Permissão de notificações não concedida.");
       const registration = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
       const messaging = getMessaging(app);
+      onMessage(messaging, payload => {
+        const title = payload.notification?.title || "Alerta Day";
+        registration.showNotification(title, { body: payload.notification?.body || "Confira esta oportunidade da Day.", data: { url: payload.data?.url || "/" }, tag: payload.data?.campaignId || "alerta-day" });
+      });
       const token = await getToken(messaging, { vapidKey: config.vapidKey, serviceWorkerRegistration: registration });
       await post("/api/alerta-day/push", { visitorId: visitorId(), consentimento: true, token });
       feedback.textContent = "Notificações ativadas! Você poderá receber oportunidades da Day.";
