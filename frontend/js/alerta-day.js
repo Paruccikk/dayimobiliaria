@@ -56,7 +56,7 @@ function selectedProperty() { return properties.find(p => p.id === $("#property"
 function updatePreview() { $("#preview-title").textContent=$("#title").value.trim()||"Alerta Day"; $("#preview-message").textContent=$("#message").value.trim()||"Confira esta oportunidade imobiliária."; }
 $("#login-form").addEventListener("submit", async e => { e.preventDefault(); try { await signInWithEmailAndPassword(auth,$("#email").value.trim(),$("#password").value); } catch(err) { $("#login-feedback").textContent=err.message; } });
 $("#logout").addEventListener("click",()=>signOut(auth));
-$("#property").addEventListener("change",()=>{ const p=selectedProperty(); if(!p)return; $("#link").value=`/detalhes.html?id=${encodeURIComponent(p.id)}`; if(Number.isFinite(Number(p.latitude))&&Number.isFinite(Number(p.longitude)))setCenter(Number(p.latitude),Number(p.longitude)); else message("Este imóvel ainda não possui coordenadas. Clique no mapa para posicionar o círculo manualmente."); });
+$("#property").addEventListener("change",()=>{ const p=selectedProperty(); if(!p)return; $("#link").value=`/detalhes.html?id=${encodeURIComponent(p.id)}`; if(p.latitude!==null&&p.latitude!==""&&p.latitude!==undefined&&p.longitude!==null&&p.longitude!==""&&p.longitude!==undefined&&Number.isFinite(Number(p.latitude))&&Number.isFinite(Number(p.longitude)))setCenter(Number(p.latitude),Number(p.longitude)); else message("Este imóvel ainda não possui coordenadas. Clique no mapa para posicionar o círculo manualmente."); });
 $("#radius").addEventListener("input",drawCircle);
 $("#title").addEventListener("input",updatePreview); $("#message").addEventListener("input",updatePreview);
 $("#preview-button").addEventListener("click",updatePreview);
