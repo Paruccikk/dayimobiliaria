@@ -805,7 +805,7 @@ app.get('/api/admin/alerta-day/dados', requireFirebase, allowRoles('administrado
 });
 app.get('/api/admin/alerta-day/alcance', requireFirebase, allowRoles('administrador'), async (req,res) => {
   const lat=Number(req.query.lat), lng=Number(req.query.lng), radius=Number(req.query.raio);
-  const channels=String(req.query.canais||'push,whatsapp').split(',').filter(c=>['push','whatsapp'].includes(c));
+  const channels=(req.query.canais===undefined?'push,whatsapp':String(req.query.canais)).split(',').filter(c=>['push','whatsapp'].includes(c));
   if (!Number.isFinite(lat)||lat < -90||lat > 90||!Number.isFinite(lng)||lng < -180||lng > 180||!Number.isFinite(radius)||radius < 100||radius > 30000) return res.status(400).json({error:'Centro ou raio inválido.'});
   try {
     const snap=await db.ref('alertaDay/visitantes').get();
