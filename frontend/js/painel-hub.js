@@ -115,6 +115,10 @@ async function loadWhatsAppConsent(user) {
   revokeButton.className = "button button-outline";
   revokeButton.textContent = "Revogar autorização";
   revokeButton.hidden = true;
+  const denyButton = document.createElement("button");
+  denyButton.type = "button";
+  denyButton.className = "button button-outline";
+  denyButton.textContent = "Não autorizo receber WhatsApp";
 
   checkbox.addEventListener("change", () => {
     button.disabled = !checkbox.checked;
@@ -140,6 +144,23 @@ async function loadWhatsAppConsent(user) {
     }
   });
 
+  denyButton.addEventListener("click", async () => {
+    denyButton.disabled = true;
+    status.textContent = "Registrando sua escolha…";
+    try {
+      await api(user, "/api/alerta-day/whatsapp/cadastro", {
+        method: "POST",
+        body: JSON.stringify({ visitorId: visitorId(), consentimento: false })
+      });
+      status.textContent = "Status: NEGADO. Você não receberá alertas pelo WhatsApp. É possível mudar essa escolha depois.";
+      denyButton.hidden = true;
+    } catch (error) {
+      status.textContent = error.message;
+    } finally {
+      denyButton.disabled = false;
+    }
+  });
+
   revokeButton.addEventListener("click", async () => {
     revokeButton.disabled = true;
     status.textContent = "Registrando revogação…";
@@ -161,7 +182,7 @@ async function loadWhatsAppConsent(user) {
     }
   });
 
-  form.append(label, button, note);
+  form.append(label, button, note, denyButton);
   panel.append(heading, description, status, form, revokeButton);
   hubGrid.insertAdjacentElement("beforebegin", panel);
 
@@ -174,6 +195,7 @@ async function loadWhatsAppConsent(user) {
     } else if (data.whatsappConsentStatus === "negado") {
       status.textContent = "Status: NEGADO. Você pode alterar sua escolha abaixo.";
       revokeButton.hidden = true;
+      denyButton.hidden = true;
     } else {
       status.textContent = "Status: PENDENTE. Se quiser receber alertas, confirme abaixo.";
       revokeButton.hidden = true;
