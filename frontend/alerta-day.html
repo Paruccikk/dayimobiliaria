@@ -80,7 +80,17 @@
         <section class="ad-panel"><div class="ad-step">HISTÓRICO</div><h2>Últimas campanhas</h2><div id="campaign-history" class="ad-history">Nenhuma campanha carregada.</div></section>
       </aside>
     </div>
-    <dialog id="confirm-dialog" class="ad-dialog"><form method="dialog"><h2>Confirmar disparo?</h2><p id="confirm-summary"></p><div class="ad-dialog-actions"><button class="ad-button ad-ghost" value="cancel">Voltar</button><button id="confirm-send" class="ad-button ad-primary" value="confirm">Confirmar envio</button></div></form></dialog>
+    <dialog id="confirm-dialog" class="ad-dialog">
+      <form method="dialog">
+        <h2>Confirmar disparo?</h2>
+        <p id="confirm-summary"></p>
+        <p id="confirm-feedback" style="color:#b91c1c;font-size:13px;line-height:1.5;margin:12px 0;background:#fef2f2;border:1px solid #fecaca;padding:10px 12px;border-radius:8px;" hidden></p>
+        <div class="ad-dialog-actions">
+          <button class="ad-button ad-ghost" value="cancel">Voltar</button>
+          <button id="confirm-send" class="ad-button ad-primary" value="confirm">Confirmar envio</button>
+        </div>
+      </form>
+    </dialog>
   </main>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script type="module" src="/js/alerta-day.js"></script>

@@ -221,6 +221,8 @@ $("#send-button").addEventListener("click", () => {
   if (!marker) return message("Defina o centro do raio no mapa.");
   if (!channels.length) return message("Selecione ao menos um canal.");
   $("#confirm-summary").textContent = `${p.titulo} · raio de ${$("#radius-label").textContent} · canais: ${channels.join(" + ")}. O servidor fará a validação final de consentimento e destinatários.`;
+  const confirmFb = $("#confirm-feedback");
+  if (confirmFb) { confirmFb.hidden = true; confirmFb.textContent = ""; }
   $("#confirm-dialog").showModal();
 });
 
@@ -232,6 +234,8 @@ $("#confirm-send").addEventListener("click", async e => {
   if ($("#channel-push").checked) channels.push("push");
   if ($("#channel-whatsapp").checked) channels.push("whatsapp");
   const button = $("#confirm-send");
+  const confirmFb = $("#confirm-feedback");
+  if (confirmFb) confirmFb.hidden = true;
   button.disabled = true;
   try {
     const result = await api("/api/admin/alerta-day/disparar", {
@@ -250,6 +254,10 @@ $("#confirm-send").addEventListener("click", async e => {
     message(`Campanha processada. Push: ${result.pushEnviados||0}; WhatsApp: ${result.whatsappEnviados||0}. Consulte o histórico para detalhes.`);
     await loadData();
   } catch (err) {
+    if (confirmFb) {
+      confirmFb.textContent = err.message;
+      confirmFb.hidden = false;
+    }
     message(err.message);
   } finally {
     button.disabled = false;
