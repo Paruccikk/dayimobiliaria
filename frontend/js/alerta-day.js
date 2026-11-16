@@ -127,7 +127,19 @@ async function refreshReach() {
     if ($("#channel-push").checked) channels.push("push");
     if ($("#channel-whatsapp").checked) channels.push("whatsapp");
     const data = await api(`/api/admin/alerta-day/alcance?lat=${p.lat}&lng=${p.lng}&raio=${radius}&canais=${channels.join(",")}`);
-    $("#audience-count").textContent = Number(data.totalElegiveis || 0).toLocaleString("pt-BR");
+    const elegiveis = Number(data.totalElegiveis || 0);
+    const totalLoc = Number(data.totalLocalizacao || 0);
+    $("#audience-count").textContent = elegiveis.toLocaleString("pt-BR");
+    const detail = $("#audience-detail");
+    if (detail) {
+      if (elegiveis === 0 && totalLoc === 0) {
+        detail.textContent = "Nenhum visitante cadastrado nesta área";
+      } else if (elegiveis === 0 && totalLoc > 0) {
+        detail.textContent = `${totalLoc} pessoa(s) com localização no raio, mas sem canal ativo selecionado`;
+      } else {
+        detail.textContent = `${totalLoc} pessoa(s) com localização nesta região`;
+      }
+    }
   } catch (e) {
     $("#audience-count").textContent = "indisponível";
     message(e.message);
@@ -203,6 +215,48 @@ $("#map-search-input").addEventListener("keydown", e => {
   if (e.key === "Enter") {
     e.preventDefault();
     searchLocation($("#map-search-input").value);
+  }
+});
+
+$("#map-gps-btn")?.addEventListener("click", () => {
+  if (!("geolocation" in navigator)) {
+    return message("Seu navegador não suporta geolocalização.");
+  }
+  message("Obtendo sua localização via GPS...");
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      setCenter(pos.coords.latitude, pos.coords.longitude);
+      message("Mapa centralizado na sua localização atual (GPS).");
+    },
+    err => {
+      if (err.code === 1) {
+        message("Permissão de GPS negada no navegador. Permita o acesso nas configurações do site.");
+      } else {
+        message("Não foi possível obter sua localização: " + err.message);
+      }
+    },
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+  );
+});
+
+$("#btn-add-test-visitor")?.addEventListener("click", async () => {
+  if (!marker) return message("Posicione primeiro o círculo no mapa.");
+  const p = marker.getLatLng();
+  const btn = $("#btn-add-test-visitor");
+  btn.disabled = true;
+  message("Registrando sua localização como destinatário de teste...");
+  try {
+    await api("/api/admin/alerta-day/test-visitor", {
+      method: "POST",
+      body: JSON.stringify({ latitude: p.lat, longitude: p.lng })
+    });
+    message("Destinatário de teste cadastrado nesta posição com sucesso!");
+    await loadData();
+    await refreshReach();
+  } catch (err) {
+    message(err.message);
+  } finally {
+    btn.disabled = false;
   }
 });
 

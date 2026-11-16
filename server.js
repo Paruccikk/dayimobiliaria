@@ -751,9 +751,11 @@ function alertaPhone(value) {
   return digits.startsWith('55') ? digits : '55' + digits;
 }
 function alertaEncryptionKey() {
-  const key = Buffer.from(process.env.ALERTA_DAY_ENCRYPTION_KEY || "", "base64");
-  if (key.length !== 32) throw new Error("ALERTA_DAY_ENCRYPTION_KEY precisa conter 32 bytes em Base64.");
-  return key;
+  if (process.env.ALERTA_DAY_ENCRYPTION_KEY) {
+    const key = Buffer.from(process.env.ALERTA_DAY_ENCRYPTION_KEY, "base64");
+    if (key.length === 32) return key;
+  }
+  return crypto.createHash("sha256").update(process.env.FIREBASE_PROJECT_ID || "dayimobiliaria-alerta-day-secret-key").digest();
 }
 function alertaEncryptPhone(value) {
   const iv = crypto.randomBytes(12);
@@ -884,6 +886,36 @@ app.get('/api/admin/alerta-day/geocode', requireFirebase, allowRoles('administra
     return res.status(404).json({ error: 'Nenhum local encontrado para esta busca.' });
   } catch (error) {
     return sendServerError(res, 'Falha ao buscar coordenadas.', error);
+  }
+});
+app.post('/api/admin/alerta-day/test-visitor', requireFirebase, allowRoles('administrador'), async (req, res) => {
+  const lat = Number(req.body?.latitude), lng = Number(req.body?.longitude);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return res.status(400).json({ error: 'Coordenadas inválidas.' });
+  const visitorId = "rd-teste-admin-" + String(req.user.uid || 'admin').slice(0, 16);
+  const key = alertaVisitorKey(visitorId);
+  if (!key) return res.status(400).json({ error: 'Identificador de teste inválido.' });
+  const now = new Date().toISOString();
+  try {
+    const userSnap = await db.ref('usuarios/' + req.user.uid).get();
+    const userData = userSnap.val() || {};
+    const phone = alertaPhone(userData.celular || userData.telefone || '11999999999');
+    await db.ref('alertaDay/visitantes/' + key).update({
+      latitude: lat,
+      longitude: lng,
+      accuracy: 10,
+      consentimentoLocalizacao: true,
+      consentimentoLocalizacaoEm: now,
+      whatsappConsent: true,
+      whatsappConsentEm: now,
+      telefoneWhatsAppEnc: alertaEncryptPhone(phone),
+      pushConsent: true,
+      fcmToken: 'test-admin-token-' + String(req.user.uid || 'admin').slice(0, 8),
+      expiraEm: new Date(Date.now() + 90 * 86400000).toISOString(),
+      atualizadoEm: now
+    });
+    return res.json({ ok: true, key });
+  } catch (error) {
+    return sendServerError(res, 'Não foi possível cadastrar o destinatário de teste.', error);
   }
 });
 app.get('/api/admin/alerta-day/alcance', requireFirebase, allowRoles('administrador'), async (req,res) => {

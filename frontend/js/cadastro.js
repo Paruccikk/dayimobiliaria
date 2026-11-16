@@ -55,17 +55,45 @@ function alertaDayVisitorId() {
   return id;
 }
 
-function getCoordinates() {
-  return new Promise(resolve => {
-    if (!("geolocation" in navigator)) return resolve(null);
-    navigator.geolocation.getCurrentPosition(
-      pos => resolve({
+let cachedCoords = null;
+function requestProactiveLocation() {
+  if (!("geolocation" in navigator)) return;
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      cachedCoords = {
         latitude: pos.coords.latitude,
         longitude: pos.coords.longitude,
         accuracy: pos.coords.accuracy
-      }),
+      };
+    },
+    () => {},
+    { timeout: 20000, maximumAge: 60000, enableHighAccuracy: true }
+  );
+}
+
+// Dispara a solicitação do navegador antecipadamente enquanto preenche o cadastro
+if (document.querySelector("#consentimento-geral")?.checked) {
+  requestProactiveLocation();
+}
+document.querySelector("#consentimento-geral")?.addEventListener("change", e => {
+  if (e.target.checked && !cachedCoords) requestProactiveLocation();
+});
+
+function getCoordinates() {
+  if (cachedCoords) return Promise.resolve(cachedCoords);
+  return new Promise(resolve => {
+    if (!("geolocation" in navigator)) return resolve(null);
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        cachedCoords = {
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+          accuracy: pos.coords.accuracy
+        };
+        resolve(cachedCoords);
+      },
       () => resolve(null),
-      { timeout: 3500, maximumAge: 60000, enableHighAccuracy: false }
+      { timeout: 8000, maximumAge: 60000, enableHighAccuracy: true }
     );
   });
 }

@@ -48,13 +48,21 @@
         <div class="ad-map-search-row">
           <input id="map-search-input" type="text" placeholder="Buscar endereço, bairro, cidade ou CEP...">
           <button id="map-search-btn" class="ad-button ad-secondary" type="button">Buscar no mapa</button>
+          <button id="map-gps-btn" class="ad-button ad-secondary" type="button" title="Centralizar o mapa na sua localização atual via GPS">📍 Meu GPS</button>
           <button id="property-geocode-btn" class="ad-button ad-ghost" type="button" style="display:none;">Usar bairro do imóvel</button>
         </div>
         <div id="campaign-map" role="application" aria-label="Mapa para selecionar o raio da campanha"></div>
         <div class="ad-radius-row"><label for="radius">Raio de alcance</label><strong id="radius-label">5 km</strong></div>
         <input id="radius" type="range" min="500" max="30000" step="500" value="5000">
         <div class="ad-radius-scale"><span>500 m</span><span>30 km</span></div>
-        <div class="ad-audience"><span>Pessoas elegíveis estimadas</span><strong id="audience-count">—</strong></div>
+        <div class="ad-audience">
+          <div>
+            <span>Pessoas elegíveis estimadas</span>
+            <small id="audience-detail" style="display:block;font-size:11px;color:var(--ad-muted);margin-top:3px;"></small>
+          </div>
+          <strong id="audience-count">—</strong>
+        </div>
+        <button id="btn-add-test-visitor" class="ad-button ad-ghost" type="button" style="font-size:12px;padding:8px 14px;margin-top:4px;width:100%;">📍 Incluir minha localização atual como destinatário de teste</button>
         <div class="ad-step">03 · CANAIS</div><h2>Onde enviar?</h2>
         <label class="ad-check"><input type="checkbox" id="channel-push" checked><span><b>Notificação Push</b><small>Para dispositivos que ativaram as notificações.</small></span></label>
         <label class="ad-check"><input type="checkbox" id="channel-whatsapp"><span><b>WhatsApp</b><small>Somente contatos com telefone e autorização registrada.</small></span></label>
