@@ -845,9 +845,29 @@ app.post('/api/alerta-day/whatsapp/cadastro', requireFirebase, async (req, res) 
   if (!phone) return res.status(400).json({ error: "Seu cadastro não possui um celular válido. Atualize seus dados antes de autorizar." });
   if (!alertaConfiguredEncryptionKey()) return res.status(503).json({ error: "Canal WhatsApp temporariamente indisponível. A chave de criptografia precisa ter 32 bytes em Base64 ou 64 caracteres hexadecimais." });
   try {
+    const visitorRef = db.ref("alertaDay/visitantes/" + key);
+    const existingSnapshot = await visitorRef.get();
+    const existing = existingSnapshot.val() || {};
+
+    // Impede que duas contas diferentes assumam o mesmo identificador de navegador.
+    if (existing.whatsappOwnerUid && existing.whatsappOwnerUid !== req.user.uid) {
+      return res.status(409).json({ error: "Este navegador já está vinculado a outra conta do Alerta Day. Use o navegador em que seu cadastro foi criado ou solicite ajuda ao suporte." });
+    }
+
+    // Se já havia um telefone autorizado sem vínculo de conta, só permite associá-lo
+    // quando o número criptografado corresponde ao telefone da conta autenticada.
+    if (existing.whatsappConsent === true && existing.telefoneWhatsAppEnc) {
+      let existingPhone = "";
+      try { existingPhone = alertaPhone(alertaDecryptPhone(existing.telefoneWhatsAppEnc)); } catch (_) {}
+      if (!existingPhone || existingPhone !== phone) {
+        return res.status(409).json({ error: "Este identificador já possui outro contato autorizado. Não alteramos o cadastro existente." });
+      }
+    }
+
     const now = new Date().toISOString();
-    await db.ref("alertaDay/visitantes/" + key).update({
+    await visitorRef.update({
       telefoneWhatsAppEnc: alertaEncryptPhone(phone), whatsappConsent: true,
+      whatsappOwnerUid: req.user.uid,
       whatsappConsentEm: now, consentimentoWhatsAppVersao: "2026-11-16",
       whatsappConsentOrigem: "area-logada", atualizadoEm: now
     });
