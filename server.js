@@ -1108,7 +1108,7 @@ app.post('/api/admin/alerta-day/disparar', requireFirebase, allowRoles('administ
       if (!pushLink) throw new Error('Configure PUBLIC_SITE_URL com a URL HTTPS pública do site para links de Push.');
       const tokens=pushTargets.map(([,v])=>v.fcmToken);
       for(let i=0;i<tokens.length;i+=500) {
-        const batch=tokens.slice(i,i+500), result=await admin.messaging().sendEachForMulticast({tokens:batch,notification:{title,body:message,...(imageUrl?{image:imageUrl}:{})},data:{url:pushLink,campaignId:campaignRef.key},webpush:{notification:imageUrl?{image:imageUrl}:{},fcmOptions:{link:pushLink}}});
+        const batch=tokens.slice(i,i+500), result=await admin.messaging().sendEachForMulticast({tokens:batch,notification:{title,body:message,...(imageUrl?{image:imageUrl}:{})},data:{url:pushLink,campaignId:campaignRef.key,...(imageUrl?{imageUrl}:{})},webpush:{notification:imageUrl?{image:imageUrl,icon:baseUrl+'/icons/alerta-day.svg'}:{icon:baseUrl+'/icons/alerta-day.svg'},fcmOptions:{link:pushLink}}});
         pushEnviados+=result.successCount;
         result.responses.forEach((item,index)=>{if(!item.success){erros.push({canal:'push',tokenFinal:batch[index].slice(-8),erro:item.error?.code||'falha'});if(['messaging/registration-token-not-registered','messaging/invalid-registration-token'].includes(item.error?.code)){const entry=pushTargets.find(([,v])=>v.fcmToken===batch[index]);if(entry)db.ref('alertaDay/visitantes/'+entry[0]).update({fcmToken:null,pushConsent:false}).catch(()=>{});}}});
       }
@@ -1118,7 +1118,7 @@ app.post('/api/admin/alerta-day/disparar', requireFirebase, allowRoles('administ
       const phone = alertaDecryptPhone(v.telefoneWhatsAppEnc);
       try {
         if (hasQrWhatsapp) {
-          await whatsappClient.sendAlert(phone, title, message, fullUrl);
+          await whatsappClient.sendAlert(phone, title, message, fullUrl, imageUrl);
         } else {
           await alertaSendWhatsApp(phone, title, message, fullUrl);
         }
