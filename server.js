@@ -387,21 +387,25 @@ app.post("/api/auth/registrar", async (req, res) => {
   }
 
   const nome = cleanString(req.body?.nome, 120);
-  const telefone = cleanString(req.body?.telefone, 30);
-  const celular = cleanString(req.body?.celular, 30);
-  const consentimentoWhatsApp = req.body?.consentimentoWhatsApp === true;
+  const celular = cleanString(req.body?.celular || req.body?.whatsapp, 30);
+  const telefone = cleanString(req.body?.telefone, 30) || celular;
+  const consentimentoWhatsApp = req.body?.consentimentoWhatsApp === true || req.body?.consentimentoPrivacidade === true;
   const visitorKey = consentimentoWhatsApp ? alertaVisitorKey(req.body?.visitorId) : null;
   const whatsappPhone = consentimentoWhatsApp ? alertaPhone(celular) : "";
+  const lat = Number(req.body?.latitude);
+  const lng = Number(req.body?.longitude);
+  const accuracy = Number(req.body?.accuracy);
+  const hasValidLocation = Number.isFinite(lat) && lat >= -90 && lat <= 90 && Number.isFinite(lng) && lng >= -180 && lng <= 180;
   const solicitacaoPapel =
     req.body?.tipoCadastro === "corretor" ? "corretor" : "cliente";
 
-  if (!nome || !telefone || !celular) {
+  if (!nome || !celular) {
     return res.status(400).json({
-      error: "Nome, telefone e número de celular são obrigatórios.",
+      error: "Nome e WhatsApp são obrigatórios.",
     });
   }
-  if (consentimentoWhatsApp && (!visitorKey || !whatsappPhone)) return res.status(400).json({ error: "Para autorizar o WhatsApp, informe um celular válido." });
-  if (consentimentoWhatsApp && !process.env.ALERTA_DAY_ENCRYPTION_KEY) return res.status(503).json({ error: "O recebimento pelo WhatsApp ainda está sendo configurado. Desmarque a autorização para concluir o cadastro ou tente novamente mais tarde." });
+
+  const canEncrypt = Boolean(process.env.ALERTA_DAY_ENCRYPTION_KEY);
 
   try {
     const userRecord = await auth.getUser(decoded.uid);
@@ -428,13 +432,24 @@ app.post("/api/auth/registrar", async (req, res) => {
     };
 
     const updates = { ["usuarios/" + decoded.uid]: profile };
-    if (consentimentoWhatsApp) {
+    if (consentimentoWhatsApp && visitorKey) {
       const now = new Date().toISOString();
-      updates["alertaDay/visitantes/" + visitorKey + "/telefoneWhatsAppEnc"] = alertaEncryptPhone(whatsappPhone);
-      updates["alertaDay/visitantes/" + visitorKey + "/whatsappConsent"] = true;
-      updates["alertaDay/visitantes/" + visitorKey + "/whatsappConsentEm"] = now;
-      updates["alertaDay/visitantes/" + visitorKey + "/consentimentoWhatsAppVersao"] = "2026-11-16";
-      updates["alertaDay/visitantes/" + visitorKey + "/whatsappConsentOrigem"] = "cadastro";
+      if (canEncrypt && whatsappPhone) {
+        updates["alertaDay/visitantes/" + visitorKey + "/telefoneWhatsAppEnc"] = alertaEncryptPhone(whatsappPhone);
+        updates["alertaDay/visitantes/" + visitorKey + "/whatsappConsent"] = true;
+        updates["alertaDay/visitantes/" + visitorKey + "/whatsappConsentEm"] = now;
+        updates["alertaDay/visitantes/" + visitorKey + "/consentimentoWhatsAppVersao"] = "2026-11-16";
+        updates["alertaDay/visitantes/" + visitorKey + "/whatsappConsentOrigem"] = "cadastro";
+      }
+      if (hasValidLocation) {
+        updates["alertaDay/visitantes/" + visitorKey + "/latitude"] = lat;
+        updates["alertaDay/visitantes/" + visitorKey + "/longitude"] = lng;
+        updates["alertaDay/visitantes/" + visitorKey + "/accuracy"] = Number.isFinite(accuracy) ? Math.min(Math.max(accuracy, 0), 100000) : null;
+        updates["alertaDay/visitantes/" + visitorKey + "/consentimentoLocalizacao"] = true;
+        updates["alertaDay/visitantes/" + visitorKey + "/consentimentoLocalizacaoEm"] = now;
+        updates["alertaDay/visitantes/" + visitorKey + "/consentimentoVersao"] = "2026-11-16";
+        updates["alertaDay/visitantes/" + visitorKey + "/expiraEm"] = new Date(Date.now() + 90 * 86400000).toISOString();
+      }
       updates["alertaDay/visitantes/" + visitorKey + "/atualizadoEm"] = now;
     }
     await db.ref().update(updates);
