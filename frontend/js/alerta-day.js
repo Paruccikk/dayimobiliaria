@@ -33,16 +33,16 @@ function initMap() {
 
   map = L.map("campaign-map").setView([-23.686, -46.623], 12);
 
-  const cartoTiles = L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
-    subdomains: "abcd", maxZoom: 20,
-    attribution: "&copy; OpenStreetMap contributors &copy; CARTO"
+  const osmTiles = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom: 19,
+    attribution: "&copy; OpenStreetMap contributors"
   }).addTo(map);
 
   let fallbackLoaded = false;
-  cartoTiles.on("tileerror", () => {
+  osmTiles.on("tileerror", () => {
     if (fallbackLoaded) return;
     fallbackLoaded = true;
-    if (map.hasLayer(cartoTiles)) map.removeLayer(cartoTiles);
+    if (map.hasLayer(osmTiles)) map.removeLayer(osmTiles);
     L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}", {
       maxZoom: 19,
       attribution: "Tiles &copy; Esri — Sources: Esri, Maxar, Earthstar Geographics, and the GIS User Community"
