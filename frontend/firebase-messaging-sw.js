@@ -16,6 +16,11 @@ messaging.onBackgroundMessage(payload => {
   const title = payload.notification?.title || "Alerta Day";
   const options = {
     body: payload.notification?.body || "Tem uma nova oportunidade imobiliária para você.",
+    icon: "/icons/alerta-day.svg",
+    badge: "/icons/alerta-day.svg",
+    ...(payload.notification?.image || payload.data?.imageUrl
+      ? { image: payload.notification?.image || payload.data.imageUrl }
+      : {}),
     data: { url: payload.data?.url || "/" },
     tag: payload.data?.campaignId || "alerta-day"
   };

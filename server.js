@@ -390,8 +390,9 @@ app.post("/api/auth/registrar", async (req, res) => {
   const nome = cleanString(req.body?.nome, 120);
   const celular = cleanString(req.body?.celular || req.body?.whatsapp, 30);
   const telefone = cleanString(req.body?.telefone, 30) || celular;
-  const consentimentoWhatsApp = req.body?.consentimentoWhatsApp === true || req.body?.consentimentoPrivacidade === true;
-  const visitorKey = consentimentoWhatsApp ? alertaVisitorKey(req.body?.visitorId) : null;
+  const consentimentoWhatsApp = req.body?.consentimentoWhatsApp === true;
+  const consentimentoLocalizacao = req.body?.consentimentoLocalizacao === true;
+  const visitorKey = (consentimentoWhatsApp || consentimentoLocalizacao) ? alertaVisitorKey(req.body?.visitorId) : null;
   const whatsappPhone = consentimentoWhatsApp ? alertaPhone(celular) : "";
   const lat = Number(req.body?.latitude);
   const lng = Number(req.body?.longitude);
@@ -406,7 +407,17 @@ app.post("/api/auth/registrar", async (req, res) => {
     });
   }
 
-  const canEncrypt = Boolean(process.env.ALERTA_DAY_ENCRYPTION_KEY);
+  const canEncrypt = Boolean(alertaConfiguredEncryptionKey());
+
+  if ((consentimentoWhatsApp || consentimentoLocalizacao) && !visitorKey) {
+    return res.status(400).json({ error: "Não foi possível identificar este dispositivo. Atualize a página e tente novamente." });
+  }
+  if (consentimentoWhatsApp && !whatsappPhone) {
+    return res.status(400).json({ error: "Informe um número de WhatsApp válido para autorizar os alertas." });
+  }
+  if (consentimentoWhatsApp && !canEncrypt) {
+    return res.status(503).json({ error: "O canal WhatsApp está temporariamente indisponível. Tente novamente mais tarde ou conclua o cadastro sem essa autorização." });
+  }
 
   try {
     const userRecord = await auth.getUser(decoded.uid);
@@ -429,20 +440,27 @@ app.post("/api/auth/registrar", async (req, res) => {
       solicitacaoPapel,
       ativo: true,
       status: "ativo",
+      consentimentos: {
+        whatsapp: {
+          status: consentimentoWhatsApp ? "permitido" : "pendente",
+          ...(consentimentoWhatsApp ? { atualizadoEm: new Date().toISOString(), origem: "cadastro", versao: "2026-11-16" } : {})
+        }
+      },
       criadoEm: new Date().toISOString(),
     };
 
     const updates = { ["usuarios/" + decoded.uid]: profile };
-    if (consentimentoWhatsApp && visitorKey) {
+    if (visitorKey && (consentimentoWhatsApp || (consentimentoLocalizacao && hasValidLocation))) {
       const now = new Date().toISOString();
-      if (canEncrypt && whatsappPhone) {
+      if (consentimentoWhatsApp) {
         updates["alertaDay/visitantes/" + visitorKey + "/telefoneWhatsAppEnc"] = alertaEncryptPhone(whatsappPhone);
         updates["alertaDay/visitantes/" + visitorKey + "/whatsappConsent"] = true;
+        updates["alertaDay/visitantes/" + visitorKey + "/whatsappOwnerUid"] = decoded.uid;
         updates["alertaDay/visitantes/" + visitorKey + "/whatsappConsentEm"] = now;
         updates["alertaDay/visitantes/" + visitorKey + "/consentimentoWhatsAppVersao"] = "2026-11-16";
         updates["alertaDay/visitantes/" + visitorKey + "/whatsappConsentOrigem"] = "cadastro";
       }
-      if (hasValidLocation) {
+      if (consentimentoLocalizacao && hasValidLocation) {
         updates["alertaDay/visitantes/" + visitorKey + "/latitude"] = lat;
         updates["alertaDay/visitantes/" + visitorKey + "/longitude"] = lng;
         updates["alertaDay/visitantes/" + visitorKey + "/accuracy"] = Number.isFinite(accuracy) ? Math.min(Math.max(accuracy, 0), 100000) : null;
@@ -458,6 +476,7 @@ app.post("/api/auth/registrar", async (req, res) => {
     return res.status(201).json({
       ok: true,
       whatsappAuthorized: consentimentoWhatsApp,
+      locationAuthorized: consentimentoLocalizacao && hasValidLocation,
       papel: "cliente",
       solicitacaoPapel,
       ativo: true,
@@ -623,13 +642,40 @@ app.get(
   allowRoles("administrador"),
   async (_req, res) => {
     try {
-      const snapshot = await db.ref("usuarios").get();
+      const [snapshot, visitorsSnapshot] = await Promise.all([
+        db.ref("usuarios").get(),
+        db.ref("alertaDay/visitantes").get()
+      ]);
       const users = snapshot.val() || {};
-
-      const items = Object.entries(users).map(([uid, user]) => ({
-        uid,
-        ...user,
-      }));
+      const visitors = Object.values(visitorsSnapshot.val() || {});
+      const legacyApprovedUids = new Set(visitors
+        .filter(v => v.whatsappConsent === true && v.telefoneWhatsAppEnc && isValidUid(v.whatsappOwnerUid))
+        .map(v => v.whatsappOwnerUid));
+      const migrationUpdates = {};
+      for (const uid of legacyApprovedUids) {
+        if (users[uid] && !["permitido", "negado"].includes(users[uid].consentimentos?.whatsapp?.status)) {
+          const evidence = visitors.find(v => v.whatsappOwnerUid === uid && v.whatsappConsent === true && v.telefoneWhatsAppEnc);
+          migrationUpdates["usuarios/" + uid + "/consentimentos/whatsapp"] = {
+            status: "permitido",
+            atualizadoEm: evidence.whatsappConsentEm || new Date().toISOString(),
+            origem: evidence.whatsappConsentOrigem || "migracao-consentimento-existente",
+            versao: evidence.consentimentoWhatsAppVersao || "legado"
+          };
+          migrationUpdates["usuarios/" + uid + "/whatsappAtivo"] = users[uid].whatsappAtivo !== false;
+        }
+      }
+      if (Object.keys(migrationUpdates).length) await db.ref().update(migrationUpdates);
+      const items = Object.entries(users).map(([uid, user]) => {
+        const migrated = legacyApprovedUids.has(uid) && !["permitido", "negado"].includes(user.consentimentos?.whatsapp?.status);
+        const status = migrated ? "permitido" : (["permitido", "negado"].includes(user.consentimentos?.whatsapp?.status) ? user.consentimentos.whatsapp.status : "pendente");
+        return {
+          uid,
+          ...user,
+          whatsappConsentStatus: status,
+          whatsappAtivo: status === "permitido" && user.whatsappAtivo !== false,
+          whatsappConsentEm: user.consentimentos?.whatsapp?.atualizadoEm || null
+        };
+      });
 
       return res.json({ items });
     } catch (error) {
@@ -675,6 +721,14 @@ app.patch(
       } else {
         updates.gerenteUid = null;
       }
+    }
+
+    if (Object.hasOwn(body, "whatsappAtivo")) {
+      if (typeof body.whatsappAtivo !== "boolean") return res.status(400).json({ error: "whatsappAtivo deve ser verdadeiro ou falso." });
+      const consentSnap = await db.ref("usuarios/" + uid + "/consentimentos/whatsapp/status").get();
+      if (consentSnap.val() !== "permitido") return res.status(409).json({ error: "O usuário ainda não possui consentimento WhatsApp confirmado. Ele precisa autorizar pela própria conta." });
+      updates.whatsappAtivo = body.whatsappAtivo;
+      updates.whatsappAtivoAtualizadoEm = new Date().toISOString();
     }
 
     if (Object.hasOwn(body, "ativo")) {
@@ -751,12 +805,20 @@ function alertaPhone(value) {
   if (digits.length < 10 || digits.length > 15) return '';
   return digits.startsWith('55') ? digits : '55' + digits;
 }
-function alertaEncryptionKey() {
-  if (process.env.ALERTA_DAY_ENCRYPTION_KEY) {
-    const key = Buffer.from(process.env.ALERTA_DAY_ENCRYPTION_KEY, "base64");
-    if (key.length === 32) return key;
-  }
+function alertaConfiguredEncryptionKey() {
+  const raw = String(process.env.ALERTA_DAY_ENCRYPTION_KEY || "").trim();
+  if (/^[a-f0-9]{64}$/i.test(raw)) return Buffer.from(raw, "hex");
+  if (!raw || !/^[A-Za-z0-9+/]+={0,2}$/.test(raw)) return null;
+  const key = Buffer.from(raw, "base64");
+  return key.length === 32 ? key : null;
+}
+function alertaLegacyEncryptionKey() {
   return crypto.createHash("sha256").update(process.env.FIREBASE_PROJECT_ID || "dayimobiliaria-alerta-day-secret-key").digest();
+}
+function alertaEncryptionKey() {
+  const key = alertaConfiguredEncryptionKey();
+  if (!key) throw new Error("ALERTA_DAY_ENCRYPTION_KEY inválida. Use 32 bytes em Base64 ou 64 caracteres hexadecimais.");
+  return key;
 }
 function alertaEncryptPhone(value) {
   const iv = crypto.randomBytes(12);
@@ -767,9 +829,20 @@ function alertaEncryptPhone(value) {
 function alertaDecryptPhone(value) {
   const parts = String(value || "").split(".");
   if (parts.length !== 3) throw new Error("Telefone protegido inválido.");
-  const decipher = crypto.createDecipheriv("aes-256-gcm", alertaEncryptionKey(), Buffer.from(parts[0], "base64"));
-  decipher.setAuthTag(Buffer.from(parts[1], "base64"));
-  return Buffer.concat([decipher.update(Buffer.from(parts[2], "base64")), decipher.final()]).toString("utf8");
+  const iv = Buffer.from(parts[0], "base64");
+  const authTag = Buffer.from(parts[1], "base64");
+  const encrypted = Buffer.from(parts[2], "base64");
+  const keys = [alertaConfiguredEncryptionKey(), alertaLegacyEncryptionKey()].filter(Boolean);
+  for (const key of keys) {
+    try {
+      const decipher = crypto.createDecipheriv("aes-256-gcm", key, iv);
+      decipher.setAuthTag(authTag);
+      return Buffer.concat([decipher.update(encrypted), decipher.final()]).toString("utf8");
+    } catch (error) {
+      // Tenta a chave de compatibilidade usada pelos registros antigos.
+    }
+  }
+  throw new Error("Não foi possível descriptografar o telefone. Verifique a chave configurada.");
 }
 
 async function alertaPruneExpiredVisitors() {
@@ -792,15 +865,21 @@ if (typeof alertaCleanupTimer.unref === "function") alertaCleanupTimer.unref();
 setTimeout(alertaPruneExpiredVisitors, 60 * 1000).unref?.();
 
 app.get('/api/alerta-day/config', (_req, res) => res.json({ vapidKey: process.env.FIREBASE_VAPID_KEY || null }));
-app.get('/api/alerta-day/preferencias', async (req, res) => {
+app.get('/api/alerta-day/preferencias', requireFirebase, async (req, res) => {
   if (!db) return firebaseUnavailable(res);
   const key = alertaVisitorKey(req.query?.visitorId);
   if (!key) return res.status(400).json({ error: "Identificador inválido." });
   try {
     const snapshot = await db.ref("alertaDay/visitantes/" + key).get();
     const visitor = snapshot.val() || {};
+    const accountConsent = req.profile?.consentimentos?.whatsapp?.status;
+    let whatsappConsent = accountConsent === "permitido" &&
+      visitor.whatsappOwnerUid === req.user.uid &&
+      visitor.whatsappConsent === true &&
+      Boolean(visitor.telefoneWhatsAppEnc);
     return res.json({
-      whatsappConsent: visitor.whatsappConsent === true && Boolean(visitor.telefoneWhatsAppEnc),
+      whatsappConsent,
+      whatsappConsentStatus: ["permitido", "negado"].includes(accountConsent) ? accountConsent : "pendente",
       pushConsent: visitor.pushConsent === true && Boolean(visitor.fcmToken),
       locationConsent: visitor.consentimentoLocalizacao === true
     });
@@ -809,19 +888,56 @@ app.get('/api/alerta-day/preferencias', async (req, res) => {
 app.post('/api/alerta-day/whatsapp/cadastro', requireFirebase, async (req, res) => {
   if (!db) return firebaseUnavailable(res);
   const key = alertaVisitorKey(req.body?.visitorId);
+  const consentimento = req.body?.consentimento;
   const phone = alertaPhone(req.profile?.celular);
-  if (!key || req.body?.consentimento !== true) return res.status(400).json({ error: "Confirme a autorização para continuar." });
-  if (!phone) return res.status(400).json({ error: "Seu cadastro não possui um celular válido. Atualize seus dados antes de autorizar." });
-  if (!process.env.ALERTA_DAY_ENCRYPTION_KEY) return res.status(503).json({ error: "Canal WhatsApp temporariamente indisponível." });
+  if (!key || typeof consentimento !== "boolean") return res.status(400).json({ error: "Escolha permitir ou negar o WhatsApp." });
+  if (consentimento && !phone) return res.status(400).json({ error: "Seu cadastro não possui um celular válido. Atualize seus dados antes de autorizar." });
+  if (consentimento && !alertaConfiguredEncryptionKey()) return res.status(503).json({ error: "Canal WhatsApp temporariamente indisponível. A chave de criptografia precisa ter 32 bytes em Base64 ou 64 caracteres hexadecimais." });
   try {
     const now = new Date().toISOString();
-    await db.ref("alertaDay/visitantes/" + key).update({
-      telefoneWhatsAppEnc: alertaEncryptPhone(phone), whatsappConsent: true,
-      whatsappConsentEm: now, consentimentoWhatsAppVersao: "2026-11-16",
-      whatsappConsentOrigem: "area-logada", atualizadoEm: now
-    });
-    return res.json({ ok: true, whatsappConsent: true });
-  } catch (error) { return sendServerError(res, "Não foi possível salvar sua autorização.", error); }
+    const visitorRef = db.ref("alertaDay/visitantes/" + key);
+    const existing = (await visitorRef.get()).val() || {};
+    if (consentimento && existing.whatsappOwnerUid && existing.whatsappOwnerUid !== req.user.uid) {
+      return res.status(409).json({ error: "Este navegador já está vinculado a outra conta do Alerta Day. Entre pelo navegador em que seu cadastro foi criado ou fale com o suporte." });
+    }
+    if (consentimento && existing.whatsappConsent === true && existing.telefoneWhatsAppEnc && !existing.whatsappOwnerUid) {
+      let legacyPhone = "";
+      try { legacyPhone = alertaPhone(alertaDecryptPhone(existing.telefoneWhatsAppEnc)); } catch (_) {}
+      if (!legacyPhone || legacyPhone !== phone) {
+        return res.status(409).json({ error: "Este cadastro antigo já possui outro número autorizado. Não alteramos o consentimento existente." });
+      }
+    }
+    const consentRecord = {
+      status: consentimento ? "permitido" : "negado",
+      atualizadoEm: now,
+      origem: "area-logada",
+      versao: "2026-11-16"
+    };
+    await db.ref("usuarios/" + req.user.uid + "/consentimentos/whatsapp").set(consentRecord);
+    if (consentimento) {
+      await visitorRef.update({
+        telefoneWhatsAppEnc: alertaEncryptPhone(phone),
+        whatsappConsent: true,
+        whatsappOwnerUid: req.user.uid,
+        whatsappConsentEm: now,
+        consentimentoWhatsAppVersao: "2026-11-16",
+        whatsappConsentOrigem: "area-logada",
+        atualizadoEm: now
+      });
+    } else {
+      const visitorsSnap = await db.ref("alertaDay/visitantes").get();
+      const updates = {};
+      for (const [visitorId, visitor] of Object.entries(visitorsSnap.val() || {})) {
+        if (visitor.whatsappOwnerUid === req.user.uid) {
+          updates[visitorId + "/whatsappConsent"] = false;
+          updates[visitorId + "/telefoneWhatsAppEnc"] = null;
+          updates[visitorId + "/whatsappRevogadoEm"] = now;
+        }
+      }
+      if (Object.keys(updates).length) await db.ref("alertaDay/visitantes").update(updates);
+    }
+    return res.json({ ok: true, whatsappConsent: consentimento, status: consentRecord.status });
+  } catch (error) { return sendServerError(res, "Não foi possível atualizar sua preferência de WhatsApp.", error); }
 });
 app.post('/api/alerta-day/localizacao', async (req, res) => {
   if (!db) return firebaseUnavailable(res);
@@ -845,7 +961,7 @@ app.post('/api/alerta-day/whatsapp', async (req, res) => {
   if (!db) return firebaseUnavailable(res);
   const key = alertaVisitorKey(req.body?.visitorId), phone = alertaPhone(req.body?.telefone);
   if (!key || req.body?.consentimento !== true || !phone) return res.status(400).json({ error: 'Informe um telefone válido e autorize as mensagens.' });
-  if (!process.env.ALERTA_DAY_ENCRYPTION_KEY) return res.status(503).json({ error: 'Canal WhatsApp temporariamente indisponível.' });
+  if (!alertaConfiguredEncryptionKey()) return res.status(503).json({ error: 'Canal WhatsApp temporariamente indisponível. A chave de criptografia precisa ter 32 bytes em Base64 ou 64 caracteres hexadecimais.' });
   try {
     const telefoneWhatsAppEnc = alertaEncryptPhone(phone);
     await db.ref('alertaDay/visitantes/' + key).update({ telefoneWhatsAppEnc, whatsappConsent: true, whatsappConsentEm: new Date().toISOString(), consentimentoWhatsAppVersao: '2026-11-14', atualizadoEm: new Date().toISOString() });
@@ -861,11 +977,13 @@ app.delete('/api/alerta-day/preferencias', async (req, res) => {
 });
 app.get('/api/admin/alerta-day/dados', requireFirebase, allowRoles('administrador'), async (_req, res) => {
   try {
-    const [propertiesSnap, visitorsSnap, campaignsSnap] = await Promise.all([db.ref('imoveis').get(), db.ref('alertaDay/visitantes').get(), db.ref('alertaDay/campanhas').get()]);
+    const [propertiesSnap, visitorsSnap, campaignsSnap, usersSnap] = await Promise.all([db.ref('imoveis').get(), db.ref('alertaDay/visitantes').get(), db.ref('alertaDay/campanhas').get(), db.ref('usuarios').get()]);
     const imoveis = Object.entries(propertiesSnap.val() || {}).map(([id,item]) => ({id,...item})).filter(p => p.status === 'publicado' && p.publicadoNoSite === true);
     const visitors = Object.values(visitorsSnap.val() || {}).filter(v => v.consentimentoLocalizacao === true && (!v.expiraEm || Date.parse(v.expiraEm) > Date.now()));
-    const campanhas = Object.entries(campaignsSnap.val() || {}).map(([id,item]) => ({id,...item})).sort((a,b) => String(b.criadoEm||'').localeCompare(String(a.criadoEm||''))).slice(0,30);
-    return res.json({ imoveis, campanhas, resumo: { localizacao: visitors.length, push: visitors.filter(v => v.pushConsent === true && v.fcmToken).length, whatsapp: visitors.filter(v => v.whatsappConsent === true && v.telefoneWhatsAppEnc).length, campanhas: Object.keys(campaignsSnap.val()||{}).length }, whatsappStatus: whatsappClient.getStatus() });
+    const campaigns = Object.entries(campaignsSnap.val() || {}).map(([id,item]) => ({id,...item})).sort((a,b) => String(b.criadoEm||'').localeCompare(String(a.criadoEm||''))).slice(0,30);
+    const users = usersSnap.val() || {};
+    const whatsappEligible = visitors.filter(v => v.whatsappConsent === true && v.telefoneWhatsAppEnc && v.whatsappOwnerUid && users[v.whatsappOwnerUid]?.consentimentos?.whatsapp?.status === "permitido" && users[v.whatsappOwnerUid]?.whatsappAtivo !== false);
+    return res.json({ imoveis, campanhas: campaigns, resumo: { localizacao: visitors.length, push: visitors.filter(v => v.pushConsent === true && v.fcmToken).length, whatsapp: whatsappEligible.length, campanhas: Object.keys(campaignsSnap.val()||{}).length }, whatsappStatus: whatsappClient.getStatus() });
   } catch (error) { return sendServerError(res, 'Não foi possível carregar o Alerta Day.', error); }
 });
 app.get('/api/admin/whatsapp/status', requireFirebase, allowRoles('administrador'), async (_req, res) => {
@@ -935,9 +1053,12 @@ app.get('/api/admin/alerta-day/alcance', requireFirebase, allowRoles('administra
   const channels=(req.query.canais===undefined?'push,whatsapp':String(req.query.canais)).split(',').filter(c=>['push','whatsapp'].includes(c));
   if (!Number.isFinite(lat)||lat < -90||lat > 90||!Number.isFinite(lng)||lng < -180||lng > 180||!Number.isFinite(radius)||radius < 100||radius > 30000) return res.status(400).json({error:'Centro ou raio inválido.'});
   try {
-    const snap=await db.ref('alertaDay/visitantes').get();
-    const targets=Object.values(snap.val()||{}).filter(v => v.consentimentoLocalizacao===true && (!v.expiraEm||Date.parse(v.expiraEm)>Date.now()) && Number.isFinite(Number(v.latitude)) && Number.isFinite(Number(v.longitude)) && alertaDistance(lat,lng,Number(v.latitude),Number(v.longitude))<=radius);
-    return res.json({totalElegiveis:targets.filter(v => (channels.includes('push')&&v.pushConsent===true&&v.fcmToken)||(channels.includes('whatsapp')&&v.whatsappConsent===true&&v.telefoneWhatsAppEnc)).length, totalLocalizacao:targets.length});
+    const [visitorsSnap, usersSnap]=await Promise.all([db.ref('alertaDay/visitantes').get(),db.ref('usuarios').get()]);
+    const users=usersSnap.val()||{};
+    const targets=Object.values(visitorsSnap.val()||{}).filter(v => v.consentimentoLocalizacao===true && (!v.expiraEm||Date.parse(v.expiraEm)>Date.now()) && Number.isFinite(Number(v.latitude)) && Number.isFinite(Number(v.longitude)) && alertaDistance(lat,lng,Number(v.latitude),Number(v.longitude))<=radius);
+    const whatsappTargets=targets.filter(v=>channels.includes('whatsapp')&&v.whatsappConsent===true&&v.telefoneWhatsAppEnc&&v.whatsappOwnerUid&&users[v.whatsappOwnerUid]?.consentimentos?.whatsapp?.status==="permitido"&&users[v.whatsappOwnerUid]?.whatsappAtivo!==false);
+    const pushTargets=targets.filter(v=>channels.includes('push')&&v.pushConsent===true&&v.fcmToken);
+    return res.json({totalElegiveis:new Set([...whatsappTargets.map(v=>v.whatsappOwnerUid),...pushTargets.map(v=>v.fcmToken)]).size, totalLocalizacao:targets.length, whatsappElegiveis:whatsappTargets.length});
   } catch(error) { return sendServerError(res,'Não foi possível calcular o público.',error); }
 });
 async function alertaSendWhatsApp(phone,title,message,link) {
@@ -970,7 +1091,12 @@ app.post('/api/admin/alerta-day/disparar', requireFirebase, allowRoles('administ
     const visitorsSnap=await db.ref('alertaDay/visitantes').get();
     const visitors=Object.entries(visitorsSnap.val()||{}).filter(([,v])=>v.consentimentoLocalizacao===true&&(!v.expiraEm||Date.parse(v.expiraEm)>Date.now())&&Number.isFinite(Number(v.latitude))&&Number.isFinite(Number(v.longitude))&&alertaDistance(lat,lng,Number(v.latitude),Number(v.longitude))<=radius);
     const pushTargets=channels.includes('push')?visitors.filter(([,v])=>v.pushConsent===true&&v.fcmToken):[];
-    const waTargets=channels.includes('whatsapp')?visitors.filter(([,v])=>v.whatsappConsent===true&&v.telefoneWhatsAppEnc):[];
+    const waCandidates=channels.includes('whatsapp')?visitors.filter(([,v])=>v.whatsappConsent===true&&v.telefoneWhatsAppEnc&&isValidUid(v.whatsappOwnerUid)):[];
+    const waProfiles=await Promise.all([...new Set(waCandidates.map(([,v])=>v.whatsappOwnerUid))].map(async uid=>[uid,(await db.ref("usuarios/"+uid+"/consentimentos/whatsapp/status").get()).val()]));
+    const permittedUids=new Set(waProfiles.filter(([,status])=>status==="permitido").map(([uid])=>uid));
+    const waActiveProfiles=await Promise.all([...permittedUids].map(async uid=>[uid,(await db.ref("usuarios/"+uid+"/whatsappAtivo").get()).val()]));
+    const activeUids=new Set(waActiveProfiles.filter(([,active])=>active!==false).map(([uid])=>uid));
+    const waTargets=waCandidates.filter(([,v])=>activeUids.has(v.whatsappOwnerUid));
     const pathLink=cleanString(b.link,500)||('/detalhes.html?id='+encodeURIComponent(propertyId));
     const firstPhoto=Array.isArray(property.fotos)?property.fotos[0]:null;
     const imageUrl=firstPhoto?(/^https:\/\//i.test(firstPhoto)?firstPhoto:baseUrl+'/'+String(firstPhoto).replace(/^\//,'')):null;
@@ -982,7 +1108,7 @@ app.post('/api/admin/alerta-day/disparar', requireFirebase, allowRoles('administ
       if (!pushLink) throw new Error('Configure PUBLIC_SITE_URL com a URL HTTPS pública do site para links de Push.');
       const tokens=pushTargets.map(([,v])=>v.fcmToken);
       for(let i=0;i<tokens.length;i+=500) {
-        const batch=tokens.slice(i,i+500), result=await admin.messaging().sendEachForMulticast({tokens:batch,notification:{title,body:message,...(imageUrl?{image:imageUrl}:{})},data:{url:pushLink,campaignId:campaignRef.key},webpush:{notification:imageUrl?{image:imageUrl}:{},fcmOptions:{link:pushLink}}});
+        const batch=tokens.slice(i,i+500), result=await admin.messaging().sendEachForMulticast({tokens:batch,notification:{title,body:message,...(imageUrl?{image:imageUrl}:{})},data:{url:pushLink,campaignId:campaignRef.key,...(imageUrl?{imageUrl}:{})},webpush:{notification:imageUrl?{image:imageUrl,icon:baseUrl+'/icons/alerta-day.svg'}:{icon:baseUrl+'/icons/alerta-day.svg'},fcmOptions:{link:pushLink}}});
         pushEnviados+=result.successCount;
         result.responses.forEach((item,index)=>{if(!item.success){erros.push({canal:'push',tokenFinal:batch[index].slice(-8),erro:item.error?.code||'falha'});if(['messaging/registration-token-not-registered','messaging/invalid-registration-token'].includes(item.error?.code)){const entry=pushTargets.find(([,v])=>v.fcmToken===batch[index]);if(entry)db.ref('alertaDay/visitantes/'+entry[0]).update({fcmToken:null,pushConsent:false}).catch(()=>{});}}});
       }
@@ -992,7 +1118,7 @@ app.post('/api/admin/alerta-day/disparar', requireFirebase, allowRoles('administ
       const phone = alertaDecryptPhone(v.telefoneWhatsAppEnc);
       try {
         if (hasQrWhatsapp) {
-          await whatsappClient.sendAlert(phone, title, message, fullUrl);
+          await whatsappClient.sendAlert(phone, title, message, fullUrl, imageUrl);
         } else {
           await alertaSendWhatsApp(phone, title, message, fullUrl);
         }

@@ -126,7 +126,7 @@ class WhatsAppClient {
     return this.getStatus();
   }
 
-  async sendAlert(phone, title, message, link) {
+  async sendAlert(phone, title, message, link, imageUrl = null) {
     if (!this.isConnected()) {
       throw new Error("WhatsApp não está conectado via QR Code.");
     }
@@ -138,8 +138,19 @@ class WhatsAppClient {
 
     const fullPhone = cleanPhone.startsWith("55") ? cleanPhone : "55" + cleanPhone;
     const jid = `${fullPhone}@s.whatsapp.net`;
-
     const text = `📢 *${title}*\n\n${message}\n\n🔗 *Acesse o imóvel:* ${link}`;
+
+    // Envia a foto principal como mídia com legenda; mantém texto como fallback.
+    if (typeof imageUrl === "string" && /^https:\/\//i.test(imageUrl)) {
+      try {
+        return await this.sock.sendMessage(jid, {
+          image: { url: imageUrl },
+          caption: text
+        });
+      } catch (error) {
+        console.warn("[WhatsApp] Não foi possível enviar a foto; tentando texto:", error.message);
+      }
+    }
 
     return await this.sock.sendMessage(jid, { text });
   }
