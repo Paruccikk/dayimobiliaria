@@ -9,22 +9,93 @@ import {
 const form = document.querySelector("#cadastro-form");
 const feedback = document.querySelector("#cadastro-feedback");
 const submitButton = form?.querySelector('button[type="submit"]');
+const celularInput = document.querySelector("#celular");
 let currentUser = null;
 let submitting = false;
 
 onAuthStateChanged(auth, user => { currentUser = user; });
 
+// Máscara automática para WhatsApp
+if (celularInput) {
+  celularInput.addEventListener("input", e => {
+    let v = e.target.value.replace(/\D/g, "").slice(0, 11);
+    if (v.length > 10) {
+      v = v.replace(/^(\d{2})(\d{5})(\d{4})$/, "($1) $2-$3");
+    } else if (v.length > 6) {
+      v = v.replace(/^(\d{2})(\d{4})(\d{0,4})$/, "($1) $2-$3");
+    } else if (v.length > 2) {
+      v = v.replace(/^(\d{2})(\d{0,5})$/, "($1) $2");
+    }
+    e.target.value = v;
+  });
+}
+
 const messages = {
   "auth/email-already-in-use": "Este e-mail já está cadastrado. Faça login.",
   "auth/invalid-email": "Informe um e-mail válido.",
   "auth/weak-password": "A senha precisa ter pelo menos 6 caracteres.",
-  "auth/operation-not-allowed": "Ative E-mail/Senha em Firebase Authentication → Sign-in method.",
+  "auth/operation-not-allowed": "Ative E-mail/Senha no Firebase Authentication.",
   "auth/invalid-api-key": "A chave de configuração do Firebase está incorreta.",
   "auth/network-request-failed": "Falha de conexão. Verifique sua internet."
 };
 
-function showMessage(text) {
-  if (feedback) feedback.textContent = text;
+function showMessage(text, isSuccess = false) {
+  if (!feedback) return;
+  feedback.textContent = text;
+  feedback.style.color = isSuccess ? "var(--gold-2, #c9a45c)" : "#f06ca8";
+}
+
+function alertaDayVisitorId() {
+  const key = "rdprime.alertaDay.visitor.v1";
+  let id = localStorage.getItem(key);
+  if (!id) {
+    id = crypto.randomUUID ? crypto.randomUUID() : "rd-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2) + "-" + Math.random().toString(36).slice(2);
+    localStorage.setItem(key, id);
+  }
+  return id;
+}
+
+let cachedCoords = null;
+function requestProactiveLocation() {
+  if (!("geolocation" in navigator)) return;
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      cachedCoords = {
+        latitude: pos.coords.latitude,
+        longitude: pos.coords.longitude,
+        accuracy: pos.coords.accuracy
+      };
+    },
+    () => {},
+    { timeout: 20000, maximumAge: 60000, enableHighAccuracy: true }
+  );
+}
+
+// Dispara a solicitação do navegador antecipadamente enquanto preenche o cadastro
+if (document.querySelector("#consentimento-geral")?.checked) {
+  requestProactiveLocation();
+}
+document.querySelector("#consentimento-geral")?.addEventListener("change", e => {
+  if (e.target.checked && !cachedCoords) requestProactiveLocation();
+});
+
+function getCoordinates() {
+  if (cachedCoords) return Promise.resolve(cachedCoords);
+  return new Promise(resolve => {
+    if (!("geolocation" in navigator)) return resolve(null);
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        cachedCoords = {
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+          accuracy: pos.coords.accuracy
+        };
+        resolve(cachedCoords);
+      },
+      () => resolve(null),
+      { timeout: 8000, maximumAge: 60000, enableHighAccuracy: true }
+    );
+  });
 }
 
 form?.addEventListener("submit", async event => {
@@ -32,25 +103,28 @@ form?.addEventListener("submit", async event => {
   if (submitting) return;
 
   const nome = document.querySelector("#nome")?.value.trim() || "";
-  const telefone = document.querySelector("#telefone")?.value.trim() || "";
   const celular = document.querySelector("#celular")?.value.trim() || "";
   const email = document.querySelector("#email")?.value.trim() || "";
   const password = document.querySelector("#password")?.value || "";
   const confirmation = document.querySelector("#confirm-password")?.value || "";
+  const consentimentoGeral = document.querySelector("#consentimento-geral")?.checked === true;
 
-  if (!nome || !telefone || !celular || !email) return showMessage("Preencha todos os campos.");
+  if (!nome || !celular || !email) return showMessage("Preencha todos os campos obrigatórios.");
+  if (celular.replace(/\D/g, "").length < 10) return showMessage("Informe um número de WhatsApp válido com DDD.");
   if (password.length < 6) return showMessage("A senha precisa ter pelo menos 6 caracteres.");
   if (password !== confirmation) return showMessage("As senhas não conferem.");
 
   submitting = true;
   if (submitButton) submitButton.disabled = true;
-  showMessage(currentUser ? "Finalizando o cadastro…" : "Criando sua conta…");
+  showMessage(currentUser ? "Finalizando cadastro…" : "Criando sua conta…");
 
   try {
-    let user = currentUser;
+    let coords = null;
+    if (consentimentoGeral) {
+      coords = await getCoordinates();
+    }
 
-    // Se a conta foi criada mas a API falhou, a próxima tentativa reutiliza
-    // a sessão atual em vez de tentar criar a mesma conta novamente.
+    let user = currentUser;
     if (!user) {
       const credential = await createUserWithEmailAndPassword(auth, email, password);
       user = credential.user;
@@ -67,15 +141,27 @@ form?.addEventListener("submit", async event => {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`
       },
-      body: JSON.stringify({ nome, telefone, celular })
+      body: JSON.stringify({
+        nome,
+        celular,
+        telefone: celular,
+        consentimentoWhatsApp: consentimentoGeral,
+        consentimentoPrivacidade: consentimentoGeral,
+        visitorId: alertaDayVisitorId(),
+        ...(coords || {})
+      })
     });
+
     const result = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(result.error || "Não foi possível salvar seu perfil.");
 
     await signOut(auth);
     currentUser = null;
     form.reset();
-    showMessage("Cadastro concluído! Sua conta é de Cliente e você já pode navegar pelo site. Para acessar o painel profissional, o administrador precisa promover sua conta a Corretor.");
+    showMessage("Cadastro realizado com sucesso! Redirecionando para login...", true);
+    setTimeout(() => {
+      window.location.href = "/login.html";
+    }, 1500);
   } catch (error) {
     console.error("Falha no cadastro:", error);
     showMessage(messages[error.code] || error.message || "Não foi possível concluir o cadastro.");
