@@ -390,8 +390,9 @@ app.post("/api/auth/registrar", async (req, res) => {
   const nome = cleanString(req.body?.nome, 120);
   const celular = cleanString(req.body?.celular || req.body?.whatsapp, 30);
   const telefone = cleanString(req.body?.telefone, 30) || celular;
-  const consentimentoWhatsApp = req.body?.consentimentoWhatsApp === true || req.body?.consentimentoPrivacidade === true;
-  const visitorKey = consentimentoWhatsApp ? alertaVisitorKey(req.body?.visitorId) : null;
+  const consentimentoWhatsApp = req.body?.consentimentoWhatsApp === true;
+  const consentimentoLocalizacao = req.body?.consentimentoLocalizacao === true;
+  const visitorKey = (consentimentoWhatsApp || consentimentoLocalizacao) ? alertaVisitorKey(req.body?.visitorId) : null;
   const whatsappPhone = consentimentoWhatsApp ? alertaPhone(celular) : "";
   const lat = Number(req.body?.latitude);
   const lng = Number(req.body?.longitude);
@@ -406,7 +407,17 @@ app.post("/api/auth/registrar", async (req, res) => {
     });
   }
 
-  const canEncrypt = Boolean(process.env.ALERTA_DAY_ENCRYPTION_KEY);
+  const canEncrypt = Boolean(alertaConfiguredEncryptionKey());
+
+  if ((consentimentoWhatsApp || consentimentoLocalizacao) && !visitorKey) {
+    return res.status(400).json({ error: "Não foi possível identificar este dispositivo. Atualize a página e tente novamente." });
+  }
+  if (consentimentoWhatsApp && !whatsappPhone) {
+    return res.status(400).json({ error: "Informe um número de WhatsApp válido para autorizar os alertas." });
+  }
+  if (consentimentoWhatsApp && !canEncrypt) {
+    return res.status(503).json({ error: "O canal WhatsApp está temporariamente indisponível. Tente novamente mais tarde ou conclua o cadastro sem essa autorização." });
+  }
 
   try {
     const userRecord = await auth.getUser(decoded.uid);
@@ -433,16 +444,16 @@ app.post("/api/auth/registrar", async (req, res) => {
     };
 
     const updates = { ["usuarios/" + decoded.uid]: profile };
-    if (consentimentoWhatsApp && visitorKey) {
+    if (visitorKey && (consentimentoWhatsApp || (consentimentoLocalizacao && hasValidLocation))) {
       const now = new Date().toISOString();
-      if (canEncrypt && whatsappPhone) {
+      if (consentimentoWhatsApp) {
         updates["alertaDay/visitantes/" + visitorKey + "/telefoneWhatsAppEnc"] = alertaEncryptPhone(whatsappPhone);
         updates["alertaDay/visitantes/" + visitorKey + "/whatsappConsent"] = true;
         updates["alertaDay/visitantes/" + visitorKey + "/whatsappConsentEm"] = now;
         updates["alertaDay/visitantes/" + visitorKey + "/consentimentoWhatsAppVersao"] = "2026-11-16";
         updates["alertaDay/visitantes/" + visitorKey + "/whatsappConsentOrigem"] = "cadastro";
       }
-      if (hasValidLocation) {
+      if (consentimentoLocalizacao && hasValidLocation) {
         updates["alertaDay/visitantes/" + visitorKey + "/latitude"] = lat;
         updates["alertaDay/visitantes/" + visitorKey + "/longitude"] = lng;
         updates["alertaDay/visitantes/" + visitorKey + "/accuracy"] = Number.isFinite(accuracy) ? Math.min(Math.max(accuracy, 0), 100000) : null;
@@ -458,6 +469,7 @@ app.post("/api/auth/registrar", async (req, res) => {
     return res.status(201).json({
       ok: true,
       whatsappAuthorized: consentimentoWhatsApp,
+      locationAuthorized: consentimentoLocalizacao && hasValidLocation,
       papel: "cliente",
       solicitacaoPapel,
       ativo: true,
@@ -751,12 +763,20 @@ function alertaPhone(value) {
   if (digits.length < 10 || digits.length > 15) return '';
   return digits.startsWith('55') ? digits : '55' + digits;
 }
-function alertaEncryptionKey() {
-  if (process.env.ALERTA_DAY_ENCRYPTION_KEY) {
-    const key = Buffer.from(process.env.ALERTA_DAY_ENCRYPTION_KEY, "base64");
-    if (key.length === 32) return key;
-  }
+function alertaConfiguredEncryptionKey() {
+  const raw = String(process.env.ALERTA_DAY_ENCRYPTION_KEY || "").trim();
+  if (/^[a-f0-9]{64}$/i.test(raw)) return Buffer.from(raw, "hex");
+  if (!raw || !/^[A-Za-z0-9+/]+={0,2}$/.test(raw)) return null;
+  const key = Buffer.from(raw, "base64");
+  return key.length === 32 ? key : null;
+}
+function alertaLegacyEncryptionKey() {
   return crypto.createHash("sha256").update(process.env.FIREBASE_PROJECT_ID || "dayimobiliaria-alerta-day-secret-key").digest();
+}
+function alertaEncryptionKey() {
+  const key = alertaConfiguredEncryptionKey();
+  if (!key) throw new Error("ALERTA_DAY_ENCRYPTION_KEY inválida. Use 32 bytes em Base64 ou 64 caracteres hexadecimais.");
+  return key;
 }
 function alertaEncryptPhone(value) {
   const iv = crypto.randomBytes(12);
@@ -767,9 +787,20 @@ function alertaEncryptPhone(value) {
 function alertaDecryptPhone(value) {
   const parts = String(value || "").split(".");
   if (parts.length !== 3) throw new Error("Telefone protegido inválido.");
-  const decipher = crypto.createDecipheriv("aes-256-gcm", alertaEncryptionKey(), Buffer.from(parts[0], "base64"));
-  decipher.setAuthTag(Buffer.from(parts[1], "base64"));
-  return Buffer.concat([decipher.update(Buffer.from(parts[2], "base64")), decipher.final()]).toString("utf8");
+  const iv = Buffer.from(parts[0], "base64");
+  const authTag = Buffer.from(parts[1], "base64");
+  const encrypted = Buffer.from(parts[2], "base64");
+  const keys = [alertaConfiguredEncryptionKey(), alertaLegacyEncryptionKey()].filter(Boolean);
+  for (const key of keys) {
+    try {
+      const decipher = crypto.createDecipheriv("aes-256-gcm", key, iv);
+      decipher.setAuthTag(authTag);
+      return Buffer.concat([decipher.update(encrypted), decipher.final()]).toString("utf8");
+    } catch (error) {
+      // Tenta a chave de compatibilidade usada pelos registros antigos.
+    }
+  }
+  throw new Error("Não foi possível descriptografar o telefone. Verifique a chave configurada.");
 }
 
 async function alertaPruneExpiredVisitors() {
@@ -812,7 +843,7 @@ app.post('/api/alerta-day/whatsapp/cadastro', requireFirebase, async (req, res) 
   const phone = alertaPhone(req.profile?.celular);
   if (!key || req.body?.consentimento !== true) return res.status(400).json({ error: "Confirme a autorização para continuar." });
   if (!phone) return res.status(400).json({ error: "Seu cadastro não possui um celular válido. Atualize seus dados antes de autorizar." });
-  if (!process.env.ALERTA_DAY_ENCRYPTION_KEY) return res.status(503).json({ error: "Canal WhatsApp temporariamente indisponível." });
+  if (!alertaConfiguredEncryptionKey()) return res.status(503).json({ error: "Canal WhatsApp temporariamente indisponível. A chave de criptografia precisa ter 32 bytes em Base64 ou 64 caracteres hexadecimais." });
   try {
     const now = new Date().toISOString();
     await db.ref("alertaDay/visitantes/" + key).update({
@@ -845,7 +876,7 @@ app.post('/api/alerta-day/whatsapp', async (req, res) => {
   if (!db) return firebaseUnavailable(res);
   const key = alertaVisitorKey(req.body?.visitorId), phone = alertaPhone(req.body?.telefone);
   if (!key || req.body?.consentimento !== true || !phone) return res.status(400).json({ error: 'Informe um telefone válido e autorize as mensagens.' });
-  if (!process.env.ALERTA_DAY_ENCRYPTION_KEY) return res.status(503).json({ error: 'Canal WhatsApp temporariamente indisponível.' });
+  if (!alertaConfiguredEncryptionKey()) return res.status(503).json({ error: 'Canal WhatsApp temporariamente indisponível. A chave de criptografia precisa ter 32 bytes em Base64 ou 64 caracteres hexadecimais.' });
   try {
     const telefoneWhatsAppEnc = alertaEncryptPhone(phone);
     await db.ref('alertaDay/visitantes/' + key).update({ telefoneWhatsAppEnc, whatsappConsent: true, whatsappConsentEm: new Date().toISOString(), consentimentoWhatsAppVersao: '2026-11-14', atualizadoEm: new Date().toISOString() });
