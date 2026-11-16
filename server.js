@@ -389,6 +389,9 @@ app.post("/api/auth/registrar", async (req, res) => {
   const nome = cleanString(req.body?.nome, 120);
   const telefone = cleanString(req.body?.telefone, 30);
   const celular = cleanString(req.body?.celular, 30);
+  const consentimentoWhatsApp = req.body?.consentimentoWhatsApp === true;
+  const visitorKey = consentimentoWhatsApp ? alertaVisitorKey(req.body?.visitorId) : null;
+  const whatsappPhone = consentimentoWhatsApp ? alertaPhone(celular) : "";
   const solicitacaoPapel =
     req.body?.tipoCadastro === "corretor" ? "corretor" : "cliente";
 
@@ -397,6 +400,8 @@ app.post("/api/auth/registrar", async (req, res) => {
       error: "Nome, telefone e número de celular são obrigatórios.",
     });
   }
+  if (consentimentoWhatsApp && (!visitorKey || !whatsappPhone)) return res.status(400).json({ error: "Para autorizar o WhatsApp, informe um celular válido." });
+  if (consentimentoWhatsApp && !process.env.ALERTA_DAY_ENCRYPTION_KEY) return res.status(503).json({ error: "O recebimento pelo WhatsApp ainda está sendo configurado. Desmarque a autorização para concluir o cadastro ou tente novamente mais tarde." });
 
   try {
     const userRecord = await auth.getUser(decoded.uid);
@@ -422,10 +427,21 @@ app.post("/api/auth/registrar", async (req, res) => {
       criadoEm: new Date().toISOString(),
     };
 
-    await userRef.set(profile);
+    const updates = { ["usuarios/" + decoded.uid]: profile };
+    if (consentimentoWhatsApp) {
+      const now = new Date().toISOString();
+      updates["alertaDay/visitantes/" + visitorKey + "/telefoneWhatsAppEnc"] = alertaEncryptPhone(whatsappPhone);
+      updates["alertaDay/visitantes/" + visitorKey + "/whatsappConsent"] = true;
+      updates["alertaDay/visitantes/" + visitorKey + "/whatsappConsentEm"] = now;
+      updates["alertaDay/visitantes/" + visitorKey + "/consentimentoWhatsAppVersao"] = "2026-11-16";
+      updates["alertaDay/visitantes/" + visitorKey + "/whatsappConsentOrigem"] = "cadastro";
+      updates["alertaDay/visitantes/" + visitorKey + "/atualizadoEm"] = now;
+    }
+    await db.ref().update(updates);
 
     return res.status(201).json({
       ok: true,
+      whatsappAuthorized: consentimentoWhatsApp,
       papel: "cliente",
       solicitacaoPapel,
       ativo: true,
@@ -758,6 +774,37 @@ if (typeof alertaCleanupTimer.unref === "function") alertaCleanupTimer.unref();
 setTimeout(alertaPruneExpiredVisitors, 60 * 1000).unref?.();
 
 app.get('/api/alerta-day/config', (_req, res) => res.json({ vapidKey: process.env.FIREBASE_VAPID_KEY || null }));
+app.get('/api/alerta-day/preferencias', async (req, res) => {
+  if (!db) return firebaseUnavailable(res);
+  const key = alertaVisitorKey(req.query?.visitorId);
+  if (!key) return res.status(400).json({ error: "Identificador inválido." });
+  try {
+    const snapshot = await db.ref("alertaDay/visitantes/" + key).get();
+    const visitor = snapshot.val() || {};
+    return res.json({
+      whatsappConsent: visitor.whatsappConsent === true && Boolean(visitor.telefoneWhatsAppEnc),
+      pushConsent: visitor.pushConsent === true && Boolean(visitor.fcmToken),
+      locationConsent: visitor.consentimentoLocalizacao === true
+    });
+  } catch (error) { return sendServerError(res, "Não foi possível consultar suas preferências.", error); }
+});
+app.post('/api/alerta-day/whatsapp/cadastro', requireFirebase, async (req, res) => {
+  if (!db) return firebaseUnavailable(res);
+  const key = alertaVisitorKey(req.body?.visitorId);
+  const phone = alertaPhone(req.profile?.celular);
+  if (!key || req.body?.consentimento !== true) return res.status(400).json({ error: "Confirme a autorização para continuar." });
+  if (!phone) return res.status(400).json({ error: "Seu cadastro não possui um celular válido. Atualize seus dados antes de autorizar." });
+  if (!process.env.ALERTA_DAY_ENCRYPTION_KEY) return res.status(503).json({ error: "Canal WhatsApp temporariamente indisponível." });
+  try {
+    const now = new Date().toISOString();
+    await db.ref("alertaDay/visitantes/" + key).update({
+      telefoneWhatsAppEnc: alertaEncryptPhone(phone), whatsappConsent: true,
+      whatsappConsentEm: now, consentimentoWhatsAppVersao: "2026-11-16",
+      whatsappConsentOrigem: "area-logada", atualizadoEm: now
+    });
+    return res.json({ ok: true, whatsappConsent: true });
+  } catch (error) { return sendServerError(res, "Não foi possível salvar sua autorização.", error); }
+});
 app.post('/api/alerta-day/localizacao', async (req, res) => {
   if (!db) return firebaseUnavailable(res);
   const key = alertaVisitorKey(req.body?.visitorId), lat = Number(req.body?.latitude), lng = Number(req.body?.longitude), accuracy = Number(req.body?.accuracy);

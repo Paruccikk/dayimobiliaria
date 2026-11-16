@@ -1,4 +1,6 @@
 import { app } from "../firebase-config.js";
+import { auth } from "./firebase-client.js";
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getMessaging, getToken, isSupported, onMessage } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js";
 
 const KEY = "rdprime.alertaDay.visitor.v1";
@@ -50,19 +52,59 @@ function buildModal() {
   const later = $("button", { className: "ad-visitor-secondary", type: "button" }, "Agora não");
   const remove = $("button", { className: "ad-visitor-remove", type: "button" }, "Remover meus dados e cancelar alertas");
   const push = $("button", { className: "ad-visitor-primary", type: "button" }, "Ativar notificações no celular");
-  const whatsappForm = $("form", { className: "ad-visitor-whatsapp" });
-  const whatsappTitle = $("h3", {}, "Prefere receber pelo WhatsApp?");
-  const phone = $("input", { type: "tel", inputmode: "tel", autocomplete: "tel", placeholder: "(11) 99999-9999", maxlength: "20", "aria-label": "Seu WhatsApp" });
-  const consentLabel = $("label", { className: "ad-visitor-consent" });
-  const consent = $("input", { type: "checkbox", required: "required" });
-  consentLabel.append(consent, document.createTextNode(" Aceito receber ofertas de imóveis da Day Imobiliária pelo WhatsApp. Posso cancelar quando quiser."));
-  const submit = $("button", { className: "ad-visitor-secondary", type: "submit" }, "Autorizar WhatsApp");
-  whatsappForm.append(whatsappTitle, phone, consentLabel, submit);
+  const whatsappInfo = $("p", { className: "ad-visitor-privacy", role: "status", "aria-live": "polite" });
+  const whatsappAuthorize = $("button", { className: "ad-visitor-secondary", type: "button" }, "Autorizar com o WhatsApp do meu cadastro");
   push.hidden = true;
-  whatsappForm.hidden = true;
-  panel.append(close, mark, title, copy, privacy, location, feedback, push, whatsappForm, later, remove);
+  whatsappInfo.hidden = true;
+  whatsappAuthorize.hidden = true;
+  panel.append(close, mark, title, copy, privacy, location, feedback, push, whatsappInfo, whatsappAuthorize, later, remove);
   overlay.append(panel);
   document.body.append(overlay);
+  let whatsappAlreadyAuthorized = false;
+  const refreshWhatsAppPreference = async () => {
+    try {
+      const response = await fetch("/api/alerta-day/preferencias?visitorId=" + encodeURIComponent(visitorId()));
+      const data = await response.json();
+      whatsappAlreadyAuthorized = response.ok && data.whatsappConsent === true;
+      whatsappInfo.textContent = whatsappAlreadyAuthorized
+        ? "WhatsApp já autorizado pelo seu cadastro. Não precisamos pedir seu número novamente."
+        : "Para receber pelo WhatsApp, entre na sua conta e autorize usando o número que já informou no cadastro.";
+      whatsappAuthorize.hidden = !auth.currentUser || whatsappAlreadyAuthorized;
+    } catch (error) {
+      whatsappInfo.textContent = "O WhatsApp pode ser autorizado com o número do seu cadastro, sem informar o telefone novamente.";
+      whatsappAuthorize.hidden = !auth.currentUser;
+    }
+  };
+  onAuthStateChanged(auth, currentUser => {
+    whatsappAuthorize.hidden = !currentUser || whatsappAlreadyAuthorized;
+  });
+  refreshWhatsAppPreference();
+
+  whatsappAuthorize.addEventListener("click", async () => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      whatsappInfo.textContent = "Entre na sua conta para autorizar o WhatsApp usando o número do cadastro.";
+      return;
+    }
+    whatsappAuthorize.disabled = true;
+    try {
+      const token = await currentUser.getIdToken();
+      const response = await fetch("/api/alerta-day/whatsapp/cadastro", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+        body: JSON.stringify({ visitorId: visitorId(), consentimento: true })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Não foi possível registrar a autorização.");
+      whatsappAlreadyAuthorized = true;
+      whatsappInfo.textContent = "Autorização do WhatsApp registrada com o número do seu cadastro.";
+      whatsappAuthorize.hidden = true;
+    } catch (error) {
+      whatsappInfo.textContent = error.message;
+      whatsappAuthorize.disabled = false;
+    }
+  });
+
   later.addEventListener("click", () => { localStorage.setItem(DECISION, "deferred"); overlay.remove(); });
   remove.addEventListener("click", async () => {
     remove.disabled = true;
@@ -72,7 +114,7 @@ function buildModal() {
       localStorage.removeItem(KEY);
       localStorage.setItem(DECISION, "deferred");
       feedback.textContent = "Suas preferências foram removidas e os envios para este cadastro foram interrompidos.";
-      location.disabled = true; push.disabled = true; submit.disabled = true; remove.textContent = "Preferências removidas";
+      location.disabled = true; push.disabled = true; whatsappAuthorize.disabled = true; remove.textContent = "Preferências removidas";
     } catch (error) { feedback.textContent = "Não foi possível remover agora. Tente novamente."; remove.disabled = false; }
   });
   location.addEventListener("click", () => {
@@ -83,10 +125,11 @@ function buildModal() {
       try {
         await post("/api/alerta-day/localizacao", { visitorId: visitorId(), consentimento: true, latitude: position.coords.latitude, longitude: position.coords.longitude, accuracy: position.coords.accuracy });
         localStorage.setItem(DECISION, "location-accepted");
-        feedback.textContent = "Localização autorizada. Agora escolha se deseja receber notificações no celular ou WhatsApp.";
+        await refreshWhatsAppPreference();
+        feedback.textContent = "Localização autorizada. Agora escolha se deseja receber notificações no celular.";
         location.hidden = true;
         push.hidden = false;
-        whatsappForm.hidden = false;
+        whatsappInfo.hidden = false;
         later.textContent = "Concluir";
       } catch (error) { feedback.textContent = error.message; location.disabled = false; }
     }, error => {
@@ -111,16 +154,6 @@ function buildModal() {
       feedback.textContent = "Notificações ativadas! Você poderá receber oportunidades da Day.";
       push.textContent = "Notificações ativadas";
     } catch (error) { feedback.textContent = error.message; push.disabled = false; }
-  });
-  whatsappForm.addEventListener("submit", async event => {
-    event.preventDefault();
-    if (!consent.checked) { feedback.textContent = "Marque a autorização para continuar."; return; }
-    submit.disabled = true;
-    try {
-      await post("/api/alerta-day/whatsapp", { visitorId: visitorId(), telefone: phone.value, consentimento: true });
-      feedback.textContent = "Autorização do WhatsApp registrada. Obrigado!";
-      submit.textContent = "WhatsApp autorizado";
-    } catch (error) { feedback.textContent = error.message; submit.disabled = false; }
   });
   return overlay;
 }

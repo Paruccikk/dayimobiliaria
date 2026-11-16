@@ -27,6 +27,16 @@ function showMessage(text) {
   if (feedback) feedback.textContent = text;
 }
 
+function alertaDayVisitorId() {
+  const key = "rdprime.alertaDay.visitor.v1";
+  let id = localStorage.getItem(key);
+  if (!id) {
+    id = crypto.randomUUID ? crypto.randomUUID() : "rd-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2) + "-" + Math.random().toString(36).slice(2);
+    localStorage.setItem(key, id);
+  }
+  return id;
+}
+
 form?.addEventListener("submit", async event => {
   event.preventDefault();
   if (submitting) return;
@@ -37,6 +47,7 @@ form?.addEventListener("submit", async event => {
   const email = document.querySelector("#email")?.value.trim() || "";
   const password = document.querySelector("#password")?.value || "";
   const confirmation = document.querySelector("#confirm-password")?.value || "";
+  const consentimentoWhatsApp = document.querySelector("#consentimento-whatsapp")?.checked === true;
 
   if (!nome || !telefone || !celular || !email) return showMessage("Preencha todos os campos.");
   if (password.length < 6) return showMessage("A senha precisa ter pelo menos 6 caracteres.");
@@ -67,7 +78,7 @@ form?.addEventListener("submit", async event => {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`
       },
-      body: JSON.stringify({ nome, telefone, celular })
+      body: JSON.stringify({ nome, telefone, celular, consentimentoWhatsApp, visitorId: alertaDayVisitorId() })
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(result.error || "Não foi possível salvar seu perfil.");
@@ -75,7 +86,9 @@ form?.addEventListener("submit", async event => {
     await signOut(auth);
     currentUser = null;
     form.reset();
-    showMessage("Cadastro concluído! Sua conta é de Cliente e você já pode navegar pelo site. Para acessar o painel profissional, o administrador precisa promover sua conta a Corretor.");
+    showMessage(result.whatsappAuthorized
+      ? "Cadastro concluído! Sua autorização de WhatsApp foi registrada. Sua conta é de Cliente e você já pode navegar pelo site."
+      : "Cadastro concluído! Sua conta é de Cliente e você já pode navegar pelo site. Para receber alertas pelo WhatsApp, você pode autorizar essa opção nas preferências quando estiver conectado à sua conta.");
   } catch (error) {
     console.error("Falha no cadastro:", error);
     showMessage(messages[error.code] || error.message || "Não foi possível concluir o cadastro.");

@@ -17,7 +17,21 @@ function money(v) { return v == null ? "Preço sob consulta" : new Intl.NumberFo
 function initMap() {
   if (!window.L || map) return;
   map = L.map("campaign-map").setView([-23.686, -46.623], 12);
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom:19, attribution:"© OpenStreetMap contributors" }).addTo(map);
+  const cartoTiles = L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+    subdomains: "abcd", maxZoom: 20,
+    attribution: "&copy; OpenStreetMap contributors &copy; CARTO"
+  }).addTo(map);
+  let fallbackLoaded = false;
+  cartoTiles.on("tileerror", () => {
+    if (fallbackLoaded) return;
+    fallbackLoaded = true;
+    if (map.hasLayer(cartoTiles)) map.removeLayer(cartoTiles);
+    L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}", {
+      maxZoom: 19,
+      attribution: "Tiles &copy; Esri — Sources: Esri, Maxar, Earthstar Geographics, and the GIS User Community"
+    }).addTo(map);
+    message("O mapa alternou para um provedor reserva. Se continuar sem carregar, verifique bloqueios de rede ou extensões do navegador.");
+  });
   map.on("click", e => setCenter(e.latlng.lat,e.latlng.lng));
 }
 function setCenter(lat,lng) {

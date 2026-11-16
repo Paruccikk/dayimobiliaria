@@ -10,7 +10,9 @@ O módulo está isolado na branch `feature/alerta-day`. Não faça merge nem dep
 4. Confirme que o servidor tem credenciais Firebase Admin com permissão para enviar mensagens.
 5. O arquivo `frontend/firebase-messaging-sw.js` usa a configuração pública do Firebase Web SDK. Ela identifica o projeto, não é uma chave privada.
 
-A autorização de localização e a autorização de notificações são independentes. O navegador só mostra o pedido de permissão de Push depois de uma ação do visitante. Em iPhone, o visitante precisa adicionar o site à Tela de Início para usar Web Push.
+A autorização de localização e a autorização de Push são independentes. O navegador só mostra o pedido de permissão de Push depois de uma ação do visitante. Em iPhone, o visitante precisa adicionar o site à Tela de Início para usar Web Push.
+
+A autorização do WhatsApp é coletada opcionalmente no cadastro público, por uma caixa desmarcada por padrão. O número celular já informado no cadastro é cifrado com `ALERTA_DAY_ENCRYPTION_KEY` e associado ao identificador anônimo do navegador. A caixa de autorização é independente do consentimento de localização e do Push. Usuários já cadastrados podem entrar na conta e autorizar o WhatsApp nas preferências do Alerta Day, usando o celular já salvo no perfil; não é solicitado o número novamente.
 
 ## URL pública
 
@@ -61,4 +63,5 @@ A localização expira em 90 dias e uma rotina periódica remove os registros ve
 - O público geográfico usa a localização mais recente compartilhada voluntariamente pelo navegador; não é rastreamento ao vivo.
 - O círculo é centrado nas coordenadas do imóvel. Se o imóvel ainda não tiver coordenadas, o administrador pode clicar no mapa para posicionar o centro da campanha.
 - O visitante sem localização autorizada ainda não entra em campanhas por raio.
+- O cadastro não ativa localização nem Push automaticamente. WhatsApp só é autorizado se a pessoa marcar voluntariamente a caixa específica; usuários existentes podem autorizar pela área logada.
 - A interface de campanha inicial trabalha com imóvel, raio e canais Push/WhatsApp; filtros por preferências de preço/tipo e desenho de polígonos ficam para uma etapa posterior.
