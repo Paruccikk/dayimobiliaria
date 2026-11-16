@@ -74,8 +74,12 @@
       <input id="confirm-password" name="confirm-password" type="password" autocomplete="new-password" minlength="6" placeholder="Digite a senha novamente" required>
 
       <div class="auth-consent-box">
-        <p style="margin:0 0 12px; font-size:13px; line-height:1.5; color:var(--text-soft, #a0aec0);">
-          As autorizações abaixo são opcionais e independentes. Você pode escolher uma, as duas ou nenhuma.
+        <label for="consentimento-privacidade" class="auth-consent-label">
+          <input id="consentimento-privacidade" type="checkbox" required>
+          <span>Li e concordo com as <b>Políticas de Privacidade</b>.</span>
+        </label>
+        <p style="margin:12px 0; font-size:13px; line-height:1.5; color:var(--text-soft, #a0aec0);">
+          As autorizações de alertas abaixo são opcionais e independentes. Você pode escolher uma, as duas ou nenhuma.
         </p>
         <label for="consentimento-whatsapp" class="auth-consent-label">
           <input id="consentimento-whatsapp" type="checkbox">
