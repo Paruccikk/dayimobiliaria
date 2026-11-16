@@ -823,15 +823,26 @@ if (typeof alertaCleanupTimer.unref === "function") alertaCleanupTimer.unref();
 setTimeout(alertaPruneExpiredVisitors, 60 * 1000).unref?.();
 
 app.get('/api/alerta-day/config', (_req, res) => res.json({ vapidKey: process.env.FIREBASE_VAPID_KEY || null }));
-app.get('/api/alerta-day/preferencias', async (req, res) => {
+app.get('/api/alerta-day/preferencias', requireFirebase, async (req, res) => {
   if (!db) return firebaseUnavailable(res);
   const key = alertaVisitorKey(req.query?.visitorId);
   if (!key) return res.status(400).json({ error: "Identificador inválido." });
   try {
     const snapshot = await db.ref("alertaDay/visitantes/" + key).get();
     const visitor = snapshot.val() || {};
+    let whatsappConsent = false;
+    if (visitor.whatsappConsent === true && visitor.telefoneWhatsAppEnc) {
+      if (visitor.whatsappOwnerUid) {
+        whatsappConsent = visitor.whatsappOwnerUid === req.user.uid;
+      } else {
+        // Compatibilidade com consentimentos antigos: reconhece somente o número da conta autenticada.
+        try {
+          whatsappConsent = alertaPhone(alertaDecryptPhone(visitor.telefoneWhatsAppEnc)) === alertaPhone(req.profile?.celular);
+        } catch (_) {}
+      }
+    }
     return res.json({
-      whatsappConsent: visitor.whatsappConsent === true && Boolean(visitor.telefoneWhatsAppEnc),
+      whatsappConsent,
       pushConsent: visitor.pushConsent === true && Boolean(visitor.fcmToken),
       locationConsent: visitor.consentimentoLocalizacao === true
     });
