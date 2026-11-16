@@ -395,7 +395,7 @@ function renderUsers(users) {
         <td><select class="user-role" aria-label="Perfil do usuário">${roleOptions}</select></td>
         <td><select class="user-manager" aria-label="Gerente responsável" ${user.papel !== "corretor" ? "disabled" : ""}>${managerOptions}</select></td>
         <td>${statusPill(isActive ? "ativo" : (user.status || "inativo"))}</td>
-        <td><span class="${waClass}">${waLabel}</span>${user.whatsappConsentEm ? `<div class="dash-subtitle">${escapeHtml(formatDate(user.whatsappConsentEm))}</div>` : ""}</td>
+        <td><span class="${waClass}">${waLabel}</span>${user.whatsappConsentEm ? `<div class="dash-subtitle">${escapeHtml(formatDate(user.whatsappConsentEm))}</div>` : ""}<div><button type="button" class="small-btn toggle-wa" data-active="${user.whatsappAtivo === false ? "false" : "true"}" ${waStatus !== "permitido" ? "disabled" : ""}>${user.whatsappAtivo === false ? "Ativar envios" : "Desativar envios"}</button></div></td>
         <td>
           <button type="button" class="small-btn save-role">Salvar perfil</button>
           <button type="button" class="small-btn light toggle-user"
@@ -406,6 +406,27 @@ function renderUsers(users) {
       </tr>
     `;
   }).join("");
+
+  tbody.querySelectorAll(".toggle-wa").forEach(button => {
+    button.addEventListener("click", async () => {
+      const row = button.closest("tr");
+      const uid = row.dataset.userUid;
+      const whatsappAtivo = button.dataset.active !== "true";
+      button.disabled = true;
+      try {
+        await api(`/api/admin/usuarios/${encodeURIComponent(uid)}`, {
+          method: "PATCH",
+          body: JSON.stringify({ whatsappAtivo })
+        });
+        setMessage(dashboardFeedback, whatsappAtivo ? "Envios WhatsApp ativados." : "Envios WhatsApp desativados.");
+        await carregarDashboard();
+      } catch (error) {
+        setMessage(dashboardFeedback, error.message);
+      } finally {
+        button.disabled = false;
+      }
+    });
+  });
 
   tbody.querySelectorAll(".save-role").forEach(button => {
     button.addEventListener("click", async () => {
