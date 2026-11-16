@@ -440,6 +440,12 @@ app.post("/api/auth/registrar", async (req, res) => {
       solicitacaoPapel,
       ativo: true,
       status: "ativo",
+      consentimentos: {
+        whatsapp: {
+          status: consentimentoWhatsApp ? "permitido" : "pendente",
+          ...(consentimentoWhatsApp ? { atualizadoEm: new Date().toISOString(), origem: "cadastro", versao: "2026-11-16" } : {})
+        }
+      },
       criadoEm: new Date().toISOString(),
     };
 
@@ -449,6 +455,7 @@ app.post("/api/auth/registrar", async (req, res) => {
       if (consentimentoWhatsApp) {
         updates["alertaDay/visitantes/" + visitorKey + "/telefoneWhatsAppEnc"] = alertaEncryptPhone(whatsappPhone);
         updates["alertaDay/visitantes/" + visitorKey + "/whatsappConsent"] = true;
+        updates["alertaDay/visitantes/" + visitorKey + "/whatsappOwnerUid"] = decoded.uid;
         updates["alertaDay/visitantes/" + visitorKey + "/whatsappConsentEm"] = now;
         updates["alertaDay/visitantes/" + visitorKey + "/consentimentoWhatsAppVersao"] = "2026-11-16";
         updates["alertaDay/visitantes/" + visitorKey + "/whatsappConsentOrigem"] = "cadastro";
@@ -841,6 +848,7 @@ app.get('/api/alerta-day/preferencias', requireFirebase, async (req, res) => {
       Boolean(visitor.telefoneWhatsAppEnc);
     return res.json({
       whatsappConsent,
+      whatsappConsentStatus: ["permitido", "negado"].includes(accountConsent) ? accountConsent : "pendente",
       pushConsent: visitor.pushConsent === true && Boolean(visitor.fcmToken),
       locationConsent: visitor.consentimentoLocalizacao === true
     });
@@ -931,11 +939,13 @@ app.delete('/api/alerta-day/preferencias', async (req, res) => {
 });
 app.get('/api/admin/alerta-day/dados', requireFirebase, allowRoles('administrador'), async (_req, res) => {
   try {
-    const [propertiesSnap, visitorsSnap, campaignsSnap] = await Promise.all([db.ref('imoveis').get(), db.ref('alertaDay/visitantes').get(), db.ref('alertaDay/campanhas').get()]);
+    const [propertiesSnap, visitorsSnap, campaignsSnap, usersSnap] = await Promise.all([db.ref('imoveis').get(), db.ref('alertaDay/visitantes').get(), db.ref('alertaDay/campanhas').get(), db.ref('usuarios').get()]);
     const imoveis = Object.entries(propertiesSnap.val() || {}).map(([id,item]) => ({id,...item})).filter(p => p.status === 'publicado' && p.publicadoNoSite === true);
     const visitors = Object.values(visitorsSnap.val() || {}).filter(v => v.consentimentoLocalizacao === true && (!v.expiraEm || Date.parse(v.expiraEm) > Date.now()));
-    const campanhas = Object.entries(campaignsSnap.val() || {}).map(([id,item]) => ({id,...item})).sort((a,b) => String(b.criadoEm||'').localeCompare(String(a.criadoEm||''))).slice(0,30);
-    return res.json({ imoveis, campanhas, resumo: { localizacao: visitors.length, push: visitors.filter(v => v.pushConsent === true && v.fcmToken).length, whatsapp: visitors.filter(v => v.whatsappConsent === true && v.telefoneWhatsAppEnc).length, campanhas: Object.keys(campaignsSnap.val()||{}).length }, whatsappStatus: whatsappClient.getStatus() });
+    const campaigns = Object.entries(campaignsSnap.val() || {}).map(([id,item]) => ({id,...item})).sort((a,b) => String(b.criadoEm||'').localeCompare(String(a.criadoEm||''))).slice(0,30);
+    const users = usersSnap.val() || {};
+    const whatsappEligible = visitors.filter(v => v.whatsappConsent === true && v.telefoneWhatsAppEnc && v.whatsappOwnerUid && users[v.whatsappOwnerUid]?.consentimentos?.whatsapp?.status === "permitido");
+    return res.json({ imoveis, campanhas: campaigns, resumo: { localizacao: visitors.length, push: visitors.filter(v => v.pushConsent === true && v.fcmToken).length, whatsapp: whatsappEligible.length, campanhas: Object.keys(campaignsSnap.val()||{}).length }, whatsappStatus: whatsappClient.getStatus() });
   } catch (error) { return sendServerError(res, 'Não foi possível carregar o Alerta Day.', error); }
 });
 app.get('/api/admin/whatsapp/status', requireFirebase, allowRoles('administrador'), async (_req, res) => {
@@ -1005,9 +1015,12 @@ app.get('/api/admin/alerta-day/alcance', requireFirebase, allowRoles('administra
   const channels=(req.query.canais===undefined?'push,whatsapp':String(req.query.canais)).split(',').filter(c=>['push','whatsapp'].includes(c));
   if (!Number.isFinite(lat)||lat < -90||lat > 90||!Number.isFinite(lng)||lng < -180||lng > 180||!Number.isFinite(radius)||radius < 100||radius > 30000) return res.status(400).json({error:'Centro ou raio inválido.'});
   try {
-    const snap=await db.ref('alertaDay/visitantes').get();
-    const targets=Object.values(snap.val()||{}).filter(v => v.consentimentoLocalizacao===true && (!v.expiraEm||Date.parse(v.expiraEm)>Date.now()) && Number.isFinite(Number(v.latitude)) && Number.isFinite(Number(v.longitude)) && alertaDistance(lat,lng,Number(v.latitude),Number(v.longitude))<=radius);
-    return res.json({totalElegiveis:targets.filter(v => (channels.includes('push')&&v.pushConsent===true&&v.fcmToken)||(channels.includes('whatsapp')&&v.whatsappConsent===true&&v.telefoneWhatsAppEnc)).length, totalLocalizacao:targets.length});
+    const [visitorsSnap, usersSnap]=await Promise.all([db.ref('alertaDay/visitantes').get(),db.ref('usuarios').get()]);
+    const users=usersSnap.val()||{};
+    const targets=Object.values(visitorsSnap.val()||{}).filter(v => v.consentimentoLocalizacao===true && (!v.expiraEm||Date.parse(v.expiraEm)>Date.now()) && Number.isFinite(Number(v.latitude)) && Number.isFinite(Number(v.longitude)) && alertaDistance(lat,lng,Number(v.latitude),Number(v.longitude))<=radius);
+    const whatsappTargets=targets.filter(v=>channels.includes('whatsapp')&&v.whatsappConsent===true&&v.telefoneWhatsAppEnc&&v.whatsappOwnerUid&&users[v.whatsappOwnerUid]?.consentimentos?.whatsapp?.status==="permitido");
+    const pushTargets=targets.filter(v=>channels.includes('push')&&v.pushConsent===true&&v.fcmToken);
+    return res.json({totalElegiveis:new Set([...whatsappTargets.map(v=>v.whatsappOwnerUid),...pushTargets.map(v=>v.fcmToken)]).size, totalLocalizacao:targets.length, whatsappElegiveis:whatsappTargets.length});
   } catch(error) { return sendServerError(res,'Não foi possível calcular o público.',error); }
 });
 async function alertaSendWhatsApp(phone,title,message,link) {
