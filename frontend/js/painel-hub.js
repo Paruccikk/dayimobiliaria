@@ -109,7 +109,12 @@ async function loadWhatsAppConsent(user) {
   button.disabled = true;
 
   const note = document.createElement("small");
-  note.textContent = "Nenhuma autorização será ativada sem marcar a caixa e confirmar no botão.";
+  note.textContent = "A autorização fica vinculada à sua conta e pode ser revogada a qualquer momento.";
+  const revokeButton = document.createElement("button");
+  revokeButton.type = "button";
+  revokeButton.className = "button button-outline";
+  revokeButton.textContent = "Revogar autorização";
+  revokeButton.hidden = true;
 
   checkbox.addEventListener("change", () => {
     button.disabled = !checkbox.checked;
@@ -125,8 +130,9 @@ async function loadWhatsAppConsent(user) {
         method: "POST",
         body: JSON.stringify({ visitorId: visitorId(), consentimento: true })
       });
-      status.textContent = "Autorização registrada. Este cadastro agora pode receber alertas pelo WhatsApp.";
+      status.textContent = "Status: PERMITIDO. Sua autorização está vinculada à sua conta.";
       form.hidden = true;
+      revokeButton.hidden = false;
     } catch (error) {
       status.textContent = error.message;
       checkbox.disabled = false;
@@ -134,17 +140,43 @@ async function loadWhatsAppConsent(user) {
     }
   });
 
+  revokeButton.addEventListener("click", async () => {
+    revokeButton.disabled = true;
+    status.textContent = "Registrando revogação…";
+    try {
+      await api(user, "/api/alerta-day/whatsapp/cadastro", {
+        method: "POST",
+        body: JSON.stringify({ visitorId: visitorId(), consentimento: false })
+      });
+      status.textContent = "Status: NEGADO. Você não receberá alertas pelo WhatsApp.";
+      revokeButton.hidden = true;
+      form.hidden = false;
+      checkbox.checked = false;
+      checkbox.disabled = false;
+      button.disabled = true;
+    } catch (error) {
+      status.textContent = error.message;
+    } finally {
+      revokeButton.disabled = false;
+    }
+  });
+
   form.append(label, button, note);
-  panel.append(heading, description, status, form);
+  panel.append(heading, description, status, form, revokeButton);
   hubGrid.insertAdjacentElement("beforebegin", panel);
 
   try {
     const data = await api(user, `/api/alerta-day/preferencias?visitorId=${encodeURIComponent(visitorId())}`);
     if (data.whatsappConsent === true) {
-      status.textContent = "WhatsApp já autorizado para este cadastro. Não é necessário repetir a confirmação.";
+      status.textContent = "Status: PERMITIDO. Sua conta está autorizada a receber alertas pelo WhatsApp.";
       form.hidden = true;
+      revokeButton.hidden = false;
+    } else if (data.whatsappConsentStatus === "negado") {
+      status.textContent = "Status: NEGADO. Você pode alterar sua escolha abaixo.";
+      revokeButton.hidden = true;
     } else {
-      status.textContent = "WhatsApp ainda não autorizado. Se quiser receber os alertas, confirme abaixo.";
+      status.textContent = "Status: PENDENTE. Se quiser receber alertas, confirme abaixo.";
+      revokeButton.hidden = true;
     }
   } catch (error) {
     status.textContent = `Não foi possível consultar a preferência: ${error.message}`;
