@@ -642,17 +642,40 @@ app.get(
   allowRoles("administrador"),
   async (_req, res) => {
     try {
-      const snapshot = await db.ref("usuarios").get();
+      const [snapshot, visitorsSnapshot] = await Promise.all([
+        db.ref("usuarios").get(),
+        db.ref("alertaDay/visitantes").get()
+      ]);
       const users = snapshot.val() || {};
-
-      const items = Object.entries(users).map(([uid, user]) => ({
-        uid,
-        ...user,
-        whatsappConsentStatus: ["permitido", "negado"].includes(user.consentimentos?.whatsapp?.status)
-          ? user.consentimentos.whatsapp.status
-          : "pendente",
-        whatsappConsentEm: user.consentimentos?.whatsapp?.atualizadoEm || null
-      }));
+      const visitors = Object.values(visitorsSnapshot.val() || {});
+      const legacyApprovedUids = new Set(visitors
+        .filter(v => v.whatsappConsent === true && v.telefoneWhatsAppEnc && isValidUid(v.whatsappOwnerUid))
+        .map(v => v.whatsappOwnerUid));
+      const migrationUpdates = {};
+      for (const uid of legacyApprovedUids) {
+        if (users[uid] && !["permitido", "negado"].includes(users[uid].consentimentos?.whatsapp?.status)) {
+          const evidence = visitors.find(v => v.whatsappOwnerUid === uid && v.whatsappConsent === true && v.telefoneWhatsAppEnc);
+          migrationUpdates["usuarios/" + uid + "/consentimentos/whatsapp"] = {
+            status: "permitido",
+            atualizadoEm: evidence.whatsappConsentEm || new Date().toISOString(),
+            origem: evidence.whatsappConsentOrigem || "migracao-consentimento-existente",
+            versao: evidence.consentimentoWhatsAppVersao || "legado"
+          };
+          migrationUpdates["usuarios/" + uid + "/whatsappAtivo"] = users[uid].whatsappAtivo !== false;
+        }
+      }
+      if (Object.keys(migrationUpdates).length) await db.ref().update(migrationUpdates);
+      const items = Object.entries(users).map(([uid, user]) => {
+        const migrated = legacyApprovedUids.has(uid) && !["permitido", "negado"].includes(user.consentimentos?.whatsapp?.status);
+        const status = migrated ? "permitido" : (["permitido", "negado"].includes(user.consentimentos?.whatsapp?.status) ? user.consentimentos.whatsapp.status : "pendente");
+        return {
+          uid,
+          ...user,
+          whatsappConsentStatus: status,
+          whatsappAtivo: status === "permitido" && user.whatsappAtivo !== false,
+          whatsappConsentEm: user.consentimentos?.whatsapp?.atualizadoEm || null
+        };
+      });
 
       return res.json({ items });
     } catch (error) {
@@ -698,6 +721,14 @@ app.patch(
       } else {
         updates.gerenteUid = null;
       }
+    }
+
+    if (Object.hasOwn(body, "whatsappAtivo")) {
+      if (typeof body.whatsappAtivo !== "boolean") return res.status(400).json({ error: "whatsappAtivo deve ser verdadeiro ou falso." });
+      const consentSnap = await db.ref("usuarios/" + uid + "/consentimentos/whatsapp/status").get();
+      if (consentSnap.val() !== "permitido") return res.status(409).json({ error: "O usuário ainda não possui consentimento WhatsApp confirmado. Ele precisa autorizar pela própria conta." });
+      updates.whatsappAtivo = body.whatsappAtivo;
+      updates.whatsappAtivoAtualizadoEm = new Date().toISOString();
     }
 
     if (Object.hasOwn(body, "ativo")) {
@@ -951,7 +982,7 @@ app.get('/api/admin/alerta-day/dados', requireFirebase, allowRoles('administrado
     const visitors = Object.values(visitorsSnap.val() || {}).filter(v => v.consentimentoLocalizacao === true && (!v.expiraEm || Date.parse(v.expiraEm) > Date.now()));
     const campaigns = Object.entries(campaignsSnap.val() || {}).map(([id,item]) => ({id,...item})).sort((a,b) => String(b.criadoEm||'').localeCompare(String(a.criadoEm||''))).slice(0,30);
     const users = usersSnap.val() || {};
-    const whatsappEligible = visitors.filter(v => v.whatsappConsent === true && v.telefoneWhatsAppEnc && v.whatsappOwnerUid && users[v.whatsappOwnerUid]?.consentimentos?.whatsapp?.status === "permitido");
+    const whatsappEligible = visitors.filter(v => v.whatsappConsent === true && v.telefoneWhatsAppEnc && v.whatsappOwnerUid && users[v.whatsappOwnerUid]?.consentimentos?.whatsapp?.status === "permitido" && users[v.whatsappOwnerUid]?.whatsappAtivo !== false);
     return res.json({ imoveis, campanhas: campaigns, resumo: { localizacao: visitors.length, push: visitors.filter(v => v.pushConsent === true && v.fcmToken).length, whatsapp: whatsappEligible.length, campanhas: Object.keys(campaignsSnap.val()||{}).length }, whatsappStatus: whatsappClient.getStatus() });
   } catch (error) { return sendServerError(res, 'Não foi possível carregar o Alerta Day.', error); }
 });
@@ -1025,7 +1056,7 @@ app.get('/api/admin/alerta-day/alcance', requireFirebase, allowRoles('administra
     const [visitorsSnap, usersSnap]=await Promise.all([db.ref('alertaDay/visitantes').get(),db.ref('usuarios').get()]);
     const users=usersSnap.val()||{};
     const targets=Object.values(visitorsSnap.val()||{}).filter(v => v.consentimentoLocalizacao===true && (!v.expiraEm||Date.parse(v.expiraEm)>Date.now()) && Number.isFinite(Number(v.latitude)) && Number.isFinite(Number(v.longitude)) && alertaDistance(lat,lng,Number(v.latitude),Number(v.longitude))<=radius);
-    const whatsappTargets=targets.filter(v=>channels.includes('whatsapp')&&v.whatsappConsent===true&&v.telefoneWhatsAppEnc&&v.whatsappOwnerUid&&users[v.whatsappOwnerUid]?.consentimentos?.whatsapp?.status==="permitido");
+    const whatsappTargets=targets.filter(v=>channels.includes('whatsapp')&&v.whatsappConsent===true&&v.telefoneWhatsAppEnc&&v.whatsappOwnerUid&&users[v.whatsappOwnerUid]?.consentimentos?.whatsapp?.status==="permitido"&&users[v.whatsappOwnerUid]?.whatsappAtivo!==false);
     const pushTargets=targets.filter(v=>channels.includes('push')&&v.pushConsent===true&&v.fcmToken);
     return res.json({totalElegiveis:new Set([...whatsappTargets.map(v=>v.whatsappOwnerUid),...pushTargets.map(v=>v.fcmToken)]).size, totalLocalizacao:targets.length, whatsappElegiveis:whatsappTargets.length});
   } catch(error) { return sendServerError(res,'Não foi possível calcular o público.',error); }
@@ -1063,7 +1094,9 @@ app.post('/api/admin/alerta-day/disparar', requireFirebase, allowRoles('administ
     const waCandidates=channels.includes('whatsapp')?visitors.filter(([,v])=>v.whatsappConsent===true&&v.telefoneWhatsAppEnc&&isValidUid(v.whatsappOwnerUid)):[];
     const waProfiles=await Promise.all([...new Set(waCandidates.map(([,v])=>v.whatsappOwnerUid))].map(async uid=>[uid,(await db.ref("usuarios/"+uid+"/consentimentos/whatsapp/status").get()).val()]));
     const permittedUids=new Set(waProfiles.filter(([,status])=>status==="permitido").map(([uid])=>uid));
-    const waTargets=waCandidates.filter(([,v])=>permittedUids.has(v.whatsappOwnerUid));
+    const waActiveProfiles=await Promise.all([...permittedUids].map(async uid=>[uid,(await db.ref("usuarios/"+uid+"/whatsappAtivo").get()).val()]));
+    const activeUids=new Set(waActiveProfiles.filter(([,active])=>active!==false).map(([uid])=>uid));
+    const waTargets=waCandidates.filter(([,v])=>activeUids.has(v.whatsappOwnerUid));
     const pathLink=cleanString(b.link,500)||('/detalhes.html?id='+encodeURIComponent(propertyId));
     const firstPhoto=Array.isArray(property.fotos)?property.fotos[0]:null;
     const imageUrl=firstPhoto?(/^https:\/\//i.test(firstPhoto)?firstPhoto:baseUrl+'/'+String(firstPhoto).replace(/^\//,'')):null;
