@@ -155,7 +155,135 @@ async function loadData() {
   $("#stat-campaigns").textContent = Number(data.resumo?.campanhas || 0).toLocaleString("pt-BR");
   $("#property").innerHTML = '<option value="">Selecione um imóvel publicado</option>' + properties.map(p => `<option value="${p.id}">${escapeHtml(p.titulo)} · ${escapeHtml(p.cidade||"")} · ${money(p.preco)}</option>`).join("");
   $("#campaign-history").innerHTML = (data.campanhas || []).slice(0,6).map(c => `<article><b>${escapeHtml(c.titulo)}</b><br><small>${escapeHtml(c.status||"registrada")} · ${escapeHtml(c.criadoEm||"")}</small></article>`).join("") || "Nenhuma campanha registrada.";
+  if (data.whatsappStatus) {
+    updateWhatsAppUI(data.whatsappStatus);
+  } else {
+    checkWhatsAppStatus();
+  }
 }
+
+let waPollTimer = null;
+
+function updateWhatsAppUI(status) {
+  const badge = $("#wa-status-badge");
+  const phoneLabel = $("#wa-phone-label");
+  const btnConnect = $("#btn-wa-connect");
+  const btnDisconnect = $("#btn-wa-disconnect");
+  const qrImg = $("#wa-qr-img");
+  const qrLoading = $("#wa-qr-loading");
+  const qrStatus = $("#wa-qr-status");
+
+  if (!badge || !status) return;
+
+  if (status.status === "connected") {
+    badge.textContent = "🟢 WhatsApp Conectado";
+    badge.style.background = "#dcfce7";
+    badge.style.color = "#15803d";
+    if (phoneLabel) phoneLabel.textContent = status.connectedPhone ? `(${status.connectedPhone})` : "";
+    if (btnConnect) btnConnect.style.display = "none";
+    if (btnDisconnect) btnDisconnect.style.display = "inline-block";
+
+    if (qrStatus) qrStatus.textContent = "Conectado com sucesso!";
+    setTimeout(() => {
+      $("#whatsapp-qr-dialog")?.close();
+      stopWaPolling();
+    }, 1200);
+  } else if (status.status === "qr_ready" && status.qrCode) {
+    badge.textContent = "🟡 Aguardando leitura do QR";
+    badge.style.background = "#fef9c3";
+    badge.style.color = "#854d0e";
+    if (phoneLabel) phoneLabel.textContent = "";
+    if (btnConnect) btnConnect.style.display = "inline-block";
+    if (btnDisconnect) btnDisconnect.style.display = "none";
+
+    if (qrImg) {
+      qrImg.src = status.qrCode;
+      qrImg.style.display = "block";
+    }
+    if (qrLoading) qrLoading.style.display = "none";
+    if (qrStatus) qrStatus.textContent = "Aponte a câmera do WhatsApp para conectar...";
+  } else if (status.status === "connecting") {
+    badge.textContent = "🟡 Conectando...";
+    badge.style.background = "#fef9c3";
+    badge.style.color = "#854d0e";
+    if (qrLoading) {
+      qrLoading.textContent = "Gerando QR Code...";
+      qrLoading.style.display = "block";
+    }
+    if (qrImg) qrImg.style.display = "none";
+  } else {
+    badge.textContent = "🔴 WhatsApp Desconectado";
+    badge.style.background = "#fee2e2";
+    badge.style.color = "#991b1b";
+    if (phoneLabel) phoneLabel.textContent = "";
+    if (btnConnect) btnConnect.style.display = "inline-block";
+    if (btnDisconnect) btnDisconnect.style.display = "none";
+  }
+}
+
+async function checkWhatsAppStatus() {
+  try {
+    const data = await api("/api/admin/whatsapp/status");
+    updateWhatsAppUI(data);
+    return data;
+  } catch (err) {
+    return { status: "disconnected" };
+  }
+}
+
+function startWaPolling() {
+  stopWaPolling();
+  waPollTimer = setInterval(async () => {
+    const s = await checkWhatsAppStatus();
+    if (s.status === "connected") {
+      stopWaPolling();
+    }
+  }, 2500);
+}
+
+function stopWaPolling() {
+  if (waPollTimer) {
+    clearInterval(waPollTimer);
+    waPollTimer = null;
+  }
+}
+
+$("#btn-wa-connect")?.addEventListener("click", async () => {
+  const dialog = $("#whatsapp-qr-dialog");
+  dialog?.showModal();
+  const qrLoading = $("#wa-qr-loading");
+  const qrImg = $("#wa-qr-img");
+  if (qrLoading) { qrLoading.textContent = "Iniciando conexão e gerando QR Code..."; qrLoading.style.display = "block"; }
+  if (qrImg) qrImg.style.display = "none";
+
+  try {
+    const data = await api("/api/admin/whatsapp/connect", { method: "POST" });
+    updateWhatsAppUI(data);
+    startWaPolling();
+  } catch (err) {
+    message("Falha ao iniciar WhatsApp: " + err.message);
+  }
+});
+
+$("#btn-wa-cancel")?.addEventListener("click", () => {
+  $("#whatsapp-qr-dialog")?.close();
+  stopWaPolling();
+});
+
+$("#whatsapp-qr-dialog")?.addEventListener("close", () => {
+  stopWaPolling();
+});
+
+$("#btn-wa-disconnect")?.addEventListener("click", async () => {
+  if (!confirm("Deseja desconectar o WhatsApp do painel?")) return;
+  try {
+    const data = await api("/api/admin/whatsapp/disconnect", { method: "POST" });
+    updateWhatsAppUI(data);
+    message("WhatsApp desconectado.");
+  } catch (err) {
+    message(err.message);
+  }
+});
 
 function escapeHtml(v) { return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 function selectedProperty() { return properties.find(p => p.id === $("#property").value); }
