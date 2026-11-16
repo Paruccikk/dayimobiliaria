@@ -869,6 +869,13 @@ app.post('/api/alerta-day/whatsapp/cadastro', requireFirebase, async (req, res) 
     if (consentimento && existing.whatsappOwnerUid && existing.whatsappOwnerUid !== req.user.uid) {
       return res.status(409).json({ error: "Este navegador já está vinculado a outra conta do Alerta Day. Entre pelo navegador em que seu cadastro foi criado ou fale com o suporte." });
     }
+    if (consentimento && existing.whatsappConsent === true && existing.telefoneWhatsAppEnc && !existing.whatsappOwnerUid) {
+      let legacyPhone = "";
+      try { legacyPhone = alertaPhone(alertaDecryptPhone(existing.telefoneWhatsAppEnc)); } catch (_) {}
+      if (!legacyPhone || legacyPhone !== phone) {
+        return res.status(409).json({ error: "Este cadastro antigo já possui outro número autorizado. Não alteramos o consentimento existente." });
+      }
+    }
     const consentRecord = {
       status: consentimento ? "permitido" : "negado",
       atualizadoEm: now,
