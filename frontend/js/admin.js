@@ -347,9 +347,20 @@ function renderProperties(properties) {
 
 function renderUsers(users) {
   const tbody = $("#usuarios-lista");
+  const consentCounts = users.reduce((counts, user) => {
+    const status = ["permitido", "negado"].includes(user.whatsappConsentStatus) ? user.whatsappConsentStatus : "pendente";
+    counts[status]++;
+    return counts;
+  }, { permitido: 0, negado: 0, pendente: 0 });
+  setNumber("#stat-wa-permitidos", consentCounts.permitido);
+  setNumber("#stat-wa-negados", consentCounts.negado);
+  setNumber("#stat-wa-pendentes", consentCounts.pendente);
 
   if (!users.length) {
-    tbody.innerHTML = '<tr><td colspan="7">Nenhum usuário cadastrado.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8">Nenhum usuário cadastrado.</td></tr>';
+    setNumber("#stat-wa-permitidos", 0);
+    setNumber("#stat-wa-negados", 0);
+    setNumber("#stat-wa-pendentes", 0);
     return;
   }
 
@@ -369,6 +380,9 @@ function renderUsers(users) {
     const pedido = user.solicitacaoPapel === "corretor"
       ? "Solicitou corretor"
       : "Cliente";
+    const waStatus = ["permitido", "negado"].includes(user.whatsappConsentStatus) ? user.whatsappConsentStatus : "pendente";
+    const waLabel = waStatus === "permitido" ? "Permitido" : waStatus === "negado" ? "Negado" : "Pendente";
+    const waClass = waStatus === "permitido" ? "pill pill-green" : waStatus === "negado" ? "pill" : "pill pill-gold";
 
     return `
       <tr data-user-uid="${escapeHtml(user.uid)}">
@@ -381,6 +395,7 @@ function renderUsers(users) {
         <td><select class="user-role" aria-label="Perfil do usuário">${roleOptions}</select></td>
         <td><select class="user-manager" aria-label="Gerente responsável" ${user.papel !== "corretor" ? "disabled" : ""}>${managerOptions}</select></td>
         <td>${statusPill(isActive ? "ativo" : (user.status || "inativo"))}</td>
+        <td><span class="${waClass}">${waLabel}</span>${user.whatsappConsentEm ? `<div class="dash-subtitle">${escapeHtml(formatDate(user.whatsappConsentEm))}</div>` : ""}</td>
         <td>
           <button type="button" class="small-btn save-role">Salvar perfil</button>
           <button type="button" class="small-btn light toggle-user"
