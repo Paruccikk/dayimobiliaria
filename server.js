@@ -641,6 +641,10 @@ app.get(
       const items = Object.entries(users).map(([uid, user]) => ({
         uid,
         ...user,
+        whatsappConsentStatus: ["permitido", "negado"].includes(user.consentimentos?.whatsapp?.status)
+          ? user.consentimentos.whatsapp.status
+          : "pendente",
+        whatsappConsentEm: user.consentimentos?.whatsapp?.atualizadoEm || null
       }));
 
       return res.json({ items });
@@ -830,17 +834,11 @@ app.get('/api/alerta-day/preferencias', requireFirebase, async (req, res) => {
   try {
     const snapshot = await db.ref("alertaDay/visitantes/" + key).get();
     const visitor = snapshot.val() || {};
-    let whatsappConsent = false;
-    if (visitor.whatsappConsent === true && visitor.telefoneWhatsAppEnc) {
-      if (visitor.whatsappOwnerUid) {
-        whatsappConsent = visitor.whatsappOwnerUid === req.user.uid;
-      } else {
-        // Compatibilidade com consentimentos antigos: reconhece somente o número da conta autenticada.
-        try {
-          whatsappConsent = alertaPhone(alertaDecryptPhone(visitor.telefoneWhatsAppEnc)) === alertaPhone(req.profile?.celular);
-        } catch (_) {}
-      }
-    }
+    const accountConsent = req.profile?.consentimentos?.whatsapp?.status;
+    let whatsappConsent = accountConsent === "permitido" &&
+      visitor.whatsappOwnerUid === req.user.uid &&
+      visitor.whatsappConsent === true &&
+      Boolean(visitor.telefoneWhatsAppEnc);
     return res.json({
       whatsappConsent,
       pushConsent: visitor.pushConsent === true && Boolean(visitor.fcmToken),
@@ -851,39 +849,49 @@ app.get('/api/alerta-day/preferencias', requireFirebase, async (req, res) => {
 app.post('/api/alerta-day/whatsapp/cadastro', requireFirebase, async (req, res) => {
   if (!db) return firebaseUnavailable(res);
   const key = alertaVisitorKey(req.body?.visitorId);
+  const consentimento = req.body?.consentimento;
   const phone = alertaPhone(req.profile?.celular);
-  if (!key || req.body?.consentimento !== true) return res.status(400).json({ error: "Confirme a autorização para continuar." });
-  if (!phone) return res.status(400).json({ error: "Seu cadastro não possui um celular válido. Atualize seus dados antes de autorizar." });
-  if (!alertaConfiguredEncryptionKey()) return res.status(503).json({ error: "Canal WhatsApp temporariamente indisponível. A chave de criptografia precisa ter 32 bytes em Base64 ou 64 caracteres hexadecimais." });
+  if (!key || typeof consentimento !== "boolean") return res.status(400).json({ error: "Escolha permitir ou negar o WhatsApp." });
+  if (consentimento && !phone) return res.status(400).json({ error: "Seu cadastro não possui um celular válido. Atualize seus dados antes de autorizar." });
+  if (consentimento && !alertaConfiguredEncryptionKey()) return res.status(503).json({ error: "Canal WhatsApp temporariamente indisponível. A chave de criptografia precisa ter 32 bytes em Base64 ou 64 caracteres hexadecimais." });
   try {
-    const visitorRef = db.ref("alertaDay/visitantes/" + key);
-    const existingSnapshot = await visitorRef.get();
-    const existing = existingSnapshot.val() || {};
-
-    // Impede que duas contas diferentes assumam o mesmo identificador de navegador.
-    if (existing.whatsappOwnerUid && existing.whatsappOwnerUid !== req.user.uid) {
-      return res.status(409).json({ error: "Este navegador já está vinculado a outra conta do Alerta Day. Use o navegador em que seu cadastro foi criado ou solicite ajuda ao suporte." });
-    }
-
-    // Se já havia um telefone autorizado sem vínculo de conta, só permite associá-lo
-    // quando o número criptografado corresponde ao telefone da conta autenticada.
-    if (existing.whatsappConsent === true && existing.telefoneWhatsAppEnc) {
-      let existingPhone = "";
-      try { existingPhone = alertaPhone(alertaDecryptPhone(existing.telefoneWhatsAppEnc)); } catch (_) {}
-      if (!existingPhone || existingPhone !== phone) {
-        return res.status(409).json({ error: "Este identificador já possui outro contato autorizado. Não alteramos o cadastro existente." });
-      }
-    }
-
     const now = new Date().toISOString();
-    await visitorRef.update({
-      telefoneWhatsAppEnc: alertaEncryptPhone(phone), whatsappConsent: true,
-      whatsappOwnerUid: req.user.uid,
-      whatsappConsentEm: now, consentimentoWhatsAppVersao: "2026-11-16",
-      whatsappConsentOrigem: "area-logada", atualizadoEm: now
-    });
-    return res.json({ ok: true, whatsappConsent: true });
-  } catch (error) { return sendServerError(res, "Não foi possível salvar sua autorização.", error); }
+    const visitorRef = db.ref("alertaDay/visitantes/" + key);
+    const existing = (await visitorRef.get()).val() || {};
+    if (consentimento && existing.whatsappOwnerUid && existing.whatsappOwnerUid !== req.user.uid) {
+      return res.status(409).json({ error: "Este navegador já está vinculado a outra conta do Alerta Day. Entre pelo navegador em que seu cadastro foi criado ou fale com o suporte." });
+    }
+    const consentRecord = {
+      status: consentimento ? "permitido" : "negado",
+      atualizadoEm: now,
+      origem: "area-logada",
+      versao: "2026-11-16"
+    };
+    await db.ref("usuarios/" + req.user.uid + "/consentimentos/whatsapp").set(consentRecord);
+    if (consentimento) {
+      await visitorRef.update({
+        telefoneWhatsAppEnc: alertaEncryptPhone(phone),
+        whatsappConsent: true,
+        whatsappOwnerUid: req.user.uid,
+        whatsappConsentEm: now,
+        consentimentoWhatsAppVersao: "2026-11-16",
+        whatsappConsentOrigem: "area-logada",
+        atualizadoEm: now
+      });
+    } else {
+      const visitorsSnap = await db.ref("alertaDay/visitantes").get();
+      const updates = {};
+      for (const [visitorId, visitor] of Object.entries(visitorsSnap.val() || {})) {
+        if (visitor.whatsappOwnerUid === req.user.uid) {
+          updates[visitorId + "/whatsappConsent"] = false;
+          updates[visitorId + "/telefoneWhatsAppEnc"] = null;
+          updates[visitorId + "/whatsappRevogadoEm"] = now;
+        }
+      }
+      if (Object.keys(updates).length) await db.ref("alertaDay/visitantes").update(updates);
+    }
+    return res.json({ ok: true, whatsappConsent: consentimento, status: consentRecord.status });
+  } catch (error) { return sendServerError(res, "Não foi possível atualizar sua preferência de WhatsApp.", error); }
 });
 app.post('/api/alerta-day/localizacao', async (req, res) => {
   if (!db) return firebaseUnavailable(res);
@@ -1032,7 +1040,10 @@ app.post('/api/admin/alerta-day/disparar', requireFirebase, allowRoles('administ
     const visitorsSnap=await db.ref('alertaDay/visitantes').get();
     const visitors=Object.entries(visitorsSnap.val()||{}).filter(([,v])=>v.consentimentoLocalizacao===true&&(!v.expiraEm||Date.parse(v.expiraEm)>Date.now())&&Number.isFinite(Number(v.latitude))&&Number.isFinite(Number(v.longitude))&&alertaDistance(lat,lng,Number(v.latitude),Number(v.longitude))<=radius);
     const pushTargets=channels.includes('push')?visitors.filter(([,v])=>v.pushConsent===true&&v.fcmToken):[];
-    const waTargets=channels.includes('whatsapp')?visitors.filter(([,v])=>v.whatsappConsent===true&&v.telefoneWhatsAppEnc):[];
+    const waCandidates=channels.includes('whatsapp')?visitors.filter(([,v])=>v.whatsappConsent===true&&v.telefoneWhatsAppEnc&&isValidUid(v.whatsappOwnerUid)):[];
+    const waProfiles=await Promise.all([...new Set(waCandidates.map(([,v])=>v.whatsappOwnerUid))].map(async uid=>[uid,(await db.ref("usuarios/"+uid+"/consentimentos/whatsapp/status").get()).val()]));
+    const permittedUids=new Set(waProfiles.filter(([,status])=>status==="permitido").map(([uid])=>uid));
+    const waTargets=waCandidates.filter(([,v])=>permittedUids.has(v.whatsappOwnerUid));
     const pathLink=cleanString(b.link,500)||('/detalhes.html?id='+encodeURIComponent(propertyId));
     const firstPhoto=Array.isArray(property.fotos)?property.fotos[0]:null;
     const imageUrl=firstPhoto?(/^https:\/\//i.test(firstPhoto)?firstPhoto:baseUrl+'/'+String(firstPhoto).replace(/^\//,'')):null;
