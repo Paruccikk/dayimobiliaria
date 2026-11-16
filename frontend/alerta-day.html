@@ -44,7 +44,12 @@
         <label for="message">Mensagem</label><textarea id="message" rows="3" maxlength="220">Um novo imóvel entrou para a carteira da Day. Confira os detalhes.</textarea>
         <label for="link">Link do anúncio</label><input id="link" placeholder="Será preenchido pelo imóvel selecionado">
         <div class="ad-step">02 · PÚBLICO</div><h2>Escolha a região</h2>
-        <div class="ad-map-help">Selecione um imóvel com coordenadas e ajuste o círculo no mapa. O alcance considera somente pessoas que autorizaram compartilhar a localização.</div>
+        <div class="ad-map-help">Selecione um imóvel com coordenadas, pesquise um endereço ou clique/arraste no mapa para ajustar a área. O alcance considera pessoas que autorizaram a localização.</div>
+        <div class="ad-map-search-row">
+          <input id="map-search-input" type="text" placeholder="Buscar endereço, bairro, cidade ou CEP...">
+          <button id="map-search-btn" class="ad-button ad-secondary" type="button">Buscar no mapa</button>
+          <button id="property-geocode-btn" class="ad-button ad-ghost" type="button" style="display:none;">Usar bairro do imóvel</button>
+        </div>
         <div id="campaign-map" role="application" aria-label="Mapa para selecionar o raio da campanha"></div>
         <div class="ad-radius-row"><label for="radius">Raio de alcance</label><strong id="radius-label">5 km</strong></div>
         <input id="radius" type="range" min="500" max="30000" step="500" value="5000">

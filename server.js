@@ -850,6 +850,27 @@ app.get('/api/admin/alerta-day/dados', requireFirebase, allowRoles('administrado
     return res.json({ imoveis, campanhas, resumo: { localizacao: visitors.length, push: visitors.filter(v => v.pushConsent === true && v.fcmToken).length, whatsapp: visitors.filter(v => v.whatsappConsent === true && v.telefoneWhatsAppEnc).length, campanhas: Object.keys(campaignsSnap.val()||{}).length } });
   } catch (error) { return sendServerError(res, 'Não foi possível carregar o Alerta Day.', error); }
 });
+app.get('/api/admin/alerta-day/geocode', requireFirebase, allowRoles('administrador'), async (req, res) => {
+  const q = cleanString(req.query.q, 200);
+  if (!q) return res.status(400).json({ error: 'Informe um endereço para busca.' });
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&countrycodes=br&limit=1`;
+    const response = await fetch(url, {
+      headers: { 'User-Agent': 'DayImobiliaria-AlertaDay/1.0 (contato@dayimobiliaria.com.br)' }
+    });
+    const data = await response.json();
+    if (Array.isArray(data) && data.length > 0) {
+      return res.json({
+        lat: Number(data[0].lat),
+        lng: Number(data[0].lon),
+        display_name: data[0].display_name
+      });
+    }
+    return res.status(404).json({ error: 'Nenhum local encontrado para esta busca.' });
+  } catch (error) {
+    return sendServerError(res, 'Falha ao buscar coordenadas.', error);
+  }
+});
 app.get('/api/admin/alerta-day/alcance', requireFirebase, allowRoles('administrador'), async (req,res) => {
   const lat=Number(req.query.lat), lng=Number(req.query.lng), radius=Number(req.query.raio);
   const channels=(req.query.canais===undefined?'push,whatsapp':String(req.query.canais)).split(',').filter(c=>['push','whatsapp'].includes(c));
@@ -872,8 +893,9 @@ app.post('/api/admin/alerta-day/disparar', requireFirebase, allowRoles('administ
   if (!propertyId||!title||!message||!Number.isFinite(lat)||lat < -90||lat > 90||!Number.isFinite(lng)||lng < -180||lng > 180||!Number.isFinite(radius)||radius < 100||radius > 30000||!channels.length||channels.some(c=>!['push','whatsapp'].includes(c))) return res.status(400).json({error:'Dados da campanha inválidos.'});
   if (channels.includes('push') && (!admin || typeof admin.messaging!=='function')) return res.status(503).json({error:'Firebase Cloud Messaging indisponível.'});
   if (channels.includes('whatsapp') && (!process.env.WHATSAPP_PHONE_NUMBER_ID||!process.env.WHATSAPP_ACCESS_TOKEN||!process.env.WHATSAPP_ALERT_TEMPLATE||!process.env.ALERTA_DAY_ENCRYPTION_KEY||!/^v\d+\.\d+$/.test(process.env.WHATSAPP_GRAPH_VERSION||''))) return res.status(503).json({error:'Configure a WhatsApp Cloud API, a chave de criptografia, a versão Graph e o modelo aprovado antes do disparo.'});
-  const baseUrl=(process.env.PUBLIC_SITE_URL||'').replace(/\/$/,'');
-  if (!/^https:\/\/[^/]+$/i.test(baseUrl)) return res.status(503).json({error:'Configure PUBLIC_SITE_URL com o endereço HTTPS público do site.'});
+  const envBase=(process.env.PUBLIC_SITE_URL||'').replace(/\/$/,'');
+  const baseUrl=envBase||(process.env.NODE_ENV!=='production'?`${req.protocol}://${req.get('host')}`:'');
+  if (!/^https:\/\/[^/]+$/i.test(baseUrl)&&(process.env.NODE_ENV==='production'||!/^https?:\/\/[^/]+$/i.test(baseUrl))) return res.status(503).json({error:'Configure PUBLIC_SITE_URL com o endereço HTTPS público do site.'});
   try {
     const propertySnap=await db.ref('imoveis/'+propertyId).get(), property=propertySnap.val();
     if (!property||property.status!=='publicado'||property.publicadoNoSite!==true) return res.status(404).json({error:'Imóvel não publicado ou inexistente.'});
