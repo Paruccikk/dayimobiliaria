@@ -33,19 +33,19 @@ function initMap() {
 
   map = L.map("campaign-map").setView([-23.686, -46.623], 12);
 
-  const osmTiles = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  const esriTiles = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}", {
     maxZoom: 19,
-    attribution: "&copy; OpenStreetMap contributors"
+    attribution: "Tiles &copy; Esri &mdash; Sources: Esri, DeLorme, USGS, NPS"
   }).addTo(map);
 
   let fallbackLoaded = false;
-  osmTiles.on("tileerror", () => {
+  esriTiles.on("tileerror", () => {
     if (fallbackLoaded) return;
     fallbackLoaded = true;
-    if (map.hasLayer(osmTiles)) map.removeLayer(osmTiles);
-    L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}", {
+    if (map.hasLayer(esriTiles)) map.removeLayer(esriTiles);
+    L.tileLayer("https://services.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}", {
       maxZoom: 19,
-      attribution: "Tiles &copy; Esri — Sources: Esri, Maxar, Earthstar Geographics, and the GIS User Community"
+      attribution: "Tiles &copy; Esri"
     }).addTo(map);
   });
 
