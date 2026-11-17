@@ -13,16 +13,16 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 messaging.onBackgroundMessage(payload => {
-  const title = payload.notification?.title || "Alerta Day";
+  const data = payload.data || {};
+  const title = data.title || payload.notification?.title || "Alerta Day";
+  const image = data.imageUrl || payload.notification?.image || "";
   const options = {
-    body: payload.notification?.body || "Tem uma nova oportunidade imobiliária para você.",
+    body: data.body || payload.notification?.body || "Tem uma nova oportunidade imobiliária para você.",
     icon: "/icons/alerta-day.svg",
     badge: "/icons/alerta-day.svg",
-    ...(payload.notification?.image || payload.data?.imageUrl
-      ? { image: payload.notification?.image || payload.data.imageUrl }
-      : {}),
-    data: { url: payload.data?.url || "/" },
-    tag: payload.data?.campaignId || "alerta-day"
+    ...(image ? { image } : {}),
+    data: { url: data.url || "/" },
+    tag: data.campaignId || "alerta-day"
   };
   self.registration.showNotification(title, options);
 });
