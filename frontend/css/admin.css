@@ -500,3 +500,33 @@ body {
 .property-pdf-card{justify-content:center;min-height:145px}
 .property-pdf-icon{display:grid;place-items:center;width:48px;height:58px;margin:8px auto;color:#fff;background:#8f2525;border-radius:5px;font-size:13px;font-weight:800}
 @media(max-width:720px){.property-files-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+
+/* Correções de largura: evita que campos e grids empurrem o painel para fora da tela. */
+.dashboard-wrap,
+.dash-panel,
+.dash-card,
+.dash-form,
+.dash-form > .field,
+.dash-grid > *,
+.dash-two-col > * { min-width: 0; }
+.dashboard-wrap { width: 100%; max-width: 1500px; box-sizing: border-box; }
+.dash-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); }
+.dash-two-col { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.dash-form { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.dash-form input[type="file"] { max-width: 100%; min-width: 0; }
+.dash-table-wrap { width: 100%; max-width: 100%; overflow-x: auto; overscroll-behavior-inline: contain; }
+.dash-table { width: max-content; min-width: 100%; }
+.dash-table td:last-child { min-width: 220px; white-space: normal; }
+.dash-table td:last-child .small-btn { white-space: nowrap; }
+@media (max-width: 1050px) {
+  .dash-two-col { grid-template-columns: minmax(0, 1fr); }
+  .dash-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 720px) {
+  .dashboard-wrap { width: 100%; padding: 18px 12px; }
+  .dash-panel { padding: 16px; }
+  .dash-form { grid-template-columns: minmax(0, 1fr); }
+  .dash-form .full { grid-column: 1 / -1; }
+  .dash-table td:last-child { min-width: 190px; }
+}

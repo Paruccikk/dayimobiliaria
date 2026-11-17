@@ -27,8 +27,17 @@ function visitorId() {
 function attachForegroundHandler(messaging, registration) {
   if (foregroundHandlerAttached) return;
   onMessage(messaging, payload => {
-    const title = payload.notification?.title || "Alerta Day";
-    registration.showNotification(title, { body: payload.notification?.body || "Confira esta oportunidade da Day.", data: { url: payload.data?.url || "/" }, tag: payload.data?.campaignId || "alerta-day" });
+    const data = payload.data || {};
+    const title = data.title || payload.notification?.title || "Alerta Day";
+    const image = data.imageUrl || payload.notification?.image || "";
+    registration.showNotification(title, {
+      body: data.body || payload.notification?.body || "Confira esta oportunidade da Day.",
+      icon: "/icons/alerta-day.svg",
+      badge: "/icons/alerta-day.svg",
+      ...(image ? { image } : {}),
+      data: { url: data.url || "/" },
+      tag: data.campaignId || "alerta-day"
+    });
   });
   foregroundHandlerAttached = true;
 }
@@ -63,7 +72,13 @@ function buildModal() {
   let whatsappAlreadyAuthorized = false;
   const refreshWhatsAppPreference = async () => {
     try {
-      const response = await fetch("/api/alerta-day/preferencias?visitorId=" + encodeURIComponent(visitorId()));
+      const currentUser = auth.currentUser;
+      if (!currentUser) throw new Error("Entre na sua conta para consultar as preferências.");
+      const token = await currentUser.getIdToken();
+      const response = await fetch("/api/alerta-day/preferencias?visitorId=" + encodeURIComponent(visitorId()), {
+        headers: { Authorization: "Bearer " + token },
+        cache: "no-store"
+      });
       const data = await response.json();
       whatsappAlreadyAuthorized = response.ok && data.whatsappConsent === true;
       whatsappInfo.textContent = whatsappAlreadyAuthorized
@@ -77,6 +92,7 @@ function buildModal() {
   };
   onAuthStateChanged(auth, currentUser => {
     whatsappAuthorize.hidden = !currentUser || whatsappAlreadyAuthorized;
+    if (currentUser) refreshWhatsAppPreference();
   });
   refreshWhatsAppPreference();
 

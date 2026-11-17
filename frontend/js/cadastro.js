@@ -71,11 +71,10 @@ function requestProactiveLocation() {
   );
 }
 
-// Dispara a solicitação do navegador antecipadamente enquanto preenche o cadastro
-if (document.querySelector("#consentimento-geral")?.checked) {
-  requestProactiveLocation();
-}
-document.querySelector("#consentimento-geral")?.addEventListener("change", e => {
+// Só solicita localização quando a pessoa marca a autorização específica.
+const locationConsentInput = document.querySelector("#consentimento-localizacao");
+if (locationConsentInput?.checked) requestProactiveLocation();
+locationConsentInput?.addEventListener("change", e => {
   if (e.target.checked && !cachedCoords) requestProactiveLocation();
 });
 
@@ -107,7 +106,8 @@ form?.addEventListener("submit", async event => {
   const email = document.querySelector("#email")?.value.trim() || "";
   const password = document.querySelector("#password")?.value || "";
   const confirmation = document.querySelector("#confirm-password")?.value || "";
-  const consentimentoGeral = document.querySelector("#consentimento-geral")?.checked === true;
+  const consentimentoWhatsApp = document.querySelector("#consentimento-whatsapp")?.checked === true;
+  const consentimentoLocalizacao = document.querySelector("#consentimento-localizacao")?.checked === true;
 
   if (!nome || !celular || !email) return showMessage("Preencha todos os campos obrigatórios.");
   if (celular.replace(/\D/g, "").length < 10) return showMessage("Informe um número de WhatsApp válido com DDD.");
@@ -120,7 +120,7 @@ form?.addEventListener("submit", async event => {
 
   try {
     let coords = null;
-    if (consentimentoGeral) {
+    if (consentimentoLocalizacao) {
       coords = await getCoordinates();
     }
 
@@ -145,8 +145,8 @@ form?.addEventListener("submit", async event => {
         nome,
         celular,
         telefone: celular,
-        consentimentoWhatsApp: consentimentoGeral,
-        consentimentoPrivacidade: consentimentoGeral,
+        consentimentoWhatsApp,
+        consentimentoLocalizacao,
         visitorId: alertaDayVisitorId(),
         ...(coords || {})
       })
