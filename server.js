@@ -1058,7 +1058,7 @@ app.get('/api/admin/alerta-day/alcance', requireFirebase, allowRoles('administra
     const targets=Object.values(visitorsSnap.val()||{}).filter(v => v.consentimentoLocalizacao===true && (!v.expiraEm||Date.parse(v.expiraEm)>Date.now()) && Number.isFinite(Number(v.latitude)) && Number.isFinite(Number(v.longitude)) && alertaDistance(lat,lng,Number(v.latitude),Number(v.longitude))<=radius);
     const whatsappTargets=targets.filter(v=>channels.includes('whatsapp')&&v.whatsappConsent===true&&v.telefoneWhatsAppEnc&&v.whatsappOwnerUid&&users[v.whatsappOwnerUid]?.consentimentos?.whatsapp?.status==="permitido"&&users[v.whatsappOwnerUid]?.whatsappAtivo!==false);
     const pushTargets=targets.filter(v=>channels.includes('push')&&v.pushConsent===true&&v.fcmToken);
-    return res.json({totalElegiveis:new Set([...whatsappTargets.map(v=>v.whatsappOwnerUid),...pushTargets.map(v=>v.fcmToken)]).size, totalLocalizacao:targets.length, whatsappElegiveis:whatsappTargets.length});
+    return res.json({totalElegiveis:new Set([...whatsappTargets.map(v=>v.whatsappOwnerUid),...pushTargets.map(v=>v.fcmToken)]).size, totalLocalizacao:targets.length, whatsappElegiveis:whatsappTargets.length, pushElegiveis:pushTargets.length});
   } catch(error) { return sendServerError(res,'Não foi possível calcular o público.',error); }
 });
 async function alertaSendWhatsApp(phone,title,message,link) {
@@ -1108,7 +1108,19 @@ app.post('/api/admin/alerta-day/disparar', requireFirebase, allowRoles('administ
       if (!pushLink) throw new Error('Configure PUBLIC_SITE_URL com a URL HTTPS pública do site para links de Push.');
       const tokens=pushTargets.map(([,v])=>v.fcmToken);
       for(let i=0;i<tokens.length;i+=500) {
-        const batch=tokens.slice(i,i+500), result=await admin.messaging().sendEachForMulticast({tokens:batch,notification:{title,body:message,...(imageUrl?{image:imageUrl}:{})},data:{url:pushLink,campaignId:campaignRef.key,...(imageUrl?{imageUrl}:{})},webpush:{notification:imageUrl?{image:imageUrl,icon:baseUrl+'/icons/alerta-day.svg'}:{icon:baseUrl+'/icons/alerta-day.svg'},fcmOptions:{link:pushLink}}});
+        const batch=tokens.slice(i,i+500), result=await admin.messaging().sendEachForMulticast({
+          tokens: batch,
+          // Data-only: o Service Worker é responsável por exibir uma única notificação
+          // personalizada. Evita a combinação de exibição automática + showNotification.
+          data: {
+            title: String(title),
+            body: String(message),
+            url: String(pushLink),
+            campaignId: String(campaignRef.key),
+            ...(imageUrl ? { imageUrl: String(imageUrl) } : {})
+          },
+          webpush: { headers: { TTL: "86400", Urgency: "high" } }
+        });
         pushEnviados+=result.successCount;
         result.responses.forEach((item,index)=>{if(!item.success){erros.push({canal:'push',tokenFinal:batch[index].slice(-8),erro:item.error?.code||'falha'});if(['messaging/registration-token-not-registered','messaging/invalid-registration-token'].includes(item.error?.code)){const entry=pushTargets.find(([,v])=>v.fcmToken===batch[index]);if(entry)db.ref('alertaDay/visitantes/'+entry[0]).update({fcmToken:null,pushConsent:false}).catch(()=>{});}}});
       }
