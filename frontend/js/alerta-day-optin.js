@@ -27,8 +27,17 @@ function visitorId() {
 function attachForegroundHandler(messaging, registration) {
   if (foregroundHandlerAttached) return;
   onMessage(messaging, payload => {
-    const title = payload.notification?.title || "Alerta Day";
-    registration.showNotification(title, { body: payload.notification?.body || "Confira esta oportunidade da Day.", icon: "/icons/alerta-day.svg", badge: "/icons/alerta-day.svg", ...(payload.notification?.image || payload.data?.imageUrl ? { image: payload.notification?.image || payload.data.imageUrl } : {}), data: { url: payload.data?.url || "/" }, tag: payload.data?.campaignId || "alerta-day" });
+    const data = payload.data || {};
+    const title = data.title || payload.notification?.title || "Alerta Day";
+    const image = data.imageUrl || payload.notification?.image || "";
+    registration.showNotification(title, {
+      body: data.body || payload.notification?.body || "Confira esta oportunidade da Day.",
+      icon: "/icons/alerta-day.svg",
+      badge: "/icons/alerta-day.svg",
+      ...(image ? { image } : {}),
+      data: { url: data.url || "/" },
+      tag: data.campaignId || "alerta-day"
+    });
   });
   foregroundHandlerAttached = true;
 }
