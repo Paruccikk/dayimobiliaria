@@ -121,7 +121,8 @@ function escapeHtml(s) {
 function render() {
   const cat = inputs.categoria.value;
   const pur = inputs.finalidade.value;
-  const loc = inputs.localizacao.value.trim().toLocaleLowerCase("pt-BR");
+  const normalizeSearch = value => String(value ?? "").toLocaleLowerCase("pt-BR").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const loc = normalizeSearch(inputs.localizacao.value.trim());
   const max = Number(inputs.precoMax.value) || Infinity;
 
   const filtered = all.filter(
@@ -129,8 +130,8 @@ function render() {
       (!cat || p.categoria === cat) &&
       (!pur || p.finalidade === pur) &&
       (!loc ||
-        [p.cidade, p.bairro, p.estado, p.titulo].some((v) =>
-          String(v || "").toLocaleLowerCase("pt-BR").includes(loc)
+        [p.cidade, p.bairro, p.estado, p.titulo, p.id, p.finalidade, p.categoria].some((v) =>
+          normalizeSearch(v).includes(loc)
         )) &&
       (p.preco == null || Number(p.preco) <= max) &&
       (!inputs.quartos.value || Number(p.quartos || 0) >= Number(inputs.quartos.value)) &&
