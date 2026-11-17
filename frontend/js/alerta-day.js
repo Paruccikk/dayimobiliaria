@@ -137,7 +137,9 @@ async function refreshReach() {
       } else if (elegiveis === 0 && totalLoc > 0) {
         detail.textContent = `${totalLoc} pessoa(s) com localização no raio, mas sem canal ativo selecionado`;
       } else {
-        detail.textContent = `${totalLoc} pessoa(s) com localização nesta região`;
+        const pushCount = Number(data.pushElegiveis || 0);
+        const whatsappCount = Number(data.whatsappElegiveis || 0);
+        detail.textContent = `${totalLoc} com localização · Push: ${pushCount} · WhatsApp: ${whatsappCount}`;
       }
     }
   } catch (e) {
