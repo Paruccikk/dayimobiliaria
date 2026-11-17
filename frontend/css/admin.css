@@ -530,3 +530,11 @@ body {
   .dash-form .full { grid-column: 1 / -1; }
   .dash-table td:last-child { min-width: 190px; }
 }
+
+
+/* Busca rápida de imóveis nos painéis */
+.property-search{display:flex;flex-direction:column;gap:7px;margin:0 0 16px;max-width:760px;min-width:0}.property-search-box{display:flex;align-items:center;gap:11px;min-width:0;padding:0 14px;border:1px solid var(--border-strong);border-radius:12px;background:rgba(0,0,0,.22);transition:border-color .2s,box-shadow .2s}.property-search-box:focus-within{border-color:rgba(230,180,90,.7);box-shadow:0 0 0 3px rgba(230,180,90,.1)}.property-search-box svg{width:19px;height:19px;flex:0 0 19px;fill:none;stroke:var(--gold-2);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}.property-search-box input{width:100%;min-width:0;padding:13px 0;border:0!important;outline:0!important;background:transparent!important;box-shadow:none!important;color:var(--text);font:14px var(--font-body)}.property-search-box input::placeholder{color:var(--text-mute);opacity:1}.property-search-hint{font-size:11px;color:var(--text-mute)}
+
+/* Ajustes responsivos gerais dos painéis */
+@media(max-width:720px){.dash-top{align-items:flex-start;flex-direction:column;gap:16px}.dash-actions{display:flex;flex-wrap:wrap;width:100%;gap:8px}.dash-actions>.button,.dash-actions>button{flex:1 1 145px;min-width:0;justify-content:center}.admin-tabs{display:flex;overflow-x:auto;white-space:nowrap;gap:8px;padding-bottom:8px;-webkit-overflow-scrolling:touch}.admin-tab{flex:0 0 auto}.dash-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.dash-card{padding:14px;min-width:0}.dash-number{font-size:clamp(1.35rem,7vw,2rem)}.dash-panel{padding:14px;margin-bottom:14px}.dash-panel h2{font-size:1.15rem;line-height:1.3}.property-search{max-width:none}.property-search-box{padding:0 11px}.property-search-box input{font-size:16px}.dash-table-wrap{margin-right:-2px}.dash-table{min-width:680px}.dash-form{gap:12px}.dashboard-wrap{overflow-x:clip}.dash-two-col{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:420px){.dashboard-wrap{padding-left:10px;padding-right:10px}.dash-grid{grid-template-columns:minmax(0,1fr)}.dash-actions>.button,.dash-actions>button{flex-basis:100%}.dash-panel{padding:12px}.dash-table{min-width:620px}}
