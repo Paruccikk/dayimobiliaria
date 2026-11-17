@@ -20,6 +20,7 @@ const propertyForm = $("#admin-property-form");
 let currentUser = null;
 let dashboardData = null;
 let loading = false;
+let propertySearchTerm = "";
 
 function setMessage(element, text) {
   element.textContent = text;
@@ -232,13 +233,21 @@ function renderPropertyFiles(property) {
 
 function renderProperties(properties) {
   const tbody = $("#imoveis-lista");
+  const normalize = value => String(value ?? "").toLocaleLowerCase("pt-BR").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const query = normalize(propertySearchTerm.trim());
+  const filteredProperties = query ? properties.filter(property => normalize([property.titulo, property.id, property.cidade, property.estado, property.bairro, property.finalidade, property.status, property.responsavelNome, property.responsavelEmail, property.responsavelUid].join(" ")).includes(query)) : properties;
 
   if (!properties.length) {
     tbody.innerHTML = '<tr><td colspan="6">Nenhum imóvel cadastrado.</td></tr>';
     return;
   }
 
-  tbody.innerHTML = properties.map(property => {
+  if (!filteredProperties.length) {
+    tbody.innerHTML = '<tr><td colspan="6">Nenhum imóvel encontrado para essa busca.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filteredProperties.map(property => {
     const status = property.status || "rascunho";
     const actionLabel = status === "publicado" ? "Desativar" : "Publicar";
     const nextStatus = status === "publicado" ? "inativo" : "publicado";
@@ -596,6 +605,11 @@ $("#usuarios-lista").addEventListener("change", event => {
     manager.disabled = event.target.value !== "corretor";
     if (manager.disabled) manager.value = "";
   }
+});
+
+$("#admin-property-search")?.addEventListener("input", event => {
+  propertySearchTerm = event.target.value || "";
+  renderProperties(dashboardData?.imoveis || []);
 });
 
 refreshButton.addEventListener("click", carregarDashboard);
