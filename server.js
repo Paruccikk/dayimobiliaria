@@ -1593,7 +1593,7 @@ app.post(
 );
 
 // Upload local de fotos e PDFs dos imóveis.
-const PROPERTY_UPLOAD_MAX_MB = Math.max(1, Number(process.env.PROPERTY_UPLOAD_MAX_MB || process.env.MAX_UPLOAD_MB || 50));
+const PROPERTY_UPLOAD_MAX_MB = Math.max(1, Number(process.env.PROPERTY_UPLOAD_MAX_MB || 50));
 const PROPERTY_UPLOAD_MAX_FILES = 80; // até 40 imagens + 40 PDFs por imóvel
 const propertyFileTypes = {
   ".jpg": { mime: "image/jpeg", kind: "image" },
