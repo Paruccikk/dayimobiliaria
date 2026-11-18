@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#05060a">
+  <title>Integração WhatsApp | R&D PRIME IMÓVEIS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    [hidden]{display:none!important}
+    body.whatsapp-page{min-height:100vh;background:#05060a;color:#f2f3f7}
+    .wa-bg{position:fixed;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(850px 560px at 8% 0%,rgba(139,108,240,.13),transparent 65%),radial-gradient(850px 560px at 95% 15%,rgba(87,217,224,.08),transparent 65%),radial-gradient(900px 650px at 50% 100%,rgba(230,180,90,.1),transparent 65%),#05060a}
+    .wa-wrap{width:min(1160px,92%);margin:0 auto;padding:30px 0 70px}
+    .wa-header{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:8px 0 24px;border-bottom:1px solid rgba(255,255,255,.09)}
+    .wa-actions{display:flex;gap:10px;flex-wrap:wrap}
+    .wa-title{margin:34px 0 8px;font:700 clamp(28px,4vw,42px)/1.1 'Space Grotesk',sans-serif;letter-spacing:-.04em}
+    .wa-title span{background:linear-gradient(120deg,#f7d78b,#e6b45a 55%,#c9973f);-webkit-background-clip:text;background-clip:text;color:transparent}
+    .wa-subtitle{max-width:720px;color:#a7adc0;font-size:14px;line-height:1.8}
+    .wa-grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(300px,.85fr);gap:20px;margin-top:28px}
+    .wa-card{border:1px solid rgba(255,255,255,.1);border-radius:20px;background:rgba(14,16,25,.82);box-shadow:0 20px 60px rgba(0,0,0,.28);padding:24px;backdrop-filter:blur(16px)}
+    .wa-card h2{margin:0 0 8px;font:700 19px 'Space Grotesk',sans-serif}
+    .wa-muted{color:#a7adc0;font-size:13px;line-height:1.7}
+    .wa-status-line{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:20px 0}
+    .wa-badge{display:inline-flex;align-items:center;gap:8px;border:1px solid rgba(255,255,255,.12);border-radius:99px;padding:8px 12px;font-size:12px;font-weight:800;color:#d8dbe4;background:rgba(255,255,255,.04)}
+    .wa-dot{width:8px;height:8px;border-radius:50%;background:#9aa1b2}
+    .wa-badge[data-state="conectado"] .wa-dot{background:#4bd18a;box-shadow:0 0 12px #4bd18a}
+    .wa-badge[data-state="erro"] .wa-dot,.wa-badge[data-state="indisponivel"] .wa-dot{background:#e6b45a}
+    .wa-meta{font-size:11px;color:#737b91}
+    .wa-buttons{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px}
+    .wa-button{min-height:44px;padding:0 16px;border-radius:10px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.05);color:#f2f3f7;font-weight:750;font-size:12px;cursor:pointer}
+    .wa-button.primary{border:0;background:linear-gradient(120deg,#f7d78b,#e6b45a 55%,#c9973f);color:#17130b}
+    .wa-button.danger{border-color:rgba(240,108,108,.3);color:#ffc2c2}
+    .wa-button:disabled{opacity:.5;cursor:wait}
+    .wa-qr-area{display:grid;place-items:center;min-height:340px;margin-top:18px;padding:22px;border:1px dashed rgba(230,180,90,.25);border-radius:16px;background:rgba(255,255,255,.025);text-align:center}
+    .wa-qr-area img{width:min(280px,100%);height:auto;border-radius:12px;background:#fff;padding:8px}
+    .wa-qr-placeholder{max-width:330px;color:#a7adc0;font-size:13px;line-height:1.7}
+    .wa-qr-placeholder strong{display:block;margin-bottom:8px;color:#f2f3f7;font:700 17px 'Space Grotesk',sans-serif}
+    .wa-instructions{display:grid;gap:12px;margin-top:18px}
+    .wa-step{display:flex;gap:12px;color:#c5cad7;font-size:12px;line-height:1.6}
+    .wa-step b{width:25px;height:25px;flex:none;display:grid;place-items:center;border-radius:8px;background:rgba(230,180,90,.1);color:#f7d78b}
+    .wa-warning{margin-top:20px;padding:16px;border:1px solid rgba(230,180,90,.2);border-radius:13px;background:rgba(230,180,90,.06);color:#c8b98f;font-size:11px;line-height:1.7}
+    .wa-feedback{min-height:22px;margin:15px 0 0;color:#f7d78b;font-size:12px}
+    .wa-login{max-width:460px;margin:10vh auto;padding:30px;border:1px solid rgba(255,255,255,.1);border-radius:20px;background:rgba(14,16,25,.9)}
+    @media(max-width:800px){.wa-grid{grid-template-columns:1fr}.wa-header{align-items:flex-start;flex-direction:column}.wa-wrap{padding-top:18px}}
+    @media(max-width:480px){.wa-wrap{width:calc(100% - 28px)}.wa-card{padding:19px}.wa-qr-area{min-height:280px}.wa-actions{width:100%}.wa-actions .button{flex:1;text-align:center}}
+  </style>
+</head>
+<body class="whatsapp-page">
+  <div class="wa-bg" aria-hidden="true"></div>
+  <section id="wa-access-check" class="wa-login">
+    <div class="eyebrow">R&D PRIME IMÓVEIS</div>
+    <h1 style="font:700 25px 'Space Grotesk',sans-serif">Verificando acesso administrativo…</h1>
+    <p class="wa-muted">Esta página é exclusiva para administradores ativos.</p>
+    <p id="wa-access-feedback" class="wa-feedback" role="status" aria-live="polite"></p>
+  </section>
+  <main id="wa-app" class="wa-wrap" hidden>
+    <header class="wa-header">
+      <a class="brand" href="/"><span class="brand-mark" data-text="R&D">R&D</span><span class="brand-text"><span class="brand-name">R&D PRIME</span><span class="brand-sub">IMÓVEIS · ADMINISTRAÇÃO</span></span></a>
+      <div class="wa-actions">
+        <a class="button button-outline" href="/admin.html">Voltar ao Admin</a>
+        <button class="button button-dark" id="wa-logout" type="button">Sair</button>
+      </div>
+    </header>
+    <div class="eyebrow" style="margin-top:34px">CENTRAL DE COMUNICAÇÃO</div>
+    <h1 class="wa-title">Integração <span>WhatsApp</span></h1>
+    <p class="wa-subtitle">Conecte o número comercial da R&D PRIME IMÓVEIS por QR Code e acompanhe o estado da sessão salva neste servidor.</p>
+    <div class="wa-grid">
+      <section class="wa-card">
+        <h2>Conexão da conta</h2>
+        <p class="wa-muted">A sessão é mantida no servidor para que não seja necessário escanear o QR Code a cada reinicialização, enquanto o WhatsApp mantiver a autorização.</p>
+        <div class="wa-status-line">
+          <span id="wa-badge" class="wa-badge" data-state="desconectado"><i class="wa-dot"></i><span id="wa-state">Verificando status…</span></span>
+          <span class="wa-meta">Última atualização: <span id="wa-updated">—</span></span>
+        </div>
+        <div class="wa-qr-area">
+          <img id="wa-qr" alt="QR Code para conectar o WhatsApp" hidden>
+          <div id="wa-qr-placeholder" class="wa-qr-placeholder">
+            <strong id="wa-qr-title">WhatsApp não conectado</strong>
+            <span id="wa-qr-help">Clique em conectar para gerar um QR Code.</span>
+          </div>
+        </div>
+        <div class="wa-buttons">
+          <button id="wa-connect" class="wa-button primary" type="button">Gerar QR Code / Conectar</button>
+          <button id="wa-refresh" class="wa-button" type="button">Atualizar status</button>
+          <button id="wa-disconnect" class="wa-button danger" type="button" hidden>Desconectar</button>
+        </div>
+        <p id="wa-feedback" class="wa-feedback" role="status" aria-live="polite"></p>
+      </section>
+      <aside class="wa-card">
+        <h2>Como conectar</h2>
+        <p class="wa-muted">Use o celular que contém o WhatsApp do número comercial.</p>
+        <div class="wa-instructions">
+          <div class="wa-step"><b>1</b><span>Abra o WhatsApp no celular principal.</span></div>
+          <div class="wa-step"><b>2</b><span>Acesse <strong>Aparelhos conectados</strong> no menu do aplicativo.</span></div>
+          <div class="wa-step"><b>3</b><span>Toque em <strong>Conectar aparelho</strong> e leia o QR Code exibido nesta página.</span></div>
+          <div class="wa-step"><b>4</b><span>Aguarde o status mudar para <strong>Conectado</strong>.</span></div>
+        </div>
+        <div class="wa-warning"><strong>Atenção:</strong> esta integração usa automação não oficial baseada no WhatsApp Web. A sessão pode expirar ou ser encerrada pelo WhatsApp e existe risco de restrição da conta. Não utilize para disparos em massa. O status conectado confirma a sessão técnica, não garante entrega de mensagens.</div>
+      </aside>
+    </div>
+  </main>
+  <script type="module" src="/js/whatsapp.js"></script>
+</body>
+</html>
