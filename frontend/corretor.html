@@ -81,7 +81,7 @@
         <div class="field"><label for="prop-suites">Suítes</label><input id="prop-suites" type="number" min="0"></div>
         <div class="field"><label for="prop-banheiros">Banheiros</label><input id="prop-banheiros" type="number" min="0"></div>
         <div class="field"><label for="prop-vagas">Vagas</label><input id="prop-vagas" type="number" min="0"></div>
-        <div class="field full"><label for="prop-descricao">Descrição</label><textarea id="prop-descricao" rows="3" maxlength="10000"></textarea></div><div class="field"><label for="prop-situacao">Situação</label><select id="prop-situacao"><option value="pronto">Pronto / Usado</option><option value="lancamento">Lançamento</option><option value="em_obras">Em obras</option></select></div><div class="field full"><label for="prop-mcmv"><input id="prop-mcmv" type="checkbox"> Minha Casa, Minha Vida</label></div><div class="field full"><label for="prop-fotos">Fotos (JPG, PNG, WEBP)</label><input id="prop-fotos" type="file" accept="image/jpeg,image/png,image/webp" multiple></div><div class="field full"><label for="prop-documentos">Plantas e ficha técnica (PDF)</label><input id="prop-documentos" type="file" accept="application/pdf" multiple></div>
+        <div class="field full"><label for="prop-descricao">Descrição</label><textarea id="prop-descricao" rows="3" maxlength="10000"></textarea></div><div class="field"><label for="prop-situacao">Situação</label><select id="prop-situacao"><option value="pronto">Pronto / Usado</option><option value="lancamento">Lançamento</option><option value="em_obras">Em obras</option></select></div><div class="field full mcmv-field"><label class="mcmv-toggle" for="prop-mcmv"><input id="prop-mcmv" type="checkbox"><span class="mcmv-switch" aria-hidden="true"></span><span class="mcmv-toggle-copy"><strong>Minha Casa, Minha Vida</strong><small>Ative para identificar este imóvel como elegível ao programa.</small></span></label></div><div class="field full"><label for="prop-fotos">Fotos (JPG, PNG, WEBP)</label><input id="prop-fotos" type="file" accept="image/jpeg,image/png,image/webp" multiple></div><div class="field full"><label for="prop-documentos">Plantas e ficha técnica (PDF)</label><input id="prop-documentos" type="file" accept="application/pdf" multiple></div>
         
         <div class="field full">
           <button id="btn-submit" class="button button-gold" type="submit">Enviar para Aprovação</button>
@@ -104,6 +104,11 @@
     <!-- Tabela de Imóveis -->
     <section class="dash-panel">
       <h2>Minha Carteira</h2>
+      <div class="property-search">
+        <label for="broker-property-search">Buscar imóvel na carteira</label>
+        <input id="broker-property-search" type="search" placeholder="Título, bairro, cidade, finalidade ou status..." autocomplete="off">
+        <span id="broker-property-search-count" class="property-search-count" aria-live="polite"></span>
+      </div>
       <div class="dash-table-wrap">
         <table class="dash-table">
           <thead><tr><th>Imóvel</th><th>Finalidade</th><th>Preço</th><th>Status</th><th>Ações</th></tr></thead>
