@@ -59,7 +59,7 @@ function renderBrokerProperties() {
   const tbody = $("#imoveis-lista");
   const normalize = value => String(value ?? "").toLocaleLowerCase("pt-BR").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   const query = normalize(brokerSearchTerm.trim());
-  const filtered = query ? brokerProperties.filter(item => normalize([item.titulo, item.id, item.cidade, item.estado, item.bairro, item.finalidade, item.status].join(" ")).includes(query)) : brokerProperties;
+  const filtered = query ? brokerProperties.filter(item => normalize([item.titulo, item.id, item.cidade, item.estado, item.bairro, item.regiao, item.finalidade, item.status].join(" ")).includes(query)) : brokerProperties;
   if (!brokerProperties.length) { tbody.innerHTML = '<tr><td colspan="5">Você ainda não tem imóveis cadastrados.</td></tr>'; return; }
   if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="5">Nenhum imóvel encontrado para essa busca.</td></tr>'; return; }
   tbody.innerHTML = filtered.map(item => `
