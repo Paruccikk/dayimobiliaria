@@ -9,6 +9,7 @@ const helmet = require("helmet");
 const compression = require("compression");
 const rateLimit = require("express-rate-limit");
 const multer = require("multer");
+const whatsappWeb = require("./backend/whatsapp-web");
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
@@ -566,6 +567,29 @@ function allowRoles(...roles) {
     return next();
   };
 }
+
+
+// --------------------------------------------------
+// CONEXÃO DO WHATSAPP WEB (QR CODE) — ADMINISTRADOR
+// --------------------------------------------------
+app.get("/api/admin/whatsapp/status", requireFirebase, allowRoles("administrador"), (_req, res) => {
+  return res.json(whatsappWeb.getStatus());
+});
+app.post("/api/admin/whatsapp/conectar", requireFirebase, allowRoles("administrador"), async (_req, res) => {
+  try {
+    const status = await whatsappWeb.connect();
+    return res.json(status);
+  } catch (error) {
+    return res.status(503).json({ error: error.message || "Não foi possível iniciar a conexão do WhatsApp." });
+  }
+});
+app.post("/api/admin/whatsapp/desconectar", requireFirebase, allowRoles("administrador"), async (_req, res) => {
+  try {
+    return res.json(await whatsappWeb.disconnect());
+  } catch (error) {
+    return res.status(500).json({ error: error.message || "Não foi possível desconectar o WhatsApp." });
+  }
+});
 
 app.get("/api/auth/perfil", requireAuthenticated, (req, res) => {
   return res.json({
@@ -1891,6 +1915,7 @@ app.listen(PORT, () => {
     console.log(
       "Firebase Admin e Realtime Database prontos."
     );
+    whatsappWeb.start().catch(e => console.error("[WhatsApp Web] Inicialização:", e.message));
     scanVisitReminders().catch(e=>console.error("[Lembretes]",e.message));
     setInterval(()=>scanVisitReminders().catch(e=>console.error("[Lembretes]",e.message)),60000);
   }
