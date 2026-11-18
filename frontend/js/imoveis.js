@@ -17,6 +17,7 @@ const inputs = {
   categoria: document.querySelector("#categoria"),
   finalidade: document.querySelector("#finalidade"),
   localizacao: document.querySelector("#localizacao"),
+  regiao: document.querySelector("#regiao"),
   precoMax: document.querySelector("#preco-max"),
   quartos: document.querySelector("#quartos"),
   situacaoObra: document.querySelector("#situacao-obra"),
@@ -29,6 +30,7 @@ for (const [key, id] of [
   ["categoria", "categoria"],
   ["finalidade", "finalidade"],
   ["localizacao", "localizacao"],
+  ["regiao", "regiao"],
   ["precoMax", "preco-max"],
   ["quartos", "quartos"],
   ["situacaoObra", "situacao-obra"],
@@ -71,6 +73,7 @@ const LABELS = {
   categoria: "Categoria",
   finalidade: "Finalidade",
   localizacao: "Local",
+  regiao: "Região",
   precoMax: "Até R$",
   quartos: "Quartos (mín.)",
   situacaoObra: "Situação",
@@ -121,6 +124,7 @@ function escapeHtml(s) {
 function render() {
   const cat = inputs.categoria.value;
   const pur = inputs.finalidade.value;
+  const selectedRegion = inputs.regiao.value;
   const normalizeSearch = value => String(value ?? "").toLocaleLowerCase("pt-BR").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   const loc = normalizeSearch(inputs.localizacao.value.trim());
   const max = Number(inputs.precoMax.value) || Infinity;
@@ -129,8 +133,9 @@ function render() {
     (p) =>
       (!cat || p.categoria === cat) &&
       (!pur || p.finalidade === pur) &&
+      (!selectedRegion || p.regiao === selectedRegion) &&
       (!loc ||
-        [p.cidade, p.bairro, p.estado, p.titulo, p.id, p.finalidade, p.categoria].some((v) =>
+        [p.cidade, p.bairro, p.estado, p.regiao, p.titulo, p.id, p.finalidade, p.categoria].some((v) =>
           normalizeSearch(v).includes(loc)
         )) &&
       (p.preco == null || Number(p.preco) <= max) &&
