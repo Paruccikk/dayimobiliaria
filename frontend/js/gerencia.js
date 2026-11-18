@@ -4,6 +4,7 @@ import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/
 const $ = selector => document.querySelector(selector);
 let currentUser = null;
 let loading = false;
+let managerProperties = [];
 
 const esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({
   "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
@@ -26,6 +27,19 @@ function rows(selector, items, empty, render, colspan) {
   const target = $(selector);
   target.innerHTML = items.length ? items.map(render).join("") : '<tr><td colspan="' + colspan + '">' + empty + '</td></tr>';
 }
+function renderManagerProperties() {
+  const query = ($("#manager-property-search")?.value || "").trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const filtered = managerProperties.filter(item => [
+    item.titulo, item.cidade, item.bairro, item.estado, item.finalidade,
+    item.categoria, item.status, item.responsavelNome, item.responsavelEmail
+  ].join(" ").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().includes(query));
+  const counter = $("#manager-property-search-count");
+  if (counter) counter.textContent = query ? filtered.length + " de " + managerProperties.length + " imóvel(is)" : managerProperties.length + " imóvel(is)";
+  rows("#manager-properties", filtered, query ? "Nenhum imóvel encontrado para esta busca." : "Nenhum imóvel na carteira da equipe.", item =>
+    '<tr><td><strong>' + esc(item.titulo || "Sem título") + '</strong><div class="dash-subtitle">' +
+    esc(item.cidade || "") + '</div></td><td>' + esc(item.finalidade || "—") + '</td><td>' + money(item.preco) +
+    '</td><td>' + esc(item.responsavelNome) + '</td><td>' + esc(item.status || "—") + '</td></tr>', 5);
+}
 async function load() {
   if (!currentUser || loading) return;
   loading = true;
@@ -41,6 +55,7 @@ async function load() {
     const data = await api("/api/gerente/dashboard");
     const team = data.equipe || [];
     const properties = data.imoveis || [];
+    managerProperties = properties;
     const leads = data.leads || [];
     const visits = [...(data.visitas || []), ...(data.agendamentos || [])];
     $("#manager-stat-team").textContent = team.length;
@@ -63,10 +78,7 @@ async function load() {
       '<tr><td><strong>' + esc(lead.nome || "—") + '</strong><div class="dash-subtitle">' + esc(lead.mensagem || "") +
       '</div></td><td>' + esc(lead.telefone || "—") + '</td><td>' + esc(lead.responsavelNome) +
       '</td><td>' + esc(lead.status || "novo") + '</td><td>' + date(lead.criadoEm) + '</td></tr>', 5);
-    rows("#manager-properties", properties, "Nenhum imóvel na carteira da equipe.", item =>
-      '<tr><td><strong>' + esc(item.titulo || "Sem título") + '</strong><div class="dash-subtitle">' +
-      esc(item.cidade || "") + '</div></td><td>' + esc(item.finalidade || "—") + '</td><td>' + money(item.preco) +
-      '</td><td>' + esc(item.responsavelNome) + '</td><td>' + esc(item.status || "—") + '</td></tr>', 5);
+    renderManagerProperties();
     rows("#manager-visits", visits, "Nenhuma visita ou solicitação encontrada.", item =>
       '<tr><td>' + esc(item.clienteNome || item.cliente || "—") + '</td><td>' + esc(item.imovelId || "—") +
       '</td><td>' + date(item.inicio || item.data) + '</td><td>' + esc(item.responsavelNome) +
@@ -78,6 +90,7 @@ async function load() {
     loading = false;
   }
 }
+$("#manager-property-search")?.addEventListener("input", renderManagerProperties);
 $("#manager-refresh").addEventListener("click", load);
 $("#manager-logout").addEventListener("click", async () => {
   await signOut(auth);
