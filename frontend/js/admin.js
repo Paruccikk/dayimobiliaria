@@ -286,7 +286,7 @@ function renderProperties(properties) {
         "#prop-titulo": property.titulo, "#prop-categoria": property.categoria,
         "#prop-finalidade": property.finalidade, "#prop-preco": property.preco ?? "",
         "#prop-cidade": property.cidade, "#prop-estado": property.estado,
-        "#prop-bairro": property.bairro, "#prop-regiao": property.regiao || "", "#prop-latitude": property.latitude ?? "", "#prop-longitude": property.longitude ?? "", "#prop-area": property.areaM2,
+        "#prop-bairro": property.bairro, "#prop-regiao": (property.regiao || "").replace(/^Zona\s+/i, ""), "#prop-area": property.areaM2,
         "#prop-quartos": property.quartos, "#prop-suites": property.suites,
         "#prop-situacao": property.situacaoObra || "pronto",
         "#prop-banheiros": property.banheiros, "#prop-vagas": property.vagas,
@@ -641,8 +641,6 @@ propertyForm.addEventListener("submit", async event => {
     estado: $("#prop-estado").value.trim().toUpperCase(),
     bairro: $("#prop-bairro").value.trim(),
     regiao: $("#prop-regiao").value,
-    latitude: $("#prop-latitude").value.trim(),
-    longitude: $("#prop-longitude").value.trim(),
     areaM2: $("#prop-area").value,
     quartos: $("#prop-quartos").value,
     suites: $("#prop-suites").value,
@@ -656,19 +654,19 @@ propertyForm.addEventListener("submit", async event => {
   };
 
   try {
-    const selectedFiles = [
-      ...Array.from($("#prop-fotos").files || []),
-      ...Array.from($("#prop-documentos").files || [])
-    ];
     const imageFiles = Array.from($("#prop-fotos").files || []);
     const pdfFiles = Array.from($("#prop-documentos").files || []);
-    const maxSingleBytes = 50 * 1024 * 1024;
+    const maxImageBytes = 50 * 1024 * 1024;
+    const maxPdfBytes = 100 * 1024 * 1024;
 
     if (imageFiles.length > 40 || pdfFiles.length > 40) {
       throw new Error("O limite é de 40 imagens e 40 PDFs por imóvel.");
     }
-    if (selectedFiles.some(file => file.size > maxSingleBytes)) {
-      throw new Error("Cada arquivo pode ter no máximo 50 MB.");
+    if (imageFiles.some(file => file.size > maxImageBytes)) {
+      throw new Error("Cada imagem pode ter no máximo 50 MB.");
+    }
+    if (pdfFiles.some(file => file.size > maxPdfBytes)) {
+      throw new Error("Cada PDF pode ter no máximo 100 MB.");
     }
 
     let propertyId = propertyForm.dataset.pendingUploadId || "";
