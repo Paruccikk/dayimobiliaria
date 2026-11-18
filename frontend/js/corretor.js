@@ -5,6 +5,7 @@ const $ = selector => document.querySelector(selector);
 let currentUser = null;
 let currentProfile = null;
 let loading = false;
+let brokerProperties = [];
 
 // Utilitários
 const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
@@ -53,6 +54,25 @@ window.updateAgenda = async function(id, status, btn) {
   }
 };
 
+function renderBrokerProperties() {
+  const tbody = $("#imoveis-lista");
+  const query = ($("#broker-property-search")?.value || "").trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const filtered = brokerProperties.filter(item => [
+    item.titulo, item.bairro, item.cidade, item.estado, item.finalidade,
+    item.categoria, item.status, item.responsavelNome
+  ].join(" ").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().includes(query));
+  const counter = $("#broker-property-search-count");
+  if (counter) counter.textContent = query ? filtered.length + " de " + brokerProperties.length + " imóvel(is)" : brokerProperties.length + " imóvel(is)";
+  if (!brokerProperties.length) { tbody.innerHTML = '<tr><td colspan="5">Você ainda não tem imóveis cadastrados.</td></tr>'; return; }
+  if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="5">Nenhum imóvel encontrado para esta busca.</td></tr>'; return; }
+  tbody.innerHTML = filtered.map(item => `
+    <tr>
+      <td><strong>${escapeHtml(item.titulo)}</strong><div class="dash-subtitle">${escapeHtml(item.bairro || "")} ${item.cidade ? `- ${escapeHtml(item.cidade)}` : ""}</div></td>
+      <td>${escapeHtml(item.finalidade)}</td><td>${money(item.preco)}</td><td>${statusPill(item.status)}</td>
+      <td><a href="/detalhes.html?id=${encodeURIComponent(item.id)}" class="small-btn light" target="_blank">Ver no site ↗</a></td>
+    </tr>`).join("");
+}
+
 // Carregar Dados
 async function loadDashboard() {
   if (loading) return;
@@ -84,25 +104,8 @@ async function loadDashboard() {
     $("#stat-leads").textContent = leads.length;
 
     // --- RENDERIZAR TABELA DE IMÓVEIS ---
-    const tbodyImoveis = $("#imoveis-lista");
-    if (myImoveis.length === 0) {
-      tbodyImoveis.innerHTML = '<tr><td colspan="5">Você ainda não tem imóveis cadastrados.</td></tr>';
-    } else {
-      tbodyImoveis.innerHTML = myImoveis.map(item => `
-        <tr>
-          <td>
-            <strong>${escapeHtml(item.titulo)}</strong>
-            <div class="dash-subtitle">${escapeHtml(item.bairro || "")} ${item.cidade ? `- ${escapeHtml(item.cidade)}` : ""}</div>
-          </td>
-          <td>${escapeHtml(item.finalidade)}</td>
-          <td>${money(item.preco)}</td>
-          <td>${statusPill(item.status)}</td>
-          <td>
-            <a href="/detalhes.html?id=${encodeURIComponent(item.id)}" class="small-btn light" target="_blank">Ver no site ↗</a>
-          </td>
-        </tr>
-      `).join("");
-    }
+    brokerProperties = myImoveis;
+    renderBrokerProperties();
 
     // --- RENDERIZAR AGENDAMENTOS ---
     const resAgenda = await api("/api/agendamentos");
@@ -228,6 +231,7 @@ $("#agenda-lista").addEventListener("click", (event) => {
   updateAgenda(btn.dataset.agendaId, btn.dataset.agendaAction, btn);
 });
 
+$("#broker-property-search")?.addEventListener("input", renderBrokerProperties);
 $("#btn-refresh").addEventListener("click", loadDashboard);
 $("#btn-logout").addEventListener("click", async () => {
   await signOut(auth);
