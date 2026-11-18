@@ -259,6 +259,11 @@ const allowedCategories = new Set([
 
 const allowedPurposes = new Set(["venda", "locacao", "temporada"]);
 
+const allowedPropertyRegions = new Set([
+  "Zona Norte", "Zona Sul", "Zona Leste", "Zona Oeste", "Centro",
+  "ABC Paulista", "Interior", "Litoral", "Outra"
+]);
+
 const allowedPropertyStatuses = new Set([
   "rascunho",
   "aguardando_aprovacao",
@@ -1588,7 +1593,7 @@ app.post(
 );
 
 // Upload local de fotos e PDFs dos imóveis.
-const PROPERTY_UPLOAD_MAX_MB = Math.max(1, Number(process.env.PROPERTY_UPLOAD_MAX_MB || process.env.MAX_UPLOAD_MB || 25));
+const PROPERTY_UPLOAD_MAX_MB = Math.max(1, Number(process.env.PROPERTY_UPLOAD_MAX_MB || process.env.MAX_UPLOAD_MB || 50));
 const PROPERTY_UPLOAD_MAX_FILES = 80; // até 40 imagens + 40 PDFs por imóvel
 const propertyFileTypes = {
   ".jpg": { mime: "image/jpeg", kind: "image" },
@@ -1800,6 +1805,7 @@ app.post(
         cidade: cleanString(body.cidade, 100),
         estado: cleanString(body.estado, 2).toUpperCase(),
         bairro: cleanString(body.bairro, 120),
+        regiao: allowedPropertyRegions.has(body.regiao) ? body.regiao : "",
         latitude,
         longitude,
         quartos: Math.max(0, Number(body.quartos) || 0),
@@ -1860,6 +1866,10 @@ app.patch("/api/admin/imoveis/:id", requireFirebase, allowRoles("administrador")
     if (Object.hasOwn(body, key)) updates[key] = cleanString(body[key], max);
   }
   if (Object.hasOwn(body, "estado")) updates.estado = updates.estado.toUpperCase();
+  if (Object.hasOwn(body, "regiao")) {
+    if (body.regiao && !allowedPropertyRegions.has(body.regiao)) return res.status(400).json({ error: "Região do imóvel inválida." });
+    updates.regiao = cleanString(body.regiao, 40);
+  }
   if (Object.hasOwn(body, "latitude") || Object.hasOwn(body, "longitude")) {
     const latitude = body.latitude === "" || body.latitude == null ? null : Number(body.latitude);
     const longitude = body.longitude === "" || body.longitude == null ? null : Number(body.longitude);
