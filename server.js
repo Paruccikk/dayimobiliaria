@@ -260,8 +260,8 @@ const allowedCategories = new Set([
 const allowedPurposes = new Set(["venda", "locacao", "temporada"]);
 
 const allowedPropertyRegions = new Set([
-  "Zona Norte", "Zona Sul", "Zona Leste", "Zona Oeste", "Centro",
-  "ABC Paulista", "Interior", "Litoral", "Outra"
+  "Norte", "Sul", "Leste", "Oeste", "Centro",
+  "Zona Norte", "Zona Sul", "Zona Leste", "Zona Oeste"
 ]);
 
 const allowedPropertyStatuses = new Set([
@@ -1593,7 +1593,7 @@ app.post(
 );
 
 // Upload local de fotos e PDFs dos imóveis.
-const PROPERTY_UPLOAD_MAX_MB = Math.max(1, Number(process.env.PROPERTY_UPLOAD_MAX_MB || 50));
+const PROPERTY_UPLOAD_MAX_MB = Math.max(1, Number(process.env.PROPERTY_UPLOAD_MAX_MB || 100));
 const PROPERTY_UPLOAD_MAX_FILES = 80; // até 40 imagens + 40 PDFs por imóvel
 const propertyFileTypes = {
   ".jpg": { mime: "image/jpeg", kind: "image" },
@@ -2323,7 +2323,7 @@ app.use((err, _req, res, _next) => {
   if (err instanceof multer.MulterError) {
     if (err.code === "LIMIT_FILE_SIZE") {
       return res.status(413).json({
-        error: `Um arquivo ultrapassou o limite de ${PROPERTY_UPLOAD_MAX_MB || 25} MB.`
+        error: `Um arquivo ultrapassou o limite de ${PROPERTY_UPLOAD_MAX_MB || 100} MB.`
       });
     }
     if (err.code === "LIMIT_FILE_COUNT" || err.code === "LIMIT_UNEXPECTED_FILE") {
