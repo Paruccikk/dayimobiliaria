@@ -51,6 +51,11 @@
     </section>
     <section class="dash-panel">
       <h2>Imóveis da equipe</h2>
+      <div class="property-search">
+        <label for="manager-property-search">Buscar imóvel da equipe</label>
+        <input id="manager-property-search" type="search" placeholder="Título, bairro, cidade, corretor ou status..." autocomplete="off">
+        <span id="manager-property-search-count" class="property-search-count" aria-live="polite"></span>
+      </div>
       <div class="dash-table-wrap"><table class="dash-table">
         <thead><tr><th>Imóvel</th><th>Finalidade</th><th>Preço</th><th>Corretor</th><th>Status</th></tr></thead>
         <tbody id="manager-properties"><tr><td colspan="5">Carregando…</td></tr></tbody>
