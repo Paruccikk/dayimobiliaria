@@ -133,7 +133,7 @@ function render() {
     (p) =>
       (!cat || p.categoria === cat) &&
       (!pur || p.finalidade === pur) &&
-      (!selectedRegion || p.regiao === selectedRegion) &&
+      (!selectedRegion || [p.regiao, String(p.regiao || "").replace(/^Zona\\s+/i, "")].includes(selectedRegion)) &&
       (!loc ||
         [p.cidade, p.bairro, p.estado, p.regiao, p.titulo, p.id, p.finalidade, p.categoria].some((v) =>
           normalizeSearch(v).includes(loc)
