@@ -235,7 +235,7 @@ function renderProperties(properties) {
   const tbody = $("#imoveis-lista");
   const normalize = value => String(value ?? "").toLocaleLowerCase("pt-BR").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   const query = normalize(propertySearchTerm.trim());
-  const filteredProperties = query ? properties.filter(property => normalize([property.titulo, property.id, property.cidade, property.estado, property.bairro, property.finalidade, property.status, property.responsavelNome, property.responsavelEmail, property.responsavelUid].join(" ")).includes(query)) : properties;
+  const filteredProperties = query ? properties.filter(property => normalize([property.titulo, property.id, property.cidade, property.estado, property.bairro, property.regiao, property.finalidade, property.status, property.responsavelNome, property.responsavelEmail, property.responsavelUid].join(" ")).includes(query)) : properties;
 
   if (!properties.length) {
     tbody.innerHTML = '<tr><td colspan="6">Nenhum imóvel cadastrado.</td></tr>';
@@ -258,7 +258,7 @@ function renderProperties(properties) {
       <tr data-property-id="${escapeHtml(property.id)}">
         <td>
           <strong>${escapeHtml(property.titulo || "Sem título")}</strong>
-          <div class="dash-subtitle">${escapeHtml(property.cidade || "")}${property.estado ? `/${escapeHtml(property.estado)}` : ""}</div>
+          <div class="dash-subtitle">${escapeHtml(property.cidade || "")}${property.estado ? `/${escapeHtml(property.estado)}` : ""}${property.regiao ? ` · ${escapeHtml(property.regiao)}` : ""}</div>
         </td>
         <td>${escapeHtml(property.finalidade || "—")}</td>
         <td>${escapeHtml(money(property.preco))}</td>
@@ -286,7 +286,7 @@ function renderProperties(properties) {
         "#prop-titulo": property.titulo, "#prop-categoria": property.categoria,
         "#prop-finalidade": property.finalidade, "#prop-preco": property.preco ?? "",
         "#prop-cidade": property.cidade, "#prop-estado": property.estado,
-        "#prop-bairro": property.bairro, "#prop-latitude": property.latitude ?? "", "#prop-longitude": property.longitude ?? "", "#prop-area": property.areaM2,
+        "#prop-bairro": property.bairro, "#prop-regiao": property.regiao || "", "#prop-latitude": property.latitude ?? "", "#prop-longitude": property.longitude ?? "", "#prop-area": property.areaM2,
         "#prop-quartos": property.quartos, "#prop-suites": property.suites,
         "#prop-situacao": property.situacaoObra || "pronto",
         "#prop-banheiros": property.banheiros, "#prop-vagas": property.vagas,
@@ -640,6 +640,7 @@ propertyForm.addEventListener("submit", async event => {
     cidade: $("#prop-cidade").value.trim(),
     estado: $("#prop-estado").value.trim().toUpperCase(),
     bairro: $("#prop-bairro").value.trim(),
+    regiao: $("#prop-regiao").value,
     latitude: $("#prop-latitude").value.trim(),
     longitude: $("#prop-longitude").value.trim(),
     areaM2: $("#prop-area").value,
@@ -661,13 +662,13 @@ propertyForm.addEventListener("submit", async event => {
     ];
     const imageFiles = Array.from($("#prop-fotos").files || []);
     const pdfFiles = Array.from($("#prop-documentos").files || []);
-    const maxSingleBytes = 25 * 1024 * 1024;
+    const maxSingleBytes = 50 * 1024 * 1024;
 
     if (imageFiles.length > 40 || pdfFiles.length > 40) {
       throw new Error("O limite é de 40 imagens e 40 PDFs por imóvel.");
     }
     if (selectedFiles.some(file => file.size > maxSingleBytes)) {
-      throw new Error("Cada arquivo pode ter no máximo 25 MB.");
+      throw new Error("Cada arquivo pode ter no máximo 50 MB.");
     }
 
     let propertyId = propertyForm.dataset.pendingUploadId || "";
