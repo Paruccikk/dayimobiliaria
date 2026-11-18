@@ -9,7 +9,9 @@
     "dev": "nodemon server.js",
     "check": "node --check server.js && node --check frontend/js/painel.js && node --check frontend/js/admin.js"
   },
-  "engines": { "node": ">=20 <25" },
+  "engines": {
+    "node": ">=20 <25"
+  },
   "dependencies": {
     "compression": "^1.7.4",
     "dotenv": "^16.4.5",
@@ -17,7 +19,11 @@
     "express-rate-limit": "^7.5.0",
     "firebase-admin": "^12.7.0",
     "helmet": "^8.0.0",
-    "multer": "^1.4.5-lts.1"
+    "multer": "^1.4.5-lts.1",
+    "qrcode": "^1.5.4",
+    "whatsapp-web.js": "^1.26.0"
   },
-  "devDependencies": { "nodemon": "^3.1.7" }
+  "devDependencies": {
+    "nodemon": "^3.1.7"
+  }
 }
