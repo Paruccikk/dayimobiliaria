@@ -701,3 +701,36 @@ body:has(#admin-app:not([hidden])) {
     padding-bottom: 76px;
   }
 }
+
+
+/* Correção de alinhamento do toggle Minha Casa, Minha Vida */
+.dash-form .field > .mcmv-toggle {
+  display: flex !important; flex-direction: row; align-items: center; justify-content: flex-start;
+  gap: 13px; width: 100%; min-height: 58px; margin: 0; padding: 14px 16px;
+  box-sizing: border-box; text-transform: none; letter-spacing: normal; line-height: 1.4;
+}
+.dash-form .field > .mcmv-toggle input[type="checkbox"] {
+  position: absolute; flex: 0 0 1px; width: 1px; min-width: 1px; height: 1px;
+  margin: 0; padding: 0; opacity: 0; pointer-events: none;
+}
+.dash-form .field > .mcmv-toggle .mcmv-switch { display:block; flex:0 0 46px; width:46px; height:26px; }
+.dash-form .field > .mcmv-toggle .mcmv-toggle-copy {
+  display:flex; flex:1 1 auto; flex-direction:column; min-width:0; gap:4px;
+}
+.dash-form .field > .mcmv-toggle .mcmv-toggle-copy strong,
+.dash-form .field > .mcmv-toggle .mcmv-toggle-copy small {
+  display:block; margin:0; text-transform:none; letter-spacing:normal; line-height:1.4;
+}
+.dash-form .field > .mcmv-toggle .mcmv-toggle-copy strong { font-size:13px; color:var(--text); }
+.dash-form .field > .mcmv-toggle .mcmv-toggle-copy small { font-size:12px; color:var(--text-mute); font-weight:400; }
+
+/* Campo de busca das carteiras */
+.property-search { display:grid; grid-template-columns:minmax(0,1fr); gap:7px; margin:0 0 16px; max-width:680px; }
+.property-search label { color:var(--text-soft); font-size:12px; font-weight:600; }
+.property-search input {
+  width:100%; min-width:0; box-sizing:border-box; padding:12px 15px;
+  border:1px solid var(--border-strong); border-radius:var(--radius-sm);
+  background:rgba(0,0,0,.28); color:var(--text); font:14px var(--font-body);
+}
+.property-search input:focus { outline:none; border-color:rgba(230,180,90,.65); box-shadow:0 0 0 3px rgba(230,180,90,.10); }
+.property-search-count { min-height:1em; color:var(--text-mute); font-size:11px; }
