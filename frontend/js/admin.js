@@ -710,87 +710,6 @@ propertyForm.addEventListener("submit", async event => {
 
 
 
-const whatsappBadge = $("#whatsapp-connection-badge");
-const whatsappQr = $("#whatsapp-qr-image");
-const whatsappQrTitle = $("#whatsapp-qr-title");
-const whatsappQrHelp = $("#whatsapp-qr-help");
-const whatsappState = $("#whatsapp-connection-state");
-const whatsappUpdated = $("#whatsapp-connection-updated");
-const whatsappFeedback = $("#whatsapp-connection-feedback");
-const whatsappConnectButton = $("#whatsapp-connect-button");
-const whatsappDisconnectButton = $("#whatsapp-disconnect-button");
-const whatsappRefreshButton = $("#whatsapp-refresh-button");
-let whatsappPollTimer = null;
-
-function renderWhatsappStatus(data = {}) {
-  if (!whatsappBadge) return;
-  const status = data.status || "desconectado";
-  const labels = {
-    conectado: "Conectado",
-    qr: "Aguardando leitura do QR Code",
-    conectando: "Conectando",
-    desconectado: "Desconectado",
-    erro: "Erro na conexão",
-    indisponivel: "Integração indisponível"
-  };
-  whatsappBadge.textContent = labels[status] || status;
-  whatsappBadge.className = "pill " + (status === "conectado" ? "pill-green" : status === "erro" || status === "indisponivel" ? "pill-gold" : "");
-  whatsappState.textContent = labels[status] || status;
-  whatsappUpdated.textContent = data.updatedAt ? formatDate(data.updatedAt) : "—";
-  whatsappConnectButton.hidden = status === "conectado";
-  whatsappDisconnectButton.hidden = !["conectado","qr","conectando"].includes(status);
-  whatsappConnectButton.disabled = ["qr","conectando"].includes(status);
-  if (data.qrDataUrl && status === "qr") {
-    whatsappQr.src = data.qrDataUrl;
-    whatsappQr.hidden = false;
-    $("#whatsapp-qr-placeholder").hidden = true;
-  } else {
-    whatsappQr.hidden = true;
-    $("#whatsapp-qr-placeholder").hidden = false;
-    whatsappQrTitle.textContent = status === "conectado" ? "WhatsApp conectado" : status === "indisponivel" ? "Integração não instalada" : "WhatsApp não conectado";
-    whatsappQrHelp.textContent = status === "conectado" ? "A sessão está ativa neste servidor." : status === "indisponivel" ? (data.message || "Instale as dependências no servidor.") : status === "erro" ? (data.message || "Verifique os logs do servidor.") : "Clique em conectar para gerar um QR Code.";
-  }
-}
-async function refreshWhatsappStatus() {
-  if (!currentUser || !whatsappBadge) return;
-  try {
-    const data = await api("/api/admin/whatsapp/status");
-    renderWhatsappStatus(data);
-  } catch (error) {
-    whatsappBadge.textContent = "Status indisponível";
-    whatsappState.textContent = error.message;
-  }
-}
-async function connectWhatsapp() {
-  whatsappConnectButton.disabled = true;
-  setMessage(whatsappFeedback, "Preparando conexão e QR Code…");
-  try {
-    const data = await api("/api/admin/whatsapp/conectar", { method: "POST", body: "{}" });
-    renderWhatsappStatus(data);
-    setMessage(whatsappFeedback, data.status === "qr" ? "Escaneie o QR Code com o celular." : "Solicitação de conexão enviada.");
-  } catch (error) {
-    setMessage(whatsappFeedback, error.message);
-  } finally {
-    whatsappConnectButton.disabled = false;
-  }
-}
-async function disconnectWhatsapp() {
-  if (!window.confirm("Deseja realmente desconectar e remover a sessão salva deste WhatsApp?")) return;
-  whatsappDisconnectButton.disabled = true;
-  try {
-    const data = await api("/api/admin/whatsapp/desconectar", { method: "POST", body: "{}" });
-    renderWhatsappStatus(data);
-    setMessage(whatsappFeedback, "WhatsApp desconectado. Para conectar novamente, gere um novo QR Code.");
-  } catch (error) {
-    setMessage(whatsappFeedback, error.message);
-  } finally {
-    whatsappDisconnectButton.disabled = false;
-  }
-}
-whatsappConnectButton?.addEventListener("click", connectWhatsapp);
-whatsappDisconnectButton?.addEventListener("click", disconnectWhatsapp);
-whatsappRefreshButton?.addEventListener("click", refreshWhatsappStatus);
-
 
 onAuthStateChanged(auth, user => {
   currentUser = user;
@@ -805,8 +724,5 @@ onAuthStateChanged(auth, user => {
 
   // Usa a sessão já autenticada no login.html.
   void carregarDashboard();
-  void refreshWhatsappStatus();
-  if (whatsappPollTimer) clearInterval(whatsappPollTimer);
-  whatsappPollTimer = setInterval(() => void refreshWhatsappStatus(), 8000);
 });
 
