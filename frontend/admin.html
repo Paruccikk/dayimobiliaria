@@ -7,17 +7,7 @@
     <link rel="stylesheet" href="/css/style.css">
   <link rel="stylesheet" href="/css/admin.css">
 
-<style>
-.whatsapp-admin-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}
-.whatsapp-admin-grid{display:grid;grid-template-columns:minmax(220px,300px) minmax(260px,1fr);gap:24px;align-items:center;margin-top:18px}
-.whatsapp-qr-card{min-height:270px;border:1px dashed var(--border-color,#cbd5e1);border-radius:14px;padding:18px;display:flex;align-items:center;justify-content:center;background:var(--surface,#f8fafc)}
-.whatsapp-qr-card img{width:100%;max-width:250px;height:auto;background:#fff;padding:10px;border-radius:8px}
-.whatsapp-qr-placeholder{text-align:center;max-width:230px}
-.whatsapp-qr-placeholder p,.whatsapp-connection-info small{color:var(--muted,#64748b);font-size:.88rem}
-.whatsapp-connection-info ol{padding-left:22px;line-height:1.8}
-.whatsapp-admin-actions{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0}
-@media(max-width:700px){.whatsapp-admin-grid{grid-template-columns:1fr}.whatsapp-qr-card{min-height:240px}}
-</style>
+
 
 </head>
 <body>
@@ -47,6 +37,7 @@
         <a class="button button-dark" href="/painel.html">Painel geral</a>
         <a class="button button-dark" href="/crm.html">CRM de Leads</a>
         <a class="button button-dark" href="/materiais.html">Materiais e carteira</a>
+        <a class="button button-gold" href="/whatsapp.html">Integração WhatsApp ↗</a>
         <button class="button button-gold" id="admin-refresh" type="button">Atualizar dados ↻</button>
         <button class="button button-dark" id="admin-logout" type="button">Sair</button>
       </div>
@@ -59,45 +50,8 @@
       <a href="#produtividade" class="admin-tab">Produtividade da equipe</a>
       <a href="#usuarios-lista" class="admin-tab">Usuários e vínculos</a>
       <a href="#oportunidades-corretor" class="admin-tab">Oportunidades de corretores</a>
-      <a href="#whatsapp-integracao" class="admin-tab">WhatsApp</a>
     </nav>
 
-
-    <section id="whatsapp-integracao" class="dash-panel whatsapp-admin-panel">
-      <div class="whatsapp-admin-heading">
-        <div>
-          <h2>Conexão do WhatsApp</h2>
-          <p class="dash-subtitle">Conecte o número comercial da R&amp;D PRIME IMÓVEIS pelo QR Code. A sessão será armazenada na VPS para tentar restaurar a conexão após reinicializações.</p>
-        </div>
-        <span id="whatsapp-connection-badge" class="pill">Verificando status…</span>
-      </div>
-      <div class="whatsapp-admin-grid">
-        <div class="whatsapp-qr-card">
-          <div id="whatsapp-qr-placeholder" class="whatsapp-qr-placeholder">
-            <strong id="whatsapp-qr-title">WhatsApp não conectado</strong>
-            <p id="whatsapp-qr-help">Clique em conectar para gerar um QR Code.</p>
-          </div>
-          <img id="whatsapp-qr-image" alt="QR Code para conectar o WhatsApp" hidden>
-        </div>
-        <div class="whatsapp-connection-info">
-          <p><strong>Estado:</strong> <span id="whatsapp-connection-state">Verificando…</span></p>
-          <p><strong>Última atualização:</strong> <span id="whatsapp-connection-updated">—</span></p>
-          <ol>
-            <li>Abra o WhatsApp no celular.</li>
-            <li>Acesse <strong>Aparelhos conectados</strong>.</li>
-            <li>Toque em <strong>Conectar aparelho</strong>.</li>
-            <li>Escaneie o QR Code exibido ao lado.</li>
-          </ol>
-          <div class="whatsapp-admin-actions">
-            <button id="whatsapp-connect-button" class="button button-gold" type="button">Conectar WhatsApp</button>
-            <button id="whatsapp-disconnect-button" class="button button-dark" type="button" hidden>Desconectar</button>
-            <button id="whatsapp-refresh-button" class="button button-dark" type="button">Atualizar status</button>
-          </div>
-          <p id="whatsapp-connection-feedback" class="dash-feedback" role="status" aria-live="polite"></p>
-          <small>Integração experimental baseada no WhatsApp Web não oficial. A conexão pode expirar ou ser encerrada pelo WhatsApp. Não use esta sessão para disparos em massa.</small>
-        </div>
-      </div>
-    </section>
 
     <section id="visao-geral" class="dash-grid" aria-label="Indicadores">
       <article class="dash-card"><small>Total de imóveis</small><strong class="dash-number" id="stat-imoveis">—</strong><span class="dash-note">Todos os status</span></article>
