@@ -32,7 +32,7 @@ function renderManagerProperties() {
   const target = $("#manager-properties");
   const normalize = value => String(value ?? "").toLocaleLowerCase("pt-BR").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   const query = normalize(managerSearchTerm.trim());
-  const filtered = query ? managerProperties.filter(item => normalize([item.titulo, item.id, item.cidade, item.estado, item.bairro, item.finalidade, item.status, item.responsavelNome, item.responsavelUid].join(" ")).includes(query)) : managerProperties;
+  const filtered = query ? managerProperties.filter(item => normalize([item.titulo, item.id, item.cidade, item.estado, item.bairro, item.regiao, item.finalidade, item.status, item.responsavelNome, item.responsavelUid].join(" ")).includes(query)) : managerProperties;
   if (!managerProperties.length) { target.innerHTML = '<tr><td colspan="5">Nenhum imóvel na carteira da equipe.</td></tr>'; return; }
   if (!filtered.length) { target.innerHTML = '<tr><td colspan="5">Nenhum imóvel encontrado para essa busca.</td></tr>'; return; }
   target.innerHTML = filtered.map(item => '<tr><td><strong>' + esc(item.titulo || "Sem título") + '</strong><div class="dash-subtitle">' + esc(item.cidade || "") + '</div></td><td>' + esc(item.finalidade || "—") + '</td><td>' + money(item.preco) + '</td><td>' + esc(item.responsavelNome) + '</td><td>' + esc(item.status || "—") + '</td></tr>').join("");
