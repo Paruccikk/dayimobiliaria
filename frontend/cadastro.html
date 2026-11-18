@@ -2,90 +2,147 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#05060a">
   <meta name="description" content="Crie sua conta na R&D Prime Imóveis.">
-  <title>Criar cadastro | R&D PRIME IMÓVEIS</title>
+  <title>Cadastro | R&D PRIME IMÓVEIS</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/index.css">
   <link rel="stylesheet" href="/css/style.css">
   <style>
-    body.auth-page{min-height:100vh;background:#05060a;color:#f2f3f7}
-    .auth-bg{position:fixed;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(900px 560px at 12% 5%,rgba(139,108,240,.14),transparent 65%),radial-gradient(850px 550px at 95% 15%,rgba(87,217,224,.09),transparent 62%),radial-gradient(900px 650px at 50% 100%,rgba(230,180,90,.12),transparent 65%),#05060a}
-    .auth-top{width:min(1240px,92%);margin:auto;min-height:88px;display:flex;align-items:center;justify-content:space-between;gap:20px;border-bottom:1px solid rgba(255,255,255,.08)}
-    .auth-top .brand{display:flex;align-items:center;gap:13px}
-    .auth-top .brand-mark{font-family:'Space Grotesk',sans-serif}
-    .auth-back{color:#f7d78b;font-size:13px;font-weight:700}
-    .auth-layout{width:min(1120px,92%);margin:42px auto 64px;display:grid;grid-template-columns:1fr 1fr;min-height:680px;border:1px solid rgba(255,255,255,.1);border-radius:26px;overflow:hidden;background:rgba(14,16,25,.82);box-shadow:0 25px 90px rgba(0,0,0,.5);backdrop-filter:blur(18px)}
-    .auth-story{position:relative;display:flex;flex-direction:column;justify-content:flex-end;padding:clamp(30px,5vw,58px);overflow:hidden;background:linear-gradient(155deg,rgba(5,6,10,.2),rgba(5,6,10,.95)),radial-gradient(ellipse at 70% 20%,rgba(230,180,90,.2),transparent 42%),radial-gradient(ellipse at 15% 35%,rgba(87,217,224,.12),transparent 48%),#10121c}
-    .auth-story:before{content:"R&D";position:absolute;top:40px;left:40px;font:700 clamp(90px,13vw,170px)/1 'Space Grotesk',sans-serif;letter-spacing:-.1em;color:rgba(255,255,255,.035);pointer-events:none}
-    .auth-kicker,.auth-eyebrow{font-size:11px;font-weight:800;letter-spacing:.2em;text-transform:uppercase;color:#e6b45a}
-    .auth-story h1{position:relative;max-width:470px;margin:16px 0;font:700 clamp(32px,4vw,48px)/1.08 'Space Grotesk',sans-serif;letter-spacing:-.045em;color:#f2f3f7}
-    .auth-story h1 span{background:linear-gradient(120deg,#f7d78b,#e6b45a 55%,#c9973f);-webkit-background-clip:text;background-clip:text;color:transparent}
-    .auth-story p{position:relative;max-width:420px;color:#a7adc0;line-height:1.8;font-size:14px}
-    .auth-points{position:relative;display:grid;gap:15px;margin-top:28px}
-    .auth-point{display:flex;gap:13px;align-items:center;color:#d8dbe4;font-size:13px}
-    .auth-point b{width:30px;height:30px;flex:none;display:grid;place-items:center;border:1px solid rgba(230,180,90,.4);border-radius:10px;color:#f7d78b;background:rgba(230,180,90,.08)}
-    .auth-content{padding:clamp(28px,4.5vw,56px);display:flex;flex-direction:column;justify-content:center}
-    .auth-content h2{margin:12px 0 8px;font:700 34px/1.15 'Space Grotesk',sans-serif;letter-spacing:-.04em;color:#f2f3f7}
-    .auth-intro{margin:0 0 25px;color:#a7adc0;font-size:13px;line-height:1.7}
-    .auth-form{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-    .auth-form .field{min-width:0;margin:0!important}
-    .auth-form .field.full{grid-column:1/-1}
-    .auth-form label{display:block;margin:0 0 7px;color:#c8ccda;font-size:11px;font-weight:750;letter-spacing:.04em}
-    .auth-form input{width:100%;height:47px;box-sizing:border-box;border:1px solid rgba(255,255,255,.12);border-radius:11px;padding:0 13px;background:rgba(255,255,255,.045);color:#f2f3f7!important;-webkit-text-fill-color:#f2f3f7;caret-color:#f7d78b;font:inherit;font-size:13px;outline:none;transition:border .2s,box-shadow .2s,background .2s}
-    .auth-form input::placeholder{color:#737b91!important;opacity:1}
-    .auth-form input:focus{border-color:#e6b45a;box-shadow:0 0 0 3px rgba(230,180,90,.12);background:rgba(255,255,255,.07)}
-    .auth-submit{grid-column:1/-1;width:100%;min-height:51px;margin-top:5px;border:0;border-radius:11px;background:linear-gradient(120deg,#f7d78b,#e6b45a 55%,#c9973f);color:#17130b;font-weight:800;font-size:13px;cursor:pointer;transition:transform .2s,filter .2s}
-    .auth-submit:hover{transform:translateY(-2px);filter:brightness(1.06)}
-    .auth-submit:disabled{opacity:.55;cursor:wait;transform:none}
-    .auth-feedback{grid-column:1/-1;min-height:20px;margin:0;color:#f0b49f;font-size:12px;line-height:1.6}
-    .auth-switch{text-align:center;margin:18px 0 0;color:#a7adc0;font-size:12px}
-    .auth-switch a{color:#f7d78b;font-weight:800}
-    .auth-note{margin-top:20px;padding:14px 15px;border:1px solid rgba(230,180,90,.18);border-radius:12px;background:rgba(230,180,90,.06);color:#a7adc0;font-size:11px;line-height:1.7}
-    @media(max-width:820px){.auth-layout{grid-template-columns:1fr;margin:25px auto 45px}.auth-story{min-height:270px}.auth-story:before{top:20px;left:24px}.auth-story h1{font-size:34px}.auth-content{padding:34px 28px}}
-    @media(max-width:480px){.auth-top{min-height:72px}.auth-top .brand-sub{font-size:9px}.auth-layout{width:calc(100% - 24px);border-radius:18px;margin:18px auto 32px}.auth-story{padding:27px 23px;min-height:245px}.auth-story h1{font-size:30px}.auth-content{padding:28px 22px}.auth-content h2{font-size:29px}.auth-form{grid-template-columns:1fr}.auth-form .field.full,.auth-submit,.auth-feedback{grid-column:auto}}
+    body.cadastro-page{min-height:100vh;background:var(--bg);color:var(--text)}
+    .cadastro-main{position:relative;z-index:1;width:min(1040px,92%);margin:64px auto 88px}
+    .cadastro-heading{text-align:center;max-width:690px;margin:0 auto 30px}
+    .cadastro-heading .eyebrow{justify-content:center}
+    .cadastro-heading h1{font:700 clamp(2rem,4.5vw,3.35rem)/1.08 var(--font-display);letter-spacing:-.045em;margin:0 0 14px}
+    .cadastro-heading p{margin:0;color:var(--text-soft);font-size:15px;line-height:1.8}
+    .cadastro-shell{display:grid;grid-template-columns:.82fr 1.18fr;overflow:hidden;border:1px solid var(--border-strong);border-radius:var(--radius-lg);background:rgba(14,16,25,.82);box-shadow:var(--shadow-card);backdrop-filter:blur(18px)}
+    .cadastro-aside{position:relative;display:flex;flex-direction:column;justify-content:space-between;gap:28px;padding:clamp(28px,4vw,46px);background:linear-gradient(145deg,rgba(230,180,90,.13),transparent 48%),linear-gradient(180deg,rgba(87,217,224,.05),rgba(5,6,10,.22))}
+    .cadastro-aside:after{content:"R&D";position:absolute;right:14px;bottom:8px;font:700 clamp(100px,14vw,170px)/1 var(--font-display);letter-spacing:-.12em;color:rgba(255,255,255,.035);pointer-events:none}
+    .cadastro-aside h2{position:relative;z-index:1;font:700 clamp(26px,3vw,38px)/1.12 var(--font-display);letter-spacing:-.04em;margin:12px 0;color:var(--text)}
+    .cadastro-aside h2 span{background:var(--grad-hero);-webkit-background-clip:text;background-clip:text;color:transparent}
+    .cadastro-aside p{position:relative;z-index:1;color:var(--text-soft);font-size:14px;line-height:1.85;margin:0}
+    .cadastro-benefits{position:relative;z-index:1;display:grid;gap:17px;margin:0;padding:0;list-style:none}
+    .cadastro-benefits li{display:flex;align-items:center;gap:12px;color:#d8dbe4;font-size:13px}
+    .cadastro-benefits b{width:30px;height:30px;flex:none;display:grid;place-items:center;border:1px solid rgba(230,180,90,.35);border-radius:10px;background:rgba(230,180,90,.08);color:var(--gold-2);font-size:11px}
+    .cadastro-form-area{padding:clamp(26px,4vw,48px)}
+    .cadastro-form-area h2{font:700 27px/1.2 var(--font-display);letter-spacing:-.035em;margin:0 0 7px}
+    .cadastro-form-area>p{color:var(--text-mute);font-size:13px;line-height:1.7;margin:0 0 25px}
+    .cadastro-form{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .cadastro-form .field{min-width:0;gap:7px}
+    .cadastro-form .field.full{grid-column:1/-1}
+    .cadastro-form .field label{font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--text-soft);font-weight:700}
+    .cadastro-form .field input{width:100%;min-height:48px;padding:12px 14px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);background:rgba(255,255,255,.045);color:var(--text);font:500 13px var(--font-body);outline:none;transition:border-color .2s,box-shadow .2s,background .2s}
+    .cadastro-form .field input::placeholder{color:var(--text-mute)}
+    .cadastro-form .field input:focus{border-color:var(--gold);background:rgba(255,255,255,.07);box-shadow:0 0 0 3px rgba(230,180,90,.12)}
+    .cadastro-submit{grid-column:1/-1;width:100%;justify-content:center;margin-top:5px}
+    .cadastro-feedback{grid-column:1/-1;min-height:22px;margin:0;color:#f0b49f;font-size:12px;line-height:1.6}
+    .cadastro-submit:disabled{opacity:.6;cursor:wait;transform:none}
+    .cadastro-login{text-align:center;margin:20px 0 0;color:var(--text-soft);font-size:13px}
+    .cadastro-login a{color:var(--gold-2);font-weight:700}
+    .cadastro-notice{display:flex;gap:11px;align-items:flex-start;margin-top:22px;padding:14px 15px;border:1px solid rgba(230,180,90,.2);border-radius:12px;background:rgba(230,180,90,.055);color:var(--text-soft);font-size:11px;line-height:1.7}
+    .cadastro-notice strong{color:var(--gold-2)}
+    .cadastro-footer{text-align:center;padding:0 20px 30px;color:var(--text-mute);font-size:11px}
+    .cadastro-whatsapp{position:fixed;right:20px;bottom:20px;z-index:9999;display:inline-flex;align-items:center;gap:9px;padding:13px 18px;border:1px solid rgba(255,255,255,.15);border-radius:999px;background:#159447;color:#fff;font:700 13px var(--font-body);box-shadow:0 8px 28px #0007;transition:transform .2s,filter .2s}
+    .cadastro-whatsapp:hover{transform:translateY(-2px);filter:brightness(1.08)}
+    @media(max-width:800px){.cadastro-main{margin:42px auto 64px}.cadastro-shell{grid-template-columns:1fr}.cadastro-aside{gap:20px;padding:28px}.cadastro-aside h2{max-width:520px}.cadastro-benefits{grid-template-columns:1fr 1fr}}
+    @media(max-width:520px){.cadastro-main{width:calc(100% - 24px);margin:30px auto 48px}.cadastro-heading{margin-bottom:22px}.cadastro-heading p{font-size:13px}.cadastro-aside{padding:24px}.cadastro-benefits{grid-template-columns:1fr;gap:12px}.cadastro-form-area{padding:25px 20px}.cadastro-form{grid-template-columns:1fr;gap:13px}.cadastro-form .field.full,.cadastro-submit,.cadastro-feedback{grid-column:1}.cadastro-whatsapp{right:12px;bottom:12px;padding:12px 15px}}
   </style>
 </head>
-<body class="auth-page">
-  <div class="auth-bg" aria-hidden="true"></div>
-  <header class="auth-top">
-    <a class="brand" href="/" aria-label="R&D Prime Imóveis - página inicial">
-      <span class="brand-mark" data-text="R&D">R&D</span>
-      <span class="brand-text"><span class="brand-name">R&D PRIME</span><span class="brand-sub">IMÓVEIS · RESIDENCIAL · COMERCIAL</span></span>
-    </a>
-    <a class="auth-back" href="/login.html">Já tenho conta <span aria-hidden="true">→</span></a>
+<body class="cadastro-page">
+  <div class="bg-aura" aria-hidden="true">
+    <div class="aura aura-1"></div>
+    <div class="aura aura-2"></div>
+    <div class="aura aura-3"></div>
+    <div class="grid-overlay"></div>
+    <div class="noise"></div>
+  </div>
+
+  <div class="topbar">
+    <div class="container">
+      <span class="topbar-item"><span class="pulse-dot"></span>Curadoria imobiliária residencial e comercial</span>
+      <span class="topbar-item">Atendimento personalizado · São Paulo, SP</span>
+    </div>
+  </div>
+
+  <header class="navbar">
+    <div class="container nav-inner">
+      <a class="brand" href="/" aria-label="R&D Prime Imóveis - página inicial">
+        <span class="brand-mark" data-text="R&D">R&D</span>
+        <span class="brand-text"><span class="brand-name">R&D PRIME</span><span class="brand-sub">IMÓVEIS · RESIDENCIAL · COMERCIAL</span></span>
+      </a>
+      <nav class="nav-links" aria-label="Navegação principal">
+        <a class="nav-link" href="/">Início</a>
+        <a class="nav-link" href="/imoveis.html">Imóveis</a>
+        <a class="button button-dark magnetic" href="/login.html">Entrar</a>
+      </nav>
+      <a class="button button-outline" href="/login.html">Já tenho conta</a>
+    </div>
   </header>
-  <main class="auth-layout">
-    <section class="auth-story">
-      <div class="auth-kicker">Excelência em cada escolha</div>
-      <h1>Seu próximo capítulo começa com uma <span>nova conexão.</span></h1>
-      <p>Faça parte da R&D Prime Imóveis e tenha uma experiência imobiliária com atendimento personalizado, oportunidades selecionadas e mais praticidade.</p>
-      <div class="auth-points">
-        <div class="auth-point"><b>01</b><span>Crie seu acesso com seus dados pessoais.</span></div>
-        <div class="auth-point"><b>02</b><span>Explore imóveis e acompanhe oportunidades.</span></div>
-        <div class="auth-point"><b>03</b><span>Conte com nossa equipe em cada etapa.</span></div>
+
+  <main class="cadastro-main">
+    <div class="cadastro-heading">
+      <div class="eyebrow"><span class="eyebrow-line"></span>Faça parte da R&D Prime</div>
+      <h1>Seu próximo capítulo <span class="grad-text">começa aqui.</span></h1>
+      <p>Crie sua conta para acompanhar oportunidades, conhecer imóveis selecionados e manter contato com nossa equipe.</p>
+    </div>
+
+    <section class="cadastro-shell" aria-label="Formulário de cadastro">
+      <aside class="cadastro-aside">
+        <div>
+          <div class="eyebrow">R&D PRIME IMÓVEIS</div>
+          <h2>Boas escolhas começam com a <span>conexão certa.</span></h2>
+          <p>Uma experiência imobiliária com atendimento próximo, transparência e oportunidades pensadas para seus objetivos.</p>
+        </div>
+        <ul class="cadastro-benefits">
+          <li><b>01</b><span>Acompanhe imóveis e oportunidades.</span></li>
+          <li><b>02</b><span>Tenha seus dados de acesso em um só lugar.</span></li>
+          <li><b>03</b><span>Fale com nossa equipe quando precisar.</span></li>
+        </ul>
+      </aside>
+
+      <div class="cadastro-form-area">
+        <h2>Criar minha conta</h2>
+        <p>Informe seus dados. Os campos com * são obrigatórios.</p>
+        <form id="cadastro-form" class="cadastro-form">
+          <div class="field full">
+            <label for="nome">Nome completo *</label>
+            <input id="nome" name="nome" autocomplete="name" maxlength="120" placeholder="Seu nome e sobrenome" required>
+          </div>
+          <div class="field">
+            <label for="telefone">Telefone *</label>
+            <input id="telefone" name="telefone" type="tel" autocomplete="tel" maxlength="30" placeholder="(11) 3333-3333" required>
+          </div>
+          <div class="field">
+            <label for="celular">Celular / WhatsApp *</label>
+            <input id="celular" name="celular" type="tel" autocomplete="tel-national" maxlength="30" placeholder="(11) 99999-9999" required>
+          </div>
+          <div class="field full">
+            <label for="email">E-mail *</label>
+            <input id="email" name="email" type="email" autocomplete="email" maxlength="160" placeholder="voce@exemplo.com" required>
+          </div>
+          <div class="field">
+            <label for="password">Senha *</label>
+            <input id="password" name="password" type="password" autocomplete="new-password" minlength="6" placeholder="Mínimo de 6 caracteres" required>
+          </div>
+          <div class="field">
+            <label for="confirm-password">Confirmar senha *</label>
+            <input id="confirm-password" name="confirm-password" type="password" autocomplete="new-password" minlength="6" placeholder="Digite novamente" required>
+          </div>
+          <button class="button button-gold cadastro-submit" type="submit">Criar minha conta <span aria-hidden="true">→</span></button>
+          <p id="cadastro-feedback" class="cadastro-feedback" role="status" aria-live="polite"></p>
+        </form>
+        <p class="cadastro-login">Já possui cadastro? <a href="/login.html">Entrar na minha conta</a></p>
+        <div class="cadastro-notice"><span aria-hidden="true">ⓘ</span><span>Seu cadastro será criado inicialmente como <strong>Cliente</strong>. O acesso profissional depende da alteração de perfil e ativação pelo administrador.</span></div>
       </div>
     </section>
-    <section class="auth-content">
-      <div class="auth-eyebrow">R&D PRIME IMÓVEIS</div>
-      <h2>Crie sua conta.</h2>
-      <p class="auth-intro">Preencha os campos para começar. Seu cadastro público será criado com perfil de Cliente.</p>
-      <form id="cadastro-form" class="auth-form">
-        <div class="field full"><label for="nome">Nome completo</label><input id="nome" name="nome" autocomplete="name" maxlength="120" placeholder="Seu nome e sobrenome" required></div>
-        <div class="field"><label for="telefone">Telefone</label><input id="telefone" name="telefone" type="tel" autocomplete="tel" maxlength="30" placeholder="(11) 3333-3333" required></div>
-        <div class="field"><label for="celular">Número de celular / WhatsApp</label><input id="celular" name="celular" type="tel" autocomplete="tel-national" maxlength="30" placeholder="(11) 99999-9999" required></div>
-        <div class="field full"><label for="email">E-mail</label><input id="email" name="email" type="email" autocomplete="email" placeholder="voce@exemplo.com" required></div>
-        <div class="field"><label for="password">Senha</label><input id="password" name="password" type="password" autocomplete="new-password" minlength="6" placeholder="Mínimo de 6 caracteres" required></div>
-        <div class="field"><label for="confirm-password">Confirmar senha</label><input id="confirm-password" name="confirm-password" type="password" autocomplete="new-password" minlength="6" placeholder="Digite novamente" required></div>
-        <button class="auth-submit" type="submit">Criar minha conta <span aria-hidden="true">→</span></button>
-        <p id="cadastro-feedback" class="auth-feedback" role="status" aria-live="polite"></p>
-      </form>
-      <p class="auth-switch">Já possui cadastro? <a href="/login.html">Entrar na minha conta</a></p>
-      <div class="auth-note">Sua conta será criada como Cliente. Para acessar o painel profissional, o administrador precisará alterar seu perfil para Corretor e ativar o acesso.</div>
-    </section>
   </main>
+
+  <footer class="cadastro-footer">© R&D PRIME IMÓVEIS · Todos os direitos reservados.</footer>
+  <a class="cadastro-whatsapp" href="https://wa.me/5511964294254?text=Ol%C3%A1%21%20Gostaria%20de%20atendimento%20da%20R%26D%20Prime%20Im%C3%B3veis." target="_blank" rel="noopener noreferrer" aria-label="Falar com a R&D Prime pelo WhatsApp">WhatsApp</a>
+
   <script type="module" src="/js/cadastro.js"></script>
 </body>
 </html>
