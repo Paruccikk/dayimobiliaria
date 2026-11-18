@@ -21,6 +21,8 @@ let currentUser = null;
 let dashboardData = null;
 let loading = false;
 let propertySearchTerm = "";
+let brokerSearchTerm = "";
+let leadSearchTerm = "";
 
 function setMessage(element, text) {
   element.textContent = text;
@@ -373,10 +375,19 @@ function renderUsers(users) {
     return;
   }
 
+  const normalize = value => String(value ?? "").toLocaleLowerCase("pt-BR").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const query = normalize(brokerSearchTerm.trim());
+  const filteredUsers = query ? users.filter(user => normalize([user.nome, user.email, user.telefone, user.uid, user.papel, user.gerenteNome, user.gerenteEmail, user.gerenteUid].join(" ")).includes(query)) : users;
+
   const roles = ["cliente", "corretor", "gerente", "administrador"];
   const managers = users.filter(user => user.papel === "gerente" && user.ativo === true && user.status === "ativo");
 
-  tbody.innerHTML = users.map(user => {
+  if (!filteredUsers.length) {
+    tbody.innerHTML = '<tr><td colspan="8">Nenhum corretor ou usuário encontrado para essa busca.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filteredUsers.map(user => {
     const roleOptions = roles.map(role => `
       <option value="${role}" ${user.papel === role ? "selected" : ""}>
         ${role}
@@ -490,13 +501,21 @@ function renderUsers(users) {
 
 function renderLeads(leads) {
   const tbody = $("#leads-lista");
+  const normalize = value => String(value ?? "").toLocaleLowerCase("pt-BR").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const query = normalize(leadSearchTerm.trim());
+  const filteredLeads = query ? leads.filter(lead => normalize([lead.nome, lead.telefone, lead.email, lead.imovelId, lead.mensagem, lead.preferencias, lead.status, lead.responsavelNome].join(" ")).includes(query)) : leads;
 
   if (!leads.length) {
     tbody.innerHTML = '<tr><td colspan="5">Nenhum lead recebido.</td></tr>';
     return;
   }
 
-  tbody.innerHTML = leads.map(lead => `
+  if (!filteredLeads.length) {
+    tbody.innerHTML = '<tr><td colspan="5">Nenhum lead encontrado para essa busca.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filteredLeads.map(lead => `
     <tr>
       <td>${escapeHtml(lead.nome || "—")}<div class="dash-subtitle">${escapeHtml(lead.mensagem || "")}</div></td>
       <td>${escapeHtml(lead.telefone || "—")}</td>
@@ -605,6 +624,15 @@ $("#usuarios-lista").addEventListener("change", event => {
     manager.disabled = event.target.value !== "corretor";
     if (manager.disabled) manager.value = "";
   }
+});
+
+$("#admin-broker-search")?.addEventListener("input", event => {
+  brokerSearchTerm = event.target.value || "";
+  renderUsers(dashboardData?.usuarios || []);
+});
+$("#admin-lead-search")?.addEventListener("input", event => {
+  leadSearchTerm = event.target.value || "";
+  renderLeads(dashboardData?.leads || []);
 });
 
 $("#admin-property-search")?.addEventListener("input", event => {
