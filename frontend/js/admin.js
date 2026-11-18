@@ -232,13 +232,27 @@ function renderPropertyFiles(property) {
 
 function renderProperties(properties) {
   const tbody = $("#imoveis-lista");
-
+  const query = ($("#admin-property-search")?.value || "").trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const filteredProperties = properties.filter(property => {
+    const searchable = [
+      property.titulo, property.cidade, property.estado, property.bairro,
+      property.finalidade, property.categoria, property.status,
+      property.responsavelNome, property.responsavelEmail, property.responsavelUid
+    ].join(" ").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    return searchable.includes(query);
+  });
+  const counter = $("#admin-property-search-count");
+  if (counter) counter.textContent = query ? filteredProperties.length + " de " + properties.length + " imóvel(is)" : properties.length + " imóvel(is)";
   if (!properties.length) {
     tbody.innerHTML = '<tr><td colspan="6">Nenhum imóvel cadastrado.</td></tr>';
     return;
   }
+  if (!filteredProperties.length) {
+    tbody.innerHTML = '<tr><td colspan="6">Nenhum imóvel encontrado para esta busca.</td></tr>';
+    return;
+  }
 
-  tbody.innerHTML = properties.map(property => {
+  tbody.innerHTML = filteredProperties.map(property => {
     const status = property.status || "rascunho";
     const actionLabel = status === "publicado" ? "Desativar" : "Publicar";
     const nextStatus = status === "publicado" ? "inativo" : "publicado";
@@ -271,7 +285,7 @@ function renderProperties(properties) {
   tbody.querySelectorAll(".property-edit").forEach(button => {
     button.addEventListener("click", () => {
       const row = button.closest("tr");
-      const property = properties.find(item => item.id === row.dataset.propertyId);
+      const property = filteredProperties.find(item => item.id === row.dataset.propertyId);
       if (!property) return;
       const fields = {
         "#prop-titulo": property.titulo, "#prop-categoria": property.categoria,
@@ -562,6 +576,7 @@ $("#usuarios-lista").addEventListener("change", event => {
   }
 });
 
+$("#admin-property-search")?.addEventListener("input", () => renderProperties(dashboardData?.imoveis || []));
 refreshButton.addEventListener("click", carregarDashboard);
 
 logoutButton.addEventListener("click", async () => {
