@@ -1084,7 +1084,7 @@ app.get('/api/admin/alerta-day/alcance', requireFirebase, allowRoles('administra
     const targets=Object.values(visitorsSnap.val()||{}).filter(v => v.consentimentoLocalizacao===true && (!v.expiraEm||Date.parse(v.expiraEm)>Date.now()) && Number.isFinite(Number(v.latitude)) && Number.isFinite(Number(v.longitude)) && alertaDistance(lat,lng,Number(v.latitude),Number(v.longitude))<=radius);
     const whatsappTargets=targets.filter(v=>channels.includes('whatsapp')&&v.whatsappConsent===true&&v.telefoneWhatsAppEnc&&v.whatsappOwnerUid&&users[v.whatsappOwnerUid]?.consentimentos?.whatsapp?.status==="permitido"&&users[v.whatsappOwnerUid]?.whatsappAtivo!==false);
     const pushTargets=targets.filter(v=>channels.includes('push')&&v.pushConsent===true&&v.fcmToken);
-    const emailTargets=targets.filter(v=>channels.includes('email')&&v.whatsappOwnerUid&&(users[v.ownerUid||v.whatsappOwnerUid]?.consentimentos?.email?.status==="permitido")&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(users[v.ownerUid||v.whatsappOwnerUid]?.email||""));
+    const emailTargets=targets.filter(v=>channels.includes('email')&&(v.ownerUid||v.whatsappOwnerUid)&&(users[v.ownerUid||v.whatsappOwnerUid]?.consentimentos?.email?.status==="permitido")&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(users[v.ownerUid||v.whatsappOwnerUid]?.email||""));
     return res.json({totalElegiveis:new Set([...whatsappTargets.map(v=>v.whatsappOwnerUid),...pushTargets.map(v=>v.fcmToken),...emailTargets.map(v=>v.ownerUid||v.whatsappOwnerUid)]).size, totalLocalizacao:targets.length, whatsappElegiveis:whatsappTargets.length, pushElegiveis:pushTargets.length, emailElegiveis:emailTargets.length});
   } catch(error) { return sendServerError(res,'Não foi possível calcular o público.',error); }
 });
