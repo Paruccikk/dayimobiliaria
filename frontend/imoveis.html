@@ -107,7 +107,6 @@
             <option value="comercial">Comercial</option>
             <option value="sublocacao">Sublocação</option>
             <option value="garagem">Garagem</option>
-            <option value="lancamento">Lançamento</option>
           </select>
         </div>
 
@@ -122,8 +121,13 @@
         </div>
 
         <div class="field">
-          <label for="localizacao">Cidade ou bairro</label>
-          <input id="localizacao" placeholder="Ex.: São Paulo">
+          <label for="regiao">Região</label>
+          <select id="regiao"><option value="">Todas as regiões</option><option>Norte</option><option>Sul</option><option>Leste</option><option>Oeste</option><option>Centro</option></select>
+        </div>
+
+        <div class="field">
+          <label for="localizacao">Buscar imóvel, código, cidade ou bairro</label>
+          <input id="localizacao" type="search" placeholder="Ex.: apartamento, RD123, Centro..." autocomplete="off">
         </div>
 
         <div class="field">

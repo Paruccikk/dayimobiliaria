@@ -5,6 +5,13 @@ const $ = selector => document.querySelector(selector);
 let currentUser = null;
 let loading = false;
 let managerProperties = [];
+let managerSearchTerm = "";
+let brokerSearchTerm = "";
+let performanceSearchTerm = "";
+let leadSearchTerm = "";
+let managerTeam = [];
+let managerPerformance = [];
+let managerLeads = [];
 
 const esc = value => String(value ?? "").replace(/[&<>"']/g, c => ({
   "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
@@ -27,18 +34,34 @@ function rows(selector, items, empty, render, colspan) {
   const target = $(selector);
   target.innerHTML = items.length ? items.map(render).join("") : '<tr><td colspan="' + colspan + '">' + empty + '</td></tr>';
 }
+const normalizeSearch = value => String(value ?? "").toLocaleLowerCase("pt-BR").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+function renderManagerTeam() {
+  const q = normalizeSearch(brokerSearchTerm.trim());
+  const filtered = q ? managerTeam.filter(user => normalizeSearch([user.nome, user.email, user.telefone, user.uid].join(" ")).includes(q)) : managerTeam;
+  rows("#manager-team", filtered, "Nenhum corretor encontrado para essa busca.", user => {
+    const ownProperties = managerProperties.filter(item => item.responsavelUid === user.uid).length;
+    const ownLeads = managerLeads.filter(item => item.responsavelUid === user.uid).length;
+    return '<tr><td><strong>' + esc(user.nome) + '</strong></td><td>' + esc(user.email || "—") + '</td><td>' + ownProperties + '</td><td>' + ownLeads + '</td></tr>';
+  }, 4);
+}
+function renderManagerPerformance() {
+  const q = normalizeSearch(performanceSearchTerm.trim());
+  const filtered = q ? managerPerformance.filter(item => normalizeSearch([item.nome, item.email].join(" ")).includes(q)) : managerPerformance;
+  rows("#manager-performance", filtered, "Nenhum corretor encontrado para essa busca.", item => '<tr><td><strong>' + esc(item.nome) + '</strong></td><td>' + item.imoveis + '</td><td>' + item.leads + '</td><td>' + item.leadsNovos + '</td><td>' + item.propostas + '</td><td>' + item.fechados + '</td><td>' + item.visitas + '</td><td>' + item.visitasRealizadas + '</td></tr>', 8);
+}
+function renderManagerLeads() {
+  const q = normalizeSearch(leadSearchTerm.trim());
+  const filtered = q ? managerLeads.filter(lead => normalizeSearch([lead.nome, lead.telefone, lead.email, lead.imovelId, lead.mensagem, lead.preferencias, lead.status, lead.responsavelNome].join(" ")).includes(q)) : managerLeads.slice(0, 100);
+  rows("#manager-leads", filtered, "Nenhum lead encontrado para essa busca.", lead => '<tr><td><strong>' + esc(lead.nome || "—") + '</strong><div class="dash-subtitle">' + esc(lead.mensagem || "") + '</div></td><td>' + esc(lead.telefone || "—") + '</td><td>' + esc(lead.responsavelNome) + '</td><td>' + esc(lead.status || "novo") + '</td><td>' + date(lead.criadoEm) + '</td></tr>', 5);
+}
 function renderManagerProperties() {
-  const query = ($("#manager-property-search")?.value || "").trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-  const filtered = managerProperties.filter(item => [
-    item.titulo, item.cidade, item.bairro, item.estado, item.finalidade,
-    item.categoria, item.status, item.responsavelNome, item.responsavelEmail
-  ].join(" ").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().includes(query));
-  const counter = $("#manager-property-search-count");
-  if (counter) counter.textContent = query ? filtered.length + " de " + managerProperties.length + " imóvel(is)" : managerProperties.length + " imóvel(is)";
-  rows("#manager-properties", filtered, query ? "Nenhum imóvel encontrado para esta busca." : "Nenhum imóvel na carteira da equipe.", item =>
-    '<tr><td><strong>' + esc(item.titulo || "Sem título") + '</strong><div class="dash-subtitle">' +
-    esc(item.cidade || "") + '</div></td><td>' + esc(item.finalidade || "—") + '</td><td>' + money(item.preco) +
-    '</td><td>' + esc(item.responsavelNome) + '</td><td>' + esc(item.status || "—") + '</td></tr>', 5);
+  const target = $("#manager-properties");
+  const normalize = value => String(value ?? "").toLocaleLowerCase("pt-BR").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const query = normalize(managerSearchTerm.trim());
+  const filtered = query ? managerProperties.filter(item => normalize([item.titulo, item.id, item.cidade, item.estado, item.bairro, item.regiao, item.finalidade, item.status, item.responsavelNome, item.responsavelUid].join(" ")).includes(query)) : managerProperties;
+  if (!managerProperties.length) { target.innerHTML = '<tr><td colspan="5">Nenhum imóvel na carteira da equipe.</td></tr>'; return; }
+  if (!filtered.length) { target.innerHTML = '<tr><td colspan="5">Nenhum imóvel encontrado para essa busca.</td></tr>'; return; }
+  target.innerHTML = filtered.map(item => '<tr><td><strong>' + esc(item.titulo || "Sem título") + '</strong><div class="dash-subtitle">' + esc(item.cidade || "") + '</div></td><td>' + esc(item.finalidade || "—") + '</td><td>' + money(item.preco) + '</td><td>' + esc(item.responsavelNome) + '</td><td>' + esc(item.status || "—") + '</td></tr>').join("");
 }
 async function load() {
   if (!currentUser || loading) return;
@@ -55,7 +78,6 @@ async function load() {
     const data = await api("/api/gerente/dashboard");
     const team = data.equipe || [];
     const properties = data.imoveis || [];
-    managerProperties = properties;
     const leads = data.leads || [];
     const visits = [...(data.visitas || []), ...(data.agendamentos || [])];
     $("#manager-stat-team").textContent = team.length;
@@ -63,21 +85,13 @@ async function load() {
     $("#manager-stat-leads").textContent = leads.length;
     $("#manager-stat-visits").textContent = visits.length;
 
-    rows("#manager-team", team, "Nenhum corretor vinculado a este gerente.", user => {
-      const ownProperties = properties.filter(item => item.responsavelUid === user.uid).length;
-      const ownLeads = leads.filter(item => item.responsavelUid === user.uid).length;
-      return '<tr><td><strong>' + esc(user.nome) + '</strong></td><td>' + esc(user.email || "—") +
-        '</td><td>' + ownProperties + '</td><td>' + ownLeads + '</td></tr>';
-    }, 4);
-    const performance = data.desempenhoCorretores || [];
-    rows("#manager-performance", performance, "Nenhum corretor vinculado.", item =>
-      '<tr><td><strong>' + esc(item.nome) + '</strong></td><td>' + item.imoveis +
-      '</td><td>' + item.leads + '</td><td>' + item.leadsNovos + '</td><td>' + item.propostas +
-      '</td><td>' + item.fechados + '</td><td>' + item.visitas + '</td><td>' + item.visitasRealizadas + '</td></tr>', 8);
-    rows("#manager-leads", leads.slice(0, 100), "Nenhum lead da equipe.", lead =>
-      '<tr><td><strong>' + esc(lead.nome || "—") + '</strong><div class="dash-subtitle">' + esc(lead.mensagem || "") +
-      '</div></td><td>' + esc(lead.telefone || "—") + '</td><td>' + esc(lead.responsavelNome) +
-      '</td><td>' + esc(lead.status || "novo") + '</td><td>' + date(lead.criadoEm) + '</td></tr>', 5);
+    managerProperties = properties;
+    managerTeam = team;
+    managerLeads = leads;
+    managerPerformance = data.desempenhoCorretores || [];
+    renderManagerTeam();
+    renderManagerPerformance();
+    renderManagerLeads();
     renderManagerProperties();
     rows("#manager-visits", visits, "Nenhuma visita ou solicitação encontrada.", item =>
       '<tr><td>' + esc(item.clienteNome || item.cliente || "—") + '</td><td>' + esc(item.imovelId || "—") +
@@ -90,7 +104,13 @@ async function load() {
     loading = false;
   }
 }
-$("#manager-property-search")?.addEventListener("input", renderManagerProperties);
+$("#manager-broker-search")?.addEventListener("input", event => { brokerSearchTerm = event.target.value || ""; renderManagerTeam(); });
+$("#manager-performance-search")?.addEventListener("input", event => { performanceSearchTerm = event.target.value || ""; renderManagerPerformance(); });
+$("#manager-lead-search")?.addEventListener("input", event => { leadSearchTerm = event.target.value || ""; renderManagerLeads(); });
+$("#manager-property-search")?.addEventListener("input", event => {
+  managerSearchTerm = event.target.value || "";
+  renderManagerProperties();
+});
 $("#manager-refresh").addEventListener("click", load);
 $("#manager-logout").addEventListener("click", async () => {
   await signOut(auth);

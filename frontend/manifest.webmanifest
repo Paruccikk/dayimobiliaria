@@ -1,0 +1,17 @@
+{
+  "name": "R&D Prime Imóveis — Alerta Day",
+  "short_name": "Alerta Day",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#101827",
+  "theme_color": "#101827",
+  "icons": [
+    {
+      "src": "/icons/alerta-day.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

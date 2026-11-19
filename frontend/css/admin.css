@@ -502,235 +502,80 @@ body {
 @media(max-width:720px){.property-files-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
 
-/* Correções de layout — formulário, ações e publicação */
+/* Correções de largura: evita que campos e grids empurrem o painel para fora da tela. */
 .dashboard-wrap,
 .dash-panel,
+.dash-card,
 .dash-form,
-.dash-form .field {
-  min-width: 0;
-}
-
-.dash-form {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.dash-form .field.full {
-  grid-column: 1 / -1;
-}
-
-.dash-form .field > button,
-.dash-form #prop-submit {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  max-width: 100%;
-  min-height: 46px;
-  padding: 12px 22px;
-  line-height: 1.35;
-  white-space: normal;
-  overflow-wrap: anywhere;
-}
-
-.dash-table-wrap {
-  max-width: 100%;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-}
-
-.dash-table td {
-  overflow-wrap: anywhere;
-}
-
-.dash-table td .small-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  max-width: 100%;
-  min-height: 36px;
-  margin: 4px 3px;
-  padding: 8px 11px;
-  line-height: 1.25;
-  text-align: center;
-  white-space: normal;
-  overflow-wrap: anywhere;
-  vertical-align: middle;
-}
-
-.publish-toggle-field {
-  display: block;
-}
-
-.dash-form .publish-toggle {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  width: 100%;
-  box-sizing: border-box;
-  margin: 0;
-  padding: 16px 18px;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md, 12px);
-  background: rgba(255,255,255,.035);
-  color: var(--text);
-  cursor: pointer;
-  text-transform: none;
-  letter-spacing: normal;
-  line-height: 1.4;
-}
-
-.dash-form .publish-toggle input[type="checkbox"] {
-  appearance: none;
-  -webkit-appearance: none;
-  flex: 0 0 23px;
-  width: 23px;
-  min-width: 23px;
-  height: 23px;
-  margin: 0;
-  padding: 0;
-  border: 2px solid var(--gold-2);
-  border-radius: 5px;
-  background: rgba(0,0,0,.28);
-  cursor: pointer;
-  display: grid;
-  place-content: center;
-}
-
-.dash-form .publish-toggle input[type="checkbox"]::after {
-  content: "";
-  width: 6px;
-  height: 11px;
-  border: solid #111;
-  border-width: 0 2px 2px 0;
-  transform: rotate(45deg) scale(0);
-  transition: transform .12s ease-in-out;
-}
-
-.dash-form .publish-toggle input[type="checkbox"]:checked {
-  background: var(--gold-2);
-  border-color: var(--gold-2);
-}
-
-.dash-form .publish-toggle input[type="checkbox"]:checked::after {
-  transform: rotate(45deg) scale(1);
-}
-
-.dash-form .publish-toggle input[type="checkbox"]:focus-visible {
-  outline: 3px solid rgba(230,180,90,.35);
-  outline-offset: 3px;
-}
-
-.publish-toggle-copy {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-
-.dash-form .publish-toggle-copy strong {
-  color: var(--text);
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: .02em;
-  line-height: 1.4;
-  text-transform: none;
-}
-
-.dash-form .publish-toggle-copy small {
-  color: var(--text-mute);
-  font-size: 12px;
-  font-weight: 400;
-  line-height: 1.45;
-  letter-spacing: normal;
-  text-transform: none;
-}
-
-.admin-whatsapp-float {
-  position: fixed;
-  right: 20px;
-  bottom: 20px;
-  z-index: 9999;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 9px;
-  max-width: calc(100vw - 32px);
-  box-sizing: border-box;
-  padding: 13px 17px;
-  border-radius: 999px;
-  background: #20b95a;
-  color: #fff;
-  font: 600 14px Inter, Arial, sans-serif;
-  text-decoration: none;
-  text-align: center;
-  line-height: 1.3;
-  box-shadow: 0 8px 28px #0006;
-}
-
-body:has(#admin-app:not([hidden])) {
-  padding-bottom: 88px;
-}
-
+.dash-form > .field,
+.dash-grid > *,
+.dash-two-col > * { min-width: 0; }
+.dashboard-wrap { width: 100%; max-width: 1500px; box-sizing: border-box; }
+.dash-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); }
+.dash-two-col { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.dash-form { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.dash-form input[type="file"] { max-width: 100%; min-width: 0; }
+.dash-table-wrap { width: 100%; max-width: 100%; overflow-x: auto; overscroll-behavior-inline: contain; }
+.dash-table { width: max-content; min-width: 100%; }
+.dash-table td:last-child { min-width: 220px; white-space: normal; }
+.dash-table td:last-child .small-btn { white-space: nowrap; }
 @media (max-width: 1050px) {
-  .dash-form {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+  .dash-two-col { grid-template-columns: minmax(0, 1fr); }
+  .dash-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
-
 @media (max-width: 720px) {
-  .dash-form {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .dash-form .field.full {
-    grid-column: 1;
-  }
-
-  .dash-form .publish-toggle {
-    align-items: flex-start;
-    padding: 14px;
-  }
-
-  .admin-whatsapp-float {
-    right: 12px;
-    bottom: 12px;
-    padding: 11px 14px;
-    font-size: 12px;
-  }
-
-  body:has(#admin-app:not([hidden])) {
-    padding-bottom: 76px;
-  }
+  .dashboard-wrap { width: 100%; padding: 18px 12px; }
+  .dash-panel { padding: 16px; }
+  .dash-form { grid-template-columns: minmax(0, 1fr); }
+  .dash-form .full { grid-column: 1 / -1; }
+  .dash-table td:last-child { min-width: 190px; }
 }
 
 
-/* Correção de alinhamento do toggle Minha Casa, Minha Vida */
-.dash-form .field > .mcmv-toggle {
-  display: flex !important; flex-direction: row; align-items: center; justify-content: flex-start;
-  gap: 13px; width: 100%; min-height: 58px; margin: 0; padding: 14px 16px;
-  box-sizing: border-box; text-transform: none; letter-spacing: normal; line-height: 1.4;
-}
-.dash-form .field > .mcmv-toggle input[type="checkbox"] {
-  position: absolute; flex: 0 0 1px; width: 1px; min-width: 1px; height: 1px;
-  margin: 0; padding: 0; opacity: 0; pointer-events: none;
-}
-.dash-form .field > .mcmv-toggle .mcmv-switch { display:block; flex:0 0 46px; width:46px; height:26px; }
-.dash-form .field > .mcmv-toggle .mcmv-toggle-copy {
-  display:flex; flex:1 1 auto; flex-direction:column; min-width:0; gap:4px;
-}
-.dash-form .field > .mcmv-toggle .mcmv-toggle-copy strong,
-.dash-form .field > .mcmv-toggle .mcmv-toggle-copy small {
-  display:block; margin:0; text-transform:none; letter-spacing:normal; line-height:1.4;
-}
-.dash-form .field > .mcmv-toggle .mcmv-toggle-copy strong { font-size:13px; color:var(--text); }
-.dash-form .field > .mcmv-toggle .mcmv-toggle-copy small { font-size:12px; color:var(--text-mute); font-weight:400; }
+/* Busca rápida de imóveis nos painéis */
+.property-search{display:flex;flex-direction:column;gap:7px;margin:0 0 16px;max-width:760px;min-width:0}.property-search-box{display:flex;align-items:center;gap:11px;min-width:0;padding:0 14px;border:1px solid var(--border-strong);border-radius:12px;background:rgba(0,0,0,.22);transition:border-color .2s,box-shadow .2s}.property-search-box:focus-within{border-color:rgba(230,180,90,.7);box-shadow:0 0 0 3px rgba(230,180,90,.1)}.property-search-box svg{width:19px;height:19px;flex:0 0 19px;fill:none;stroke:var(--gold-2);stroke-width:2;stroke-linecap:round;stroke-linejoin:round}.property-search-box input{width:100%;min-width:0;padding:13px 0;border:0!important;outline:0!important;background:transparent!important;box-shadow:none!important;color:var(--text);font:14px var(--font-body)}.property-search-box input::placeholder{color:var(--text-mute);opacity:1}.property-search-hint{font-size:11px;color:var(--text-mute)}
 
-/* Campo de busca das carteiras */
-.property-search { display:grid; grid-template-columns:minmax(0,1fr); gap:7px; margin:0 0 16px; max-width:680px; }
-.property-search label { color:var(--text-soft); font-size:12px; font-weight:600; }
-.property-search input {
-  width:100%; min-width:0; box-sizing:border-box; padding:12px 15px;
-  border:1px solid var(--border-strong); border-radius:var(--radius-sm);
-  background:rgba(0,0,0,.28); color:var(--text); font:14px var(--font-body);
+/* Ajustes responsivos gerais dos painéis */
+@media(max-width:720px){.dash-top{align-items:flex-start;flex-direction:column;gap:16px}.dash-actions{display:flex;flex-wrap:wrap;width:100%;gap:8px}.dash-actions>.button,.dash-actions>button{flex:1 1 145px;min-width:0;justify-content:center}.admin-tabs{display:flex;overflow-x:auto;white-space:nowrap;gap:8px;padding-bottom:8px;-webkit-overflow-scrolling:touch}.admin-tab{flex:0 0 auto}.dash-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.dash-card{padding:14px;min-width:0}.dash-number{font-size:clamp(1.35rem,7vw,2rem)}.dash-panel{padding:14px;margin-bottom:14px}.dash-panel h2{font-size:1.15rem;line-height:1.3}.property-search{max-width:none}.property-search-box{padding:0 11px}.property-search-box input{font-size:16px}.dash-table-wrap{margin-right:-2px}.dash-table{min-width:680px}.dash-form{gap:12px}.dashboard-wrap{overflow-x:clip}.dash-two-col{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:420px){.dashboard-wrap{padding-left:10px;padding-right:10px}.dash-grid{grid-template-columns:minmax(0,1fr)}.dash-actions>.button,.dash-actions>button{flex-basis:100%}.dash-panel{padding:12px}.dash-table{min-width:620px}}
+
+
+/* Correção do alinhamento do seletor Minha Casa, Minha Vida */
+.dash-form .field .mcmv-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 13px;
+  margin: 0;
+  text-transform: none;
+  letter-spacing: normal;
+  line-height: 1.35;
 }
-.property-search input:focus { outline:none; border-color:rgba(230,180,90,.65); box-shadow:0 0 0 3px rgba(230,180,90,.10); }
-.property-search-count { min-height:1em; color:var(--text-mute); font-size:11px; }
+.dash-form .field .mcmv-toggle input[type="checkbox"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  min-width: 1px;
+  padding: 0;
+  margin: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+.dash-form .field .mcmv-toggle .mcmv-switch {
+  display: block;
+  flex: 0 0 46px;
+}
+.dash-form .field .mcmv-toggle-copy {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  gap: 4px;
+}
+.dash-form .field .mcmv-toggle-copy strong,
+.dash-form .field .mcmv-toggle-copy small {
+  display: block;
+  margin: 0;
+  text-transform: none;
+  letter-spacing: normal;
+}

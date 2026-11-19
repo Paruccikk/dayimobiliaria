@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#101827">
+  <title>Alerta Day | Administração</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/alerta-day.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+</head>
+<body class="alerta-body">
+  <section id="login-screen" class="alerta-login">
+    <div class="alerta-brand">DAY <span>IMOBILIÁRIA</span></div>
+    <h1>Alerta Day</h1>
+    <p>Entre com uma conta de administrador ativa para preparar campanhas.</p>
+    <form id="login-form">
+      <label for="email">E-mail</label><input id="email" type="email" autocomplete="username" required>
+      <label for="password">Senha</label><input id="password" type="password" autocomplete="current-password" required>
+      <button class="ad-button ad-primary" type="submit">Entrar</button>
+    </form>
+    <p id="login-feedback" role="status"></p>
+  </section>
+
+  <main id="app" class="ad-shell" hidden>
+    <header class="ad-header">
+      <div><div class="ad-brand">DAY <span>IMOBILIÁRIA</span></div><h1>Central de alertas</h1><p>Campanhas manuais por localização e interesse.</p></div>
+      <div class="ad-header-actions"><a href="/admin.html">Voltar ao administrativo</a><button id="logout" class="ad-button ad-ghost">Sair</button></div>
+    </header>
+
+    <section class="ad-stats">
+      <article><small>Visitantes com localização autorizada</small><strong id="stat-location">—</strong></article>
+      <article><small>Inscritos em Push</small><strong id="stat-push">—</strong></article>
+      <article><small>Contatos WhatsApp autorizados</small><strong id="stat-whatsapp">—</strong></article>
+      <article><small>E-mails autorizados</small><strong id="stat-email">—</strong></article>
+      <article><small>Campanhas realizadas</small><strong id="stat-campaigns">—</strong></article>
+    </section>
+
+    <div class="ad-layout">
+      <section class="ad-panel ad-compose">
+        <div class="ad-step">01 · CAMPANHA</div><h2>Monte seu alerta</h2>
+        <label for="property">Imóvel anunciado</label>
+        <select id="property"><option value="">Carregando imóveis publicados…</option></select>
+        <label for="title">Título da notificação</label><input id="title" maxlength="90" value="Oportunidade perto de você!">
+        <label for="message">Mensagem</label><textarea id="message" rows="3" maxlength="220">Um novo imóvel entrou para a carteira da Day. Confira os detalhes.</textarea>
+        <label for="link">Link do anúncio</label><input id="link" placeholder="Será preenchido pelo imóvel selecionado">
+        <div class="ad-step">02 · PÚBLICO</div><h2>Escolha a região</h2>
+        <div class="ad-map-help">Selecione um imóvel com coordenadas, pesquise um endereço ou clique/arraste no mapa para ajustar a área. O alcance considera pessoas que autorizaram a localização.</div>
+        <div class="ad-map-search-row">
+          <input id="map-search-input" type="text" placeholder="Buscar endereço, bairro, cidade ou CEP...">
+          <button id="map-search-btn" class="ad-button ad-secondary" type="button">Buscar no mapa</button>
+          <button id="map-gps-btn" class="ad-button ad-secondary" type="button" title="Centralizar o mapa na sua localização atual via GPS">📍 Meu GPS</button>
+          <button id="property-geocode-btn" class="ad-button ad-ghost" type="button" style="display:none;">Usar bairro do imóvel</button>
+        </div>
+        <div id="campaign-map" role="application" aria-label="Mapa para selecionar o raio da campanha"></div>
+        <div class="ad-radius-row"><label for="radius">Raio de alcance</label><strong id="radius-label">5 km</strong></div>
+        <input id="radius" type="range" min="500" max="30000" step="500" value="5000">
+        <div class="ad-radius-scale"><span>500 m</span><span>30 km</span></div>
+        <div class="ad-audience">
+          <div>
+            <span>Pessoas elegíveis estimadas</span>
+            <small id="audience-detail" style="display:block;font-size:11px;color:var(--ad-muted);margin-top:3px;"></small>
+          </div>
+          <strong id="audience-count">—</strong>
+        </div>
+        <button id="btn-add-test-visitor" class="ad-button ad-ghost" type="button" style="font-size:12px;padding:8px 14px;margin-top:4px;width:100%;">📍 Incluir minha localização atual como destinatário de teste</button>
+        <div class="ad-step">03 · CANAIS</div><h2>Onde enviar?</h2>
+        <div class="ad-channel-list">
+          <label class="ad-check ad-channel" for="channel-push"><input type="checkbox" id="channel-push" checked><span class="ad-channel-icon ad-icon-push" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg></span><span class="ad-channel-copy"><b>Notificação Push</b><small>Para dispositivos que ativaram as notificações.</small></span></label>
+          <label class="ad-check ad-channel" for="channel-whatsapp"><input type="checkbox" id="channel-whatsapp"><span class="ad-channel-icon ad-icon-whatsapp" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20.5 11.8a8.5 8.5 0 0 1-12.6 7.4L3 20l.9-4.7A8.5 8.5 0 1 1 20.5 11.8Z"/><path d="M8.7 8.1c.3-.5.6-.5.9-.5h.4c.2 0 .4.1.5.4l.7 1.7c.1.3.1.5-.1.7l-.5.6c-.2.2-.2.4 0 .7.5.8 1.2 1.4 2 1.8.3.2.5.1.7-.1l.7-.8c.2-.2.4-.3.7-.2l1.6.8c.3.1.4.3.4.5 0 .3-.2 1.1-.7 1.5-.5.5-1.2.7-1.9.6-1.1-.2-2.4-.8-3.6-1.9-1.1-1-1.9-2.2-2.1-3.2-.2-.9.1-1.7.4-2.1Z"/></svg></span><span class="ad-channel-copy"><b>WhatsApp</b><small>Disparo para contatos que autorizaram receber mensagens.</small></span></label>
+          <label class="ad-check ad-channel" for="channel-email"><input type="checkbox" id="channel-email"><span class="ad-channel-icon ad-icon-email" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m4 7 8 6 8-6"/></svg></span><span class="ad-channel-copy"><b>E-mail</b><small>Para clientes que autorizaram receber alertas por e-mail.</small></span></label>
+        </div>
+
+
+
+        <button id="preview-button" class="ad-button ad-secondary" type="button">Atualizar prévia</button>
+        <button id="send-button" class="ad-button ad-primary" type="button" disabled>Preparar disparo</button>
+        <p id="campaign-feedback" role="status" aria-live="polite"></p>
+      </section>
+
+      <aside class="ad-side">
+        <section class="ad-panel">
+          <div class="ad-step">PRÉVIA</div><h2>Como o cliente verá</h2>
+          <div class="ad-phone">
+            <div class="ad-phone-top">DAY IMOBILIÁRIA <span>agora</span></div>
+            <div class="ad-notification"><div class="ad-app-icon">D</div><div><img id="preview-image" class="ad-preview-image" alt="" hidden><strong id="preview-title">Oportunidade perto de você!</strong><p id="preview-message">Um novo imóvel entrou para a carteira da Day. Confira os detalhes.</p><small>Toque para ver o imóvel</small></div></div>
+          </div>
+          <p class="ad-note">A aparência final depende do sistema operacional, navegador e preferências de notificação do aparelho.</p>
+        </section>
+        <section class="ad-panel">
+                  <section class="ad-panel ad-wa-panel" id="whatsapp-conn-card">
+          <div class="ad-step">CONEXÃO DO CANAL</div>
+          <div class="ad-wa-heading">
+            <div><h2>WhatsApp</h2><p>Conecte o número que fará os disparos autorizados.</p></div>
+            <span id="wa-status-badge" data-state="desconectado">Desconectado</span>
+          </div>
+          <div id="wa-connected-state" class="ad-wa-connected" hidden>
+            <span class="ad-wa-check">✓</span>
+            <div><strong>WhatsApp conectado</strong><small id="wa-phone-label">Número conectado</small></div>
+          </div>
+          <div id="wa-qr-state" class="ad-wa-qr-state">
+            <p id="wa-qr-status">Verificando conexão do WhatsApp...</p>
+            <div class="ad-qr-frame">
+              <img id="wa-qr-img" alt="QR Code para conectar o WhatsApp" hidden>
+              <span id="wa-qr-loading">Aguardando QR Code...</span>
+            </div>
+            <small class="ad-wa-instructions">No celular, abra WhatsApp → Aparelhos conectados → Conectar um aparelho e leia o código.</small>
+          </div>
+          <div class="ad-wa-actions">
+            <button id="btn-wa-connect" class="ad-button ad-secondary" type="button">Gerar QR Code</button>
+            <button id="btn-wa-disconnect" class="ad-button ad-ghost" type="button" hidden>Desconectar</button>
+          </div>
+          <p id="wa-qr-feedback" role="status" aria-live="polite"></p>
+        </section>
+        <section class="ad-panel">
+          <div class="ad-step">SEGURANÇA</div><h2>Antes de disparar</h2>
+          <ul class="ad-rules"><li>Somente pessoas que deram consentimento válido.</li><li>Push e WhatsApp têm autorizações independentes.</li><li>O mapa não rastreia pessoas em tempo real.</li><li>O sistema registra a campanha e seus resultados.</li></ul>
+        </section>
+        <section class="ad-panel"><div class="ad-step">HISTÓRICO</div><h2>Últimas campanhas</h2><div id="campaign-history" class="ad-history">Nenhuma campanha carregada.</div></section>
+      </aside>
+    </div>
+    <dialog id="confirm-dialog" class="ad-dialog">
+      <form method="dialog">
+        <h2>Confirmar disparo?</h2>
+        <p id="confirm-summary"></p>
+        <p id="confirm-feedback" style="color:#b91c1c;font-size:13px;line-height:1.5;margin:12px 0;background:#fef2f2;border:1px solid #fecaca;padding:10px 12px;border-radius:8px;" hidden></p>
+        <div class="ad-dialog-actions">
+          <button class="ad-button ad-ghost" value="cancel">Voltar</button>
+          <button id="confirm-send" class="ad-button ad-primary" value="confirm">Confirmar envio</button>
+        </div>
+      </form>
+    </dialog>
+  </main>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script type="module" src="/js/alerta-day.js"></script>
+</body>
+</html>
