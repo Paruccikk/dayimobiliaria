@@ -2102,6 +2102,9 @@ app.post("/api/admin/alerta-day/disparar", requireFirebase, allowRoles("administ
   if (!propertyId || !title || !message || !alertaValidCoordinate(center.lat,center.lng) || !Number.isFinite(radius) || radius < 500 || radius > 30000 || !channels.length || channels.some(c => !["push","whatsapp","email"].includes(c))) {
     return res.status(400).json({ error: "Preencha imóvel, conteúdo, região, raio e canais válidos." });
   }
+  if (channels.includes("whatsapp") && whatsappWeb.getStatus().status !== "conectado") {
+    return res.status(503).json({ error: "WhatsApp Web não está conectado. Abra a integração no administrativo e leia o QR Code antes de disparar." });
+  }
   try {
     const [propertySnap, subsSnap] = await Promise.all([
       db.ref("imoveis/" + propertyId).get(),
@@ -2140,20 +2143,22 @@ app.post("/api/admin/alerta-day/disparar", requireFirebase, allowRoles("administ
     } else if (pushTargets.length) failures += pushTargets.length;
 
     const whatsappTargets = recipients.filter(([,item]) => channels.includes("whatsapp") && alertaEligible(item,"whatsapp") && item.whatsapp);
-    if (whatsappTargets.length && process.env.WHATSAPP_CLOUD_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID) {
+    if (whatsappTargets.length && channels.includes("whatsapp")) {
       for (const [id,item] of whatsappTargets) {
         try {
-          const template = process.env.WHATSAPP_ALERT_TEMPLATE;
-          if (!template) throw new Error("WHATSAPP_ALERT_TEMPLATE não configurado.");
-          const response = await fetch("https://graph.facebook.com/v21.0/"+process.env.WHATSAPP_PHONE_NUMBER_ID+"/messages", {
-            method:"POST", headers:{Authorization:"Bearer "+process.env.WHATSAPP_CLOUD_TOKEN,"Content-Type":"application/json"},
-            body:JSON.stringify({messaging_product:"whatsapp",to:item.whatsapp,type:"template",template:{name:template,language:{code:process.env.WHATSAPP_ALERT_TEMPLATE_LANG || "pt_BR"},components:[{type:"body",parameters:[{type:"text",text:title},{type:"text",text:message},{type:"text",text:targetUrl}]}]}})
-          });
-          if (!response.ok) throw new Error("Meta API HTTP "+response.status);
+          const text = title + "\n\n" + message + "\n\n" + targetUrl +
+            "\n\nVocê recebe este aviso porque autorizou mensagens da R&D Prime Imóveis. Para cancelar, acesse suas preferências de alertas no site.";
+          await whatsappWeb.sendText(item.whatsapp, text);
           whatsappSent++;
-        } catch (error) { failures++; console.warn("[Alerta Day WhatsApp]",id,error.message); }
+          await new Promise(resolve => setTimeout(resolve, 1500));
+        } catch (error) {
+          failures++;
+          console.warn("[Alerta Day WhatsApp Web]", id, error.message);
+        }
       }
-    } else if (whatsappTargets.length) failures += whatsappTargets.length;
+    } else if (whatsappTargets.length) {
+      failures += whatsappTargets.length;
+    }
 
     const emailTargets = recipients.filter(([,item]) => channels.includes("email") && alertaEligible(item,"email") && item.email);
     if (emailTargets.length) {
