@@ -984,3 +984,37 @@ button:disabled { opacity: .55; cursor: not-allowed !important; }
   .nav-links > .button { width: 100% !important; min-width: 0 !important; }
   .dash-actions > .button { width: auto; min-width: 150px; }
 }
+
+
+/* WhatsApp: ícone isolado em todas as páginas, inclusive quando houver texto legado. */
+a.whatsapp-icon-only {
+  box-sizing: border-box !important;
+  width: 56px !important;
+  min-width: 56px !important;
+  max-width: 56px !important;
+  height: 56px !important;
+  min-height: 56px !important;
+  max-height: 56px !important;
+  padding: 0 !important;
+  gap: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+  text-indent: -9999px !important;
+  font-size: 0 !important;
+  line-height: 0 !important;
+  border-radius: 50% !important;
+  background: #20b95a !important;
+  color: #fff !important;
+}
+a.whatsapp-icon-only > :not(svg) { display: none !important; }
+a.whatsapp-icon-only > svg.whatsapp-icon {
+  display: block !important;
+  width: 27px !important;
+  height: 27px !important;
+  min-width: 27px !important;
+  flex: 0 0 27px !important;
+  text-indent: 0 !important;
+}
