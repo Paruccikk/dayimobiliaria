@@ -126,8 +126,6 @@ $("#radius").addEventListener("input",radiusChanged);
 ["push","whatsapp","email"].forEach(channel=>$("#channel-"+channel).addEventListener("change",refreshReach));
 ["#title","#message"].forEach(selector=>$(selector).addEventListener("input",updatePreview));
 $("#preview-button").addEventListener("click",updatePreview);
-$("#wa-connect").addEventListener("click",connectWhatsApp);
-$("#wa-disconnect").addEventListener("click",disconnectWhatsApp);
 $("#send-button").addEventListener("click",()=>{
   const property=properties.find(item=>item.id===$("#property").value),channels=["push","whatsapp","email"].filter(c=>$("#channel-"+c).checked);
   if(!property)return feedback("Selecione um imóvel publicado.");
