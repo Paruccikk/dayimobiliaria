@@ -1923,7 +1923,7 @@ function alertaPhone(value) {
   return String(value || "").replace(/\D/g, "").slice(0, 15);
 }
 function alertaWithinRegion(item, center, radius) {
-  if (!item?.localizacao?.consentimento || !alertaValidCoordinate(item.localizacao.latitude, item.localizacao.longitude)) return false;
+  if (!item?.localizacao?.consentimento || !item.localizacao.expiraEm || Date.parse(item.localizacao.expiraEm) <= Date.now() || !alertaValidCoordinate(item.localizacao.latitude, item.localizacao.longitude)) return false;
   return alertaDistanceMeters(center.lat, center.lng, Number(item.localizacao.latitude), Number(item.localizacao.longitude)) <= radius;
 }
 function alertaEligible(item, channel) {
@@ -2019,6 +2019,7 @@ app.delete("/api/alerta-day/preferencias", async (req, res) => {
       status: "revogado",
       pushToken: null,
       whatsapp: null,
+      email: null,
       consentimentos: { push: false, whatsapp: false, email: false },
       localizacao: { consentimento: false, latitude: null, longitude: null, removidoEm: new Date().toISOString() },
       revogadoEm: new Date().toISOString()
