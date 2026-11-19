@@ -20,3 +20,19 @@
 #campaign-feedback,#login-feedback{min-height:1.4em;color:#e9bd68;font-size:13px}
 @media(max-width:900px){.ad-layout{grid-template-columns:1fr}.ad-stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:560px){.alerta-body{padding:14px}.ad-stats{grid-template-columns:1fr 1fr;gap:8px}.ad-stats article{padding:13px}.ad-stats strong{font-size:22px}.ad-panel{padding:16px}.ad-header-actions{width:100%;justify-content:space-between}#campaign-map{height:280px}}
+
+.ad-whatsapp-connect{margin:14px 0;padding:15px;background:#0b1422;border:1px solid #34465e;border-radius:12px}
+.ad-whatsapp-top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.ad-whatsapp-top>div{display:grid;gap:4px}.ad-whatsapp-top small{color:#9eacc0;font-size:11px}
+#wa-status-badge{display:inline-flex;border:1px solid #42536b;border-radius:99px;padding:6px 10px;font-size:11px;font-weight:800;color:#cbd5e1}
+#wa-status-badge[data-state="conectado"]{color:#86efac;border-color:#166534}
+#wa-status-badge[data-state="qr"],#wa-status-badge[data-state="conectando"]{color:#fcd34d;border-color:#854d0e}
+#wa-status-badge[data-state="erro"],#wa-status-badge[data-state="indisponivel"]{color:#fca5a5;border-color:#991b1b}
+.ad-whatsapp-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:12px 0}
+.ad-whatsapp-actions a{color:#e9bd68;font-size:12px}
+.ad-qr-dialog{max-width:430px;text-align:center}
+.ad-qr-dialog p{font-size:13px;line-height:1.6;color:#aab7ca}
+.ad-qr-frame{min-height:280px;display:grid;place-items:center;background:#fff;border-radius:12px;padding:12px}
+.ad-qr-frame img{width:min(260px,100%);height:auto}
+.ad-qr-frame span{color:#334155;font-size:13px;padding:20px}
+#wa-qr-feedback{min-height:20px;color:#e9bd68}
