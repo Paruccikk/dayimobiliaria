@@ -2036,7 +2036,7 @@ async function alertaLoadAudience() {
       catch (error) { console.warn("[Alerta Day] Um WhatsApp legado não pôde ser descriptografado:", error.message); }
     }
     const email = String(visitor.email || account.email || "").trim().toLowerCase();
-    const identity = ownerUid ? "uid:" + ownerUid : (phone ? "phone:" + phone : "legacy:" + key);
+    const identity = phone ? "phone:" + phone : (ownerUid ? "uid:" + ownerUid : "legacy:" + key);
     add(identity, {
       ownerUid,
       localizacao: {
@@ -2064,7 +2064,7 @@ async function alertaLoadAudience() {
     const account = ownerUid ? users[ownerUid] || {} : {};
     const phone = alertaPhone(subscription.whatsapp || account.whatsapp || account.celular || account.telefone || "");
     const email = String(subscription.email || account.email || "").trim().toLowerCase();
-    const identity = ownerUid ? "uid:" + ownerUid : (phone ? "phone:" + phone : "subscription:" + key);
+    const identity = phone ? "phone:" + phone : (ownerUid ? "uid:" + ownerUid : "subscription:" + key);
     add(identity, {
       ownerUid,
       localizacao: subscription.localizacao || null,
