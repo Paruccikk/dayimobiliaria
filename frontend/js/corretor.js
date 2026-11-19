@@ -196,8 +196,13 @@ $("#property-form").addEventListener("submit", async (e) => {
   };
 
   try {
+    const imageFiles = Array.from($("#prop-fotos").files || []);
+    const pdfFiles = Array.from($("#prop-documentos").files || []);
+    if (imageFiles.length > 40 || pdfFiles.length > 40) throw new Error("O limite é de 40 imagens e 40 PDFs por imóvel.");
+    if (imageFiles.some(file => file.size > 50 * 1024 * 1024)) throw new Error("Cada imagem pode ter no máximo 50 MB.");
+    if (pdfFiles.some(file => file.size > 100 * 1024 * 1024)) throw new Error("Cada PDF pode ter no máximo 100 MB.");
     const result = await api("/api/admin/imoveis", { method: "POST", body: JSON.stringify(body) });
-    const files = [...Array.from($("#prop-fotos").files || []), ...Array.from($("#prop-documentos").files || [])];
+    const files = [...imageFiles, ...pdfFiles];
     if (files.length) {
       const formData = new FormData();
       files.forEach(file => formData.append("arquivos", file));
