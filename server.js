@@ -1648,6 +1648,11 @@ app.post(
       const fotos = Array.isArray(property.fotos) ? [...property.fotos] : [];
       const documentos = Array.isArray(property.documentos) ? [...property.documentos] : [];
       const arquivos = Array.isArray(property.arquivos) ? [...property.arquivos] : [];
+      const oversizedImage = (req.files || []).find(file => file.mimetype !== "application/pdf" && file.size > 50 * 1024 * 1024);
+      if (oversizedImage) {
+        for (const filePath of savedFiles) { try { if (fs.existsSync(filePath)) fs.unlinkSync(filePath); } catch (_) {} }
+        return res.status(413).json({ error: "Cada imagem pode ter no máximo 50 MB." });
+      }
       const incomingImages = (req.files || []).filter(file => file.mimetype !== "application/pdf").length;
       const incomingPdfs = (req.files || []).filter(file => file.mimetype === "application/pdf").length;
 
