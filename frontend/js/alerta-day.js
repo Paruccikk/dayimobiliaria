@@ -156,6 +156,7 @@ async function loadData() {
   $("#stat-location").textContent = Number(data.resumo?.localizacao || 0).toLocaleString("pt-BR");
   $("#stat-push").textContent = Number(data.resumo?.push || 0).toLocaleString("pt-BR");
   $("#stat-whatsapp").textContent = Number(data.resumo?.whatsapp || 0).toLocaleString("pt-BR");
+  $("#stat-email").textContent = Number(data.resumo?.email || 0).toLocaleString("pt-BR");
   $("#stat-campaigns").textContent = Number(data.resumo?.campanhas || 0).toLocaleString("pt-BR");
   $("#property").innerHTML = '<option value="">Selecione um imóvel publicado</option>' + properties.map(p => `<option value="${p.id}">${escapeHtml(p.titulo)} · ${escapeHtml(p.cidade||"")} · ${money(p.preco)}</option>`).join("");
   $("#campaign-history").innerHTML = (data.campanhas || []).slice(0,6).map(c => `<article><b>${escapeHtml(c.titulo)}</b><br><small>${escapeHtml(c.status||"registrada")} · ${escapeHtml(c.criadoEm||"")}</small></article>`).join("") || "Nenhuma campanha registrada.";
@@ -441,7 +442,7 @@ $("#confirm-send").addEventListener("click", async e => {
       })
     });
     $("#confirm-dialog").close();
-    message(`Campanha processada. Push: ${result.pushEnviados||0}; WhatsApp: ${result.whatsappEnviados||0}. Consulte o histórico para detalhes.`);
+    message(`Campanha processada. Push: ${result.pushEnviados||0}; WhatsApp: ${result.whatsappEnviados||0}; e-mail: ${result.emailEnviados||0}. Consulte o histórico para detalhes.`);
     await loadData();
   } catch (err) {
     if (confirmFb) {
