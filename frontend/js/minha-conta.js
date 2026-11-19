@@ -27,6 +27,10 @@ onAuthStateChanged(auth, async user => {
   try {
     const data = await api("/api/auth/perfil");
     const profile = data.perfil || {};
+    if (profile.papel !== "administrador" || profile.ativo !== true || profile.status !== "ativo") {
+      location.replace("/");
+      return;
+    }
     const address = profile.endereco || {};
     ["cep","numero","rua","complemento","bairro","cidade","estado"].forEach(key => setValue(key, address[key]));
     $("#consent-location").checked = profile.consentimentos?.localizacao === true || address.consentimentoLocalizacao === true;
