@@ -100,48 +100,11 @@ function renderWhatsAppStatus(data={}) {
   badge.dataset.state=status;
   badge.textContent=labels[status]||status;
   $("#wa-status-message").textContent=data.message||"Sessão WhatsApp Web";
-  $("#wa-connect").hidden=status==="conectado";
-  $("#wa-disconnect").hidden=!["conectado","qr","conectando"].includes(status);
-  if(status==="qr"&&data.qrDataUrl){
-    $("#wa-qr-image").src=data.qrDataUrl;
-    $("#wa-qr-image").hidden=false;
-    $("#wa-qr-placeholder").hidden=true;
-    if(!$("#wa-qr-dialog").open) $("#wa-qr-dialog").showModal();
-    $("#wa-qr-feedback").textContent="Leia o código pelo menu Aparelhos conectados do WhatsApp.";
-  } else if(status==="conectado"){
-    $("#wa-qr-image").hidden=true;
-    $("#wa-qr-placeholder").hidden=false;
-    $("#wa-qr-placeholder").textContent="WhatsApp conectado. A sessão está salva neste servidor.";
-    $("#wa-qr-feedback").textContent="Conexão pronta para campanhas.";
-    if($("#wa-qr-dialog").open) $("#wa-qr-dialog").close();
-  } else {
-    $("#wa-qr-image").hidden=true;
-    $("#wa-qr-placeholder").hidden=false;
-    $("#wa-qr-placeholder").textContent=data.message||"Clique em conectar para gerar um novo QR Code.";
-  }
 }
 async function refreshWhatsAppStatus() {
   if(!user)return;
   try{renderWhatsAppStatus(await api("/api/admin/whatsapp/status"));}
   catch(error){$("#wa-status-message").textContent=error.message;}
-}
-async function connectWhatsApp() {
-  $("#wa-connect").disabled=true;
-  $("#wa-qr-dialog").showModal();
-  $("#wa-qr-placeholder").textContent="Iniciando WhatsApp Web e preparando o QR Code…";
-  $("#wa-qr-image").hidden=true;
-  try {
-    renderWhatsAppStatus(await api("/api/admin/whatsapp/conectar",{method:"POST",body:"{}"}));
-    await refreshWhatsAppStatus();
-  } catch(error) { $("#wa-qr-feedback").textContent=error.message; }
-  finally { $("#wa-connect").disabled=false; }
-}
-async function disconnectWhatsApp() {
-  if(!confirm("Deseja desconectar e remover a sessão salva do WhatsApp?"))return;
-  $("#wa-disconnect").disabled=true;
-  try{renderWhatsAppStatus(await api("/api/admin/whatsapp/desconectar",{method:"POST",body:"{}"}));}
-  catch(error){feedback(error.message);}
-  finally{$("#wa-disconnect").disabled=false;}
 }
 
 $("#login-form").addEventListener("submit",async event=>{
@@ -170,7 +133,7 @@ $("#send-button").addEventListener("click",()=>{
   if(!property)return feedback("Selecione um imóvel publicado.");
   if(!marker)return feedback("Defina o centro do raio no mapa.");
   if(!channels.length)return feedback("Selecione ao menos um canal.");
-  if(channels.includes("whatsapp")&&$("#wa-status-badge").dataset.state!=="conectado")return feedback("Conecte o WhatsApp pelo QR Code antes de preparar o disparo.");
+  if(channels.includes("whatsapp")&&$("#wa-status-badge").dataset.state!=="conectado")return feedback("WhatsApp desconectado. Acesse Integração WhatsApp no administrativo e leia o QR Code antes do disparo.");
   $("#confirm-summary").textContent=property.titulo+" · raio "+$("#radius-label").textContent+" · canais "+channels.join(", ")+". O servidor validará novamente os consentimentos.";
   $("#confirm-dialog").showModal();
 });
