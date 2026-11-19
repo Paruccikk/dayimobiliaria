@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#101827">
+<title>Alerta Day | Administração</title>
+<link rel="stylesheet" href="/css/style.css"><link rel="stylesheet" href="/css/alerta-day.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+</head>
+<body class="alerta-body">
+<section id="login-screen" class="alerta-login">
+ <div class="ad-brand">R&amp;D <span>PRIME IMÓVEIS</span></div><h1>Alerta Day</h1>
+ <p>Entre com sua conta administrativa para gerenciar campanhas.</p>
+ <form id="login-form"><label for="email">E-mail</label><input id="email" type="email" autocomplete="username" required>
+ <label for="password">Senha</label><input id="password" type="password" autocomplete="current-password" required>
+ <button class="ad-button ad-primary" type="submit">Entrar</button></form><p id="login-feedback" role="status"></p><a href="/admin.html">Voltar ao administrativo</a>
+</section>
+<main id="app" class="ad-shell" hidden>
+<header class="ad-header"><div><div class="ad-brand">R&amp;D <span>PRIME IMÓVEIS</span></div><h1>Central Alerta Day</h1><p>Campanhas imobiliárias segmentadas por localização e interesse.</p></div>
+<div class="ad-header-actions"><a href="/admin.html">Voltar ao administrativo</a><button id="logout" class="ad-button ad-ghost">Sair</button></div></header>
+<section class="ad-stats">
+<article><small>Localização autorizada</small><strong id="stat-location">—</strong></article>
+<article><small>Dispositivos inscritos em Push</small><strong id="stat-push">—</strong></article>
+<article><small>WhatsApp autorizado</small><strong id="stat-whatsapp">—</strong></article>
+<article><small>Campanhas realizadas</small><strong id="stat-campaigns">—</strong></article>
+</section>
+<div class="ad-layout">
+<section class="ad-panel ad-compose">
+<div class="ad-step">01 · CAMPANHA</div><h2>Monte seu alerta</h2>
+<label for="property">Imóvel publicado</label><select id="property"><option value="">Carregando imóveis…</option></select>
+<label for="title">Título da notificação</label><input id="title" maxlength="90" value="Oportunidade perto de você!">
+<label for="message">Mensagem</label><textarea id="message" rows="3" maxlength="220">Um novo imóvel entrou para a carteira da R&amp;D Prime. Confira os detalhes.</textarea>
+<label for="link">Link do anúncio</label><input id="link" placeholder="Preenchido pelo imóvel selecionado">
+<div class="ad-step">02 · PÚBLICO</div><h2>Escolha a região</h2>
+<p class="ad-map-help">Selecione um imóvel com coordenadas ou clique no mapa para definir o centro. O cálculo considera apenas localizações compartilhadas voluntariamente.</p>
+<div id="campaign-map" role="application" aria-label="Mapa de seleção do raio"></div>
+<div class="ad-radius-row"><label for="radius">Raio de alcance</label><strong id="radius-label">5 km</strong></div>
+<input id="radius" type="range" min="500" max="30000" step="500" value="5000"><div class="ad-radius-scale"><span>500 m</span><span>30 km</span></div>
+<div class="ad-audience"><span>Pessoas elegíveis estimadas</span><strong id="audience-count">Defina uma região</strong></div>
+<div class="ad-step">03 · CANAIS</div><h2>Onde enviar?</h2>
+<label class="ad-check"><input type="checkbox" id="channel-push" checked><span><b>Notificação Push</b><small>Somente dispositivos com autorização ativa.</small></span></label>
+<label class="ad-check"><input type="checkbox" id="channel-whatsapp"><span><b>WhatsApp</b><small>Somente contatos que autorizaram esse canal.</small></span></label>
+<label class="ad-check"><input type="checkbox" id="channel-email"><span><b>E-mail</b><small>Reservado para destinatários com consentimento específico; SMTP precisa estar configurado.</small></span></label>
+<p class="ad-note">O WhatsApp usa a API oficial da Meta e modelo aprovado. Sem as credenciais e o modelo configurados, nenhum envio por esse canal será realizado.</p>
+<button id="preview-button" class="ad-button ad-secondary" type="button">Atualizar prévia</button>
+<button id="send-button" class="ad-button ad-primary" type="button" disabled>Preparar disparo</button><p id="campaign-feedback" role="status" aria-live="polite"></p>
+</section>
+<aside class="ad-side">
+<section class="ad-panel"><div class="ad-step">PRÉVIA</div><h2>Como o cliente verá</h2>
+<div class="ad-phone"><div class="ad-phone-top">R&amp;D PRIME IMÓVEIS <span>agora</span></div><div class="ad-notification"><div class="ad-app-icon">P</div><div><img id="preview-image" class="ad-preview-image" alt="" hidden><strong id="preview-title">Oportunidade perto de você!</strong><p id="preview-message">Um novo imóvel entrou para a carteira da R&amp;D Prime.</p><small>Toque para ver o imóvel</small></div></div></div>
+<p class="ad-note">A aparência final depende do navegador, sistema operacional e preferências do aparelho.</p></section>
+<section class="ad-panel"><div class="ad-step">SEGURANÇA</div><h2>Regras de envio</h2><ul class="ad-rules"><li>Somente pessoas com consentimento válido por canal.</li><li>Localização é opcional e pode ser removida.</li><li>O painel recebe totais, não coordenadas individuais.</li><li>Campanhas e resultados ficam registrados.</li><li>Acesso à administração validado no servidor.</li></ul></section>
+<section class="ad-panel"><div class="ad-step">HISTÓRICO</div><h2>Últimas campanhas</h2><div id="campaign-history" class="ad-history">Nenhuma campanha carregada.</div></section>
+</aside></div>
+<dialog id="confirm-dialog" class="ad-dialog"><form method="dialog"><h2>Confirmar disparo?</h2><p id="confirm-summary"></p><div class="ad-dialog-actions"><button class="ad-button ad-ghost" value="cancel">Voltar</button><button id="confirm-send" class="ad-button ad-primary" value="confirm">Confirmar envio</button></div></form></dialog>
+</main>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script><script type="module" src="/js/alerta-day.js"></script>
+</body></html>
