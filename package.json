@@ -7,12 +7,13 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "check": "node --check server.js && node --check frontend/js/painel.js && node --check frontend/js/admin.js"
+    "check": "node --check server.js && node --check backend/whatsapp-client.js && node --check frontend/js/painel.js && node --check frontend/js/admin.js && node --check frontend/js/alerta-day.js && node --check frontend/js/alerta-day-optin.js && node --check frontend/js/cadastro.js"
   },
   "engines": {
     "node": ">=20 <25"
   },
   "dependencies": {
+    "@whiskeysockets/baileys": "^7.0.0-rc14",
     "compression": "^1.7.4",
     "dotenv": "^16.4.5",
     "express": "^4.21.2",
@@ -20,8 +21,8 @@
     "firebase-admin": "^12.7.0",
     "helmet": "^8.0.0",
     "multer": "^1.4.5-lts.1",
-    "qrcode": "^1.5.4",
-    "whatsapp-web.js": "^1.26.0"
+    "nodemailer": "^10.6.0",
+    "qrcode": "^1.5.4"
   },
   "devDependencies": {
     "nodemon": "^3.1.7"

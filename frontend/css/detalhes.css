@@ -280,3 +280,74 @@
   .detail-gallery-arrow.next { right:10px; }
   .detail-thumb { flex-basis:76px; width:76px; height:58px; }
 }
+
+
+/* Correção definitiva de largura: evita que a galeria force o grid para fora da tela. */
+.detail-section,
+.detail-section .container,
+#property-detail,
+.detail-grid,
+.detail-main {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.detail-grid {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 400px);
+}
+
+.detail-gallery {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.detail-gallery .detail-main-image {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  max-height: 620px;
+  object-fit: contain;
+  object-position: center;
+  box-sizing: border-box;
+}
+
+.detail-thumbs {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.detail-about {
+  max-width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  box-sizing: border-box;
+}
+
+@media (max-width: 960px) {
+  .detail-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .detail-section .container {
+    width: calc(100% - 28px);
+    max-width: calc(100% - 28px);
+  }
+
+  .detail-gallery .detail-main-image {
+    max-height: 420px;
+  }
+
+  .detail-about {
+    padding: 20px;
+  }
+}

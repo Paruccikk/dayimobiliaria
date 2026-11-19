@@ -6,9 +6,6 @@
   <title>Administração | R&D PRIME IMÓVEIS</title>
     <link rel="stylesheet" href="/css/style.css">
   <link rel="stylesheet" href="/css/admin.css">
-
-
-
 </head>
 <body>
   <section id="login-screen" class="auth-card">
@@ -37,7 +34,7 @@
         <a class="button button-dark" href="/painel.html">Painel geral</a>
         <a class="button button-dark" href="/crm.html">CRM de Leads</a>
         <a class="button button-dark" href="/materiais.html">Materiais e carteira</a>
-        <a class="button button-gold" href="/whatsapp.html">Integração WhatsApp ↗</a>
+        <a class="button button-gold" href="/alerta-day.html">Alerta Day</a>
         <button class="button button-gold" id="admin-refresh" type="button">Atualizar dados ↻</button>
         <button class="button button-dark" id="admin-logout" type="button">Sair</button>
       </div>
@@ -52,7 +49,6 @@
       <a href="#oportunidades-corretor" class="admin-tab">Oportunidades de corretores</a>
     </nav>
 
-
     <section id="visao-geral" class="dash-grid" aria-label="Indicadores">
       <article class="dash-card"><small>Total de imóveis</small><strong class="dash-number" id="stat-imoveis">—</strong><span class="dash-note">Todos os status</span></article>
       <article class="dash-card"><small>Imóveis publicados</small><strong class="dash-number" id="stat-publicados">—</strong><span class="dash-note">Visíveis no site</span></article>
@@ -62,6 +58,9 @@
       <article class="dash-card"><small>Imóveis para locação</small><strong class="dash-number" id="stat-locacao">—</strong><span class="dash-note">Todas as situações</span></article>
       <article class="dash-card"><small>Corretores ativos</small><strong class="dash-number" id="stat-corretores">—</strong><span class="dash-note">Contas autorizadas</span></article>
       <article class="dash-card"><small>Leads recebidos</small><strong class="dash-number" id="stat-leads">—</strong><span class="dash-note"><span id="stat-leads-novos">—</span> novos</span></article>
+      <article class="dash-card"><small>WhatsApp permitido</small><strong class="dash-number" id="stat-wa-permitidos">—</strong><span class="dash-note">Consentimento confirmado</span></article>
+      <article class="dash-card"><small>WhatsApp negado</small><strong class="dash-number" id="stat-wa-negados">—</strong><span class="dash-note">Não recebem alertas</span></article>
+      <article class="dash-card"><small>WhatsApp pendente</small><strong class="dash-number" id="stat-wa-pendentes">—</strong><span class="dash-note">Aguardando escolha</span></article>
     </section>
 
     <section class="dash-two-col">
@@ -94,18 +93,19 @@
         <div class="field"><label for="prop-cidade">Cidade</label><input id="prop-cidade" maxlength="100"></div>
         <div class="field"><label for="prop-estado">UF</label><input id="prop-estado" maxlength="2" placeholder="SP"></div>
         <div class="field"><label for="prop-bairro">Bairro</label><input id="prop-bairro" maxlength="120"></div>
+        <div class="field"><label for="prop-regiao">Região</label><select id="prop-regiao"><option value="">Selecione a região</option><option>Norte</option><option>Sul</option><option>Leste</option><option>Oeste</option><option>Centro</option></select></div>
         <div class="field"><label for="prop-area">Área (m²)</label><input id="prop-area" type="number" min="0"></div>
         <div class="field"><label for="prop-quartos">Quartos</label><input id="prop-quartos" type="number" min="0"></div>
         <div class="field"><label for="prop-suites">Suítes</label><input id="prop-suites" type="number" min="0"></div><div class="field"><label for="prop-situacao">Situação do imóvel</label><select id="prop-situacao"><option value="pronto">Pronto / Usado</option><option value="lancamento">Lançamento</option><option value="em_obras">Em obras</option></select></div><div class="field full mcmv-field"><label class="mcmv-toggle" for="prop-mcmv"><input id="prop-mcmv" type="checkbox"><span class="mcmv-switch" aria-hidden="true"></span><span class="mcmv-toggle-copy"><strong>Minha Casa, Minha Vida</strong><small>Ative para identificar este imóvel como elegível ao programa.</small></span></label></div>
         <div class="field"><label for="prop-banheiros">Banheiros</label><input id="prop-banheiros" type="number" min="0"></div>
         <div class="field"><label for="prop-vagas">Vagas</label><input id="prop-vagas" type="number" min="0"></div>
-        <div class="field full"><label for="prop-descricao">Descrição</label><textarea id="prop-descricao" rows="3" maxlength="10000"></textarea></div><div class="field full"><label for="prop-fotos">Fotos do imóvel (JPG, PNG ou WEBP — até 40 imagens por imóvel, 25 MB cada)</label><input id="prop-fotos" type="file" accept="image/jpeg,image/png,image/webp" multiple></div><div class="field full"><label for="prop-documentos">Plantas, ficha técnica e PDFs (até 40 PDFs por imóvel, 25 MB cada)</label><input id="prop-documentos" type="file" accept="application/pdf" multiple></div><p class="dash-subtitle field full">Limite por imóvel: até 40 imagens + 40 PDFs. Cada arquivo pode ter até 25 MB. Os arquivos são enviados individualmente para maior estabilidade.</p>
+        <div class="field full"><label for="prop-descricao">Descrição</label><textarea id="prop-descricao" rows="3" maxlength="10000"></textarea></div><div class="field full"><label for="prop-fotos">Fotos do imóvel (JPG, PNG ou WEBP — até 40 imagens por imóvel, 50 MB cada)</label><input id="prop-fotos" type="file" accept="image/jpeg,image/png,image/webp" multiple></div><div class="field full"><label for="prop-documentos">Plantas, ficha técnica e PDFs (até 40 PDFs por imóvel, 100 MB cada)</label><input id="prop-documentos" type="file" accept="application/pdf" multiple></div><p class="dash-subtitle field full">Limite por imóvel: até 40 imagens + 40 PDFs. Cada PDF pode ter até 100 MB e cada imagem até 50 MB. Os arquivos são enviados individualmente para maior estabilidade.</p>
         <div id="editing-property-files" class="field full editing-property-files" hidden>
           <h3>Arquivos já cadastrados neste imóvel</h3>
           <p class="dash-subtitle">Confira as imagens e PDFs existentes. Você pode abrir ou excluir cada arquivo.</p>
           <div id="editing-property-files-list" class="property-files-list"></div>
         </div>
-        <div class="field full publish-toggle-field"><label class="publish-toggle" for="prop-publicar"><input id="prop-publicar" type="checkbox" checked><span class="publish-toggle-box" aria-hidden="true"></span><span class="publish-toggle-copy"><strong>Publicar o imóvel no site imediatamente</strong><small>Disponibiliza o anúncio assim que o cadastro for concluído (somente administrador).</small></span></label></div>
+        <div class="field full" style="display:flex;align-items:center;gap:10px"><input id="prop-publicar" type="checkbox" checked style="width:auto"><label for="prop-publicar">Publicar o imóvel no site imediatamente (somente administrador)</label></div>
         <div class="field full"><button id="prop-submit" class="button button-gold" type="submit">Cadastrar imóvel</button></div>
       </form>
       <p id="property-feedback" class="dash-feedback" role="status" aria-live="polite"></p>
@@ -113,11 +113,7 @@
 
     <section class="dash-panel">
       <h2>Todos os imóveis</h2>
-      <div class="property-search">
-        <label for="admin-property-search">Buscar imóvel</label>
-        <input id="admin-property-search" type="search" placeholder="Título, bairro, cidade, responsável ou status..." autocomplete="off">
-        <span id="admin-property-search-count" class="property-search-count" aria-live="polite"></span>
-      </div>
+      <div class="property-search"><label class="property-search-box" for="admin-property-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg><input id="admin-property-search" type="search" placeholder="Buscar por título, código, cidade, bairro ou corretor..." autocomplete="off"></label><span class="property-search-hint">A lista é filtrada enquanto você digita.</span></div>
       <div class="dash-table-wrap">
         <table class="dash-table">
           <thead><tr><th>Imóvel</th><th>Finalidade</th><th>Preço</th><th>Responsável</th><th>Status</th><th>Ações</th></tr></thead>
@@ -128,10 +124,11 @@
 
     <section class="dash-panel">
       <h2>Clientes, corretores e usuários</h2>
+      <div class="property-search"><label class="property-search-box" for="admin-broker-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg><input id="admin-broker-search" type="search" placeholder="Localizar corretor por nome, e-mail, telefone ou gerente..." autocomplete="off"></label><span class="property-search-hint">A lista é filtrada enquanto você digita.</span></div>
       <div class="dash-table-wrap">
         <table class="dash-table">
-          <thead><tr><th>Usuário</th><th>Telefone</th><th>Solicitação</th><th>Perfil</th><th>Gerente do corretor</th><th>Status</th><th>Ações</th></tr></thead>
-          <tbody id="usuarios-lista"><tr><td colspan="7">Carregando…</td></tr></tbody>
+          <thead><tr><th>Usuário</th><th>Telefone</th><th>Solicitação</th><th>Perfil</th><th>Gerente do corretor</th><th>Status</th><th>WhatsApp</th><th>Ações</th></tr></thead>
+          <tbody id="usuarios-lista"><tr><td colspan="8">Carregando…</td></tr></tbody>
         </table>
       </div>
     </section>
@@ -167,6 +164,7 @@
 
     <section class="dash-panel">
       <h2>Leads recentes</h2>
+      <div class="property-search"><label class="property-search-box" for="admin-lead-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg><input id="admin-lead-search" type="search" placeholder="Localizar lead por nome, telefone, imóvel ou mensagem..." autocomplete="off"></label><span class="property-search-hint">Pesquise os contatos recebidos sem recarregar a página.</span></div>
       <div class="dash-table-wrap">
         <table class="dash-table">
           <thead><tr><th>Contato</th><th>Telefone</th><th>Imóvel</th><th>Status</th><th>Data</th></tr></thead>

@@ -6,6 +6,7 @@ let currentUser = null;
 let currentProfile = null;
 let loading = false;
 let brokerProperties = [];
+let brokerSearchTerm = "";
 
 // Utilitários
 const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
@@ -56,21 +57,14 @@ window.updateAgenda = async function(id, status, btn) {
 
 function renderBrokerProperties() {
   const tbody = $("#imoveis-lista");
-  const query = ($("#broker-property-search")?.value || "").trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-  const filtered = brokerProperties.filter(item => [
-    item.titulo, item.bairro, item.cidade, item.estado, item.finalidade,
-    item.categoria, item.status, item.responsavelNome
-  ].join(" ").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().includes(query));
-  const counter = $("#broker-property-search-count");
-  if (counter) counter.textContent = query ? filtered.length + " de " + brokerProperties.length + " imóvel(is)" : brokerProperties.length + " imóvel(is)";
+  const normalize = value => String(value ?? "").toLocaleLowerCase("pt-BR").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const query = normalize(brokerSearchTerm.trim());
+  const filtered = query ? brokerProperties.filter(item => normalize([item.titulo, item.id, item.cidade, item.estado, item.bairro, item.regiao, item.finalidade, item.status].join(" ")).includes(query)) : brokerProperties;
   if (!brokerProperties.length) { tbody.innerHTML = '<tr><td colspan="5">Você ainda não tem imóveis cadastrados.</td></tr>'; return; }
-  if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="5">Nenhum imóvel encontrado para esta busca.</td></tr>'; return; }
+  if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="5">Nenhum imóvel encontrado para essa busca.</td></tr>'; return; }
   tbody.innerHTML = filtered.map(item => `
-    <tr>
-      <td><strong>${escapeHtml(item.titulo)}</strong><div class="dash-subtitle">${escapeHtml(item.bairro || "")} ${item.cidade ? `- ${escapeHtml(item.cidade)}` : ""}</div></td>
-      <td>${escapeHtml(item.finalidade)}</td><td>${money(item.preco)}</td><td>${statusPill(item.status)}</td>
-      <td><a href="/detalhes.html?id=${encodeURIComponent(item.id)}" class="small-btn light" target="_blank">Ver no site ↗</a></td>
-    </tr>`).join("");
+    <tr><td><strong>${escapeHtml(item.titulo)}</strong><div class="dash-subtitle">${escapeHtml(item.bairro || "")} ${item.cidade ? `- ${escapeHtml(item.cidade)}` : ""}</div></td><td>${escapeHtml(item.finalidade)}</td><td>${money(item.preco)}</td><td>${statusPill(item.status)}</td><td><a href="/detalhes.html?id=${encodeURIComponent(item.id)}" class="small-btn light" target="_blank">Ver no site ↗</a></td></tr>
+  `).join("");
 }
 
 // Carregar Dados
@@ -189,6 +183,7 @@ $("#property-form").addEventListener("submit", async (e) => {
     cidade: $("#prop-cidade").value,
     estado: $("#prop-estado").value,
     bairro: $("#prop-bairro").value,
+    regiao: $("#prop-regiao").value,
     areaM2: $("#prop-area").value,
     quartos: $("#prop-quartos").value,
     suites: $("#prop-suites").value,
@@ -201,8 +196,13 @@ $("#property-form").addEventListener("submit", async (e) => {
   };
 
   try {
+    const imageFiles = Array.from($("#prop-fotos").files || []);
+    const pdfFiles = Array.from($("#prop-documentos").files || []);
+    if (imageFiles.length > 40 || pdfFiles.length > 40) throw new Error("O limite é de 40 imagens e 40 PDFs por imóvel.");
+    if (imageFiles.some(file => file.size > 50 * 1024 * 1024)) throw new Error("Cada imagem pode ter no máximo 50 MB.");
+    if (pdfFiles.some(file => file.size > 100 * 1024 * 1024)) throw new Error("Cada PDF pode ter no máximo 100 MB.");
     const result = await api("/api/admin/imoveis", { method: "POST", body: JSON.stringify(body) });
-    const files = [...Array.from($("#prop-fotos").files || []), ...Array.from($("#prop-documentos").files || [])];
+    const files = [...imageFiles, ...pdfFiles];
     if (files.length) {
       const formData = new FormData();
       files.forEach(file => formData.append("arquivos", file));
@@ -231,7 +231,11 @@ $("#agenda-lista").addEventListener("click", (event) => {
   updateAgenda(btn.dataset.agendaId, btn.dataset.agendaAction, btn);
 });
 
-$("#broker-property-search")?.addEventListener("input", renderBrokerProperties);
+$("#broker-property-search")?.addEventListener("input", event => {
+  brokerSearchTerm = event.target.value || "";
+  renderBrokerProperties();
+});
+
 $("#btn-refresh").addEventListener("click", loadDashboard);
 $("#btn-logout").addEventListener("click", async () => {
   await signOut(auth);

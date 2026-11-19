@@ -20,6 +20,9 @@ const propertyForm = $("#admin-property-form");
 let currentUser = null;
 let dashboardData = null;
 let loading = false;
+let propertySearchTerm = "";
+let brokerSearchTerm = "";
+let leadSearchTerm = "";
 
 function setMessage(element, text) {
   element.textContent = text;
@@ -232,23 +235,17 @@ function renderPropertyFiles(property) {
 
 function renderProperties(properties) {
   const tbody = $("#imoveis-lista");
-  const query = ($("#admin-property-search")?.value || "").trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-  const filteredProperties = properties.filter(property => {
-    const searchable = [
-      property.titulo, property.cidade, property.estado, property.bairro,
-      property.finalidade, property.categoria, property.status,
-      property.responsavelNome, property.responsavelEmail, property.responsavelUid
-    ].join(" ").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-    return searchable.includes(query);
-  });
-  const counter = $("#admin-property-search-count");
-  if (counter) counter.textContent = query ? filteredProperties.length + " de " + properties.length + " imóvel(is)" : properties.length + " imóvel(is)";
+  const normalize = value => String(value ?? "").toLocaleLowerCase("pt-BR").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const query = normalize(propertySearchTerm.trim());
+  const filteredProperties = query ? properties.filter(property => normalize([property.titulo, property.id, property.cidade, property.estado, property.bairro, property.regiao, property.finalidade, property.status, property.responsavelNome, property.responsavelEmail, property.responsavelUid].join(" ")).includes(query)) : properties;
+
   if (!properties.length) {
     tbody.innerHTML = '<tr><td colspan="6">Nenhum imóvel cadastrado.</td></tr>';
     return;
   }
+
   if (!filteredProperties.length) {
-    tbody.innerHTML = '<tr><td colspan="6">Nenhum imóvel encontrado para esta busca.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6">Nenhum imóvel encontrado para essa busca.</td></tr>';
     return;
   }
 
@@ -263,7 +260,7 @@ function renderProperties(properties) {
       <tr data-property-id="${escapeHtml(property.id)}">
         <td>
           <strong>${escapeHtml(property.titulo || "Sem título")}</strong>
-          <div class="dash-subtitle">${escapeHtml(property.cidade || "")}${property.estado ? `/${escapeHtml(property.estado)}` : ""}</div>
+          <div class="dash-subtitle">${escapeHtml(property.cidade || "")}${property.estado ? `/${escapeHtml(property.estado)}` : ""}${property.regiao ? ` · ${escapeHtml(property.regiao)}` : ""}</div>
         </td>
         <td>${escapeHtml(property.finalidade || "—")}</td>
         <td>${escapeHtml(money(property.preco))}</td>
@@ -285,13 +282,13 @@ function renderProperties(properties) {
   tbody.querySelectorAll(".property-edit").forEach(button => {
     button.addEventListener("click", () => {
       const row = button.closest("tr");
-      const property = filteredProperties.find(item => item.id === row.dataset.propertyId);
+      const property = properties.find(item => item.id === row.dataset.propertyId);
       if (!property) return;
       const fields = {
         "#prop-titulo": property.titulo, "#prop-categoria": property.categoria,
         "#prop-finalidade": property.finalidade, "#prop-preco": property.preco ?? "",
         "#prop-cidade": property.cidade, "#prop-estado": property.estado,
-        "#prop-bairro": property.bairro, "#prop-area": property.areaM2,
+        "#prop-bairro": property.bairro, "#prop-regiao": (property.regiao || "").replace(/^Zona\s+/i, ""), "#prop-area": property.areaM2,
         "#prop-quartos": property.quartos, "#prop-suites": property.suites,
         "#prop-situacao": property.situacaoObra || "pronto",
         "#prop-banheiros": property.banheiros, "#prop-vagas": property.vagas,
@@ -361,16 +358,36 @@ function renderProperties(properties) {
 
 function renderUsers(users) {
   const tbody = $("#usuarios-lista");
+  const consentCounts = users.reduce((counts, user) => {
+    const status = ["permitido", "negado"].includes(user.whatsappConsentStatus) ? user.whatsappConsentStatus : "pendente";
+    counts[status]++;
+    return counts;
+  }, { permitido: 0, negado: 0, pendente: 0 });
+  setNumber("#stat-wa-permitidos", consentCounts.permitido);
+  setNumber("#stat-wa-negados", consentCounts.negado);
+  setNumber("#stat-wa-pendentes", consentCounts.pendente);
 
   if (!users.length) {
-    tbody.innerHTML = '<tr><td colspan="7">Nenhum usuário cadastrado.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8">Nenhum usuário cadastrado.</td></tr>';
+    setNumber("#stat-wa-permitidos", 0);
+    setNumber("#stat-wa-negados", 0);
+    setNumber("#stat-wa-pendentes", 0);
     return;
   }
+
+  const normalize = value => String(value ?? "").toLocaleLowerCase("pt-BR").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const query = normalize(brokerSearchTerm.trim());
+  const filteredUsers = query ? users.filter(user => normalize([user.nome, user.email, user.telefone, user.uid, user.papel, user.gerenteNome, user.gerenteEmail, user.gerenteUid].join(" ")).includes(query)) : users;
 
   const roles = ["cliente", "corretor", "gerente", "administrador"];
   const managers = users.filter(user => user.papel === "gerente" && user.ativo === true && user.status === "ativo");
 
-  tbody.innerHTML = users.map(user => {
+  if (!filteredUsers.length) {
+    tbody.innerHTML = '<tr><td colspan="8">Nenhum corretor ou usuário encontrado para essa busca.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filteredUsers.map(user => {
     const roleOptions = roles.map(role => `
       <option value="${role}" ${user.papel === role ? "selected" : ""}>
         ${role}
@@ -383,6 +400,9 @@ function renderUsers(users) {
     const pedido = user.solicitacaoPapel === "corretor"
       ? "Solicitou corretor"
       : "Cliente";
+    const waStatus = ["permitido", "negado"].includes(user.whatsappConsentStatus) ? user.whatsappConsentStatus : "pendente";
+    const waLabel = waStatus === "permitido" ? "Permitido" : waStatus === "negado" ? "Negado" : "Pendente";
+    const waClass = waStatus === "permitido" ? "pill pill-green" : waStatus === "negado" ? "pill" : "pill pill-gold";
 
     return `
       <tr data-user-uid="${escapeHtml(user.uid)}">
@@ -395,6 +415,7 @@ function renderUsers(users) {
         <td><select class="user-role" aria-label="Perfil do usuário">${roleOptions}</select></td>
         <td><select class="user-manager" aria-label="Gerente responsável" ${user.papel !== "corretor" ? "disabled" : ""}>${managerOptions}</select></td>
         <td>${statusPill(isActive ? "ativo" : (user.status || "inativo"))}</td>
+        <td><span class="${waClass}">${waLabel}</span>${user.whatsappConsentEm ? `<div class="dash-subtitle">${escapeHtml(formatDate(user.whatsappConsentEm))}</div>` : ""}<div><button type="button" class="small-btn toggle-wa" data-active="${user.whatsappAtivo === false ? "false" : "true"}" ${waStatus !== "permitido" ? "disabled" : ""}>${user.whatsappAtivo === false ? "Ativar envios" : "Desativar envios"}</button></div></td>
         <td>
           <button type="button" class="small-btn save-role">Salvar perfil</button>
           <button type="button" class="small-btn light toggle-user"
@@ -405,6 +426,27 @@ function renderUsers(users) {
       </tr>
     `;
   }).join("");
+
+  tbody.querySelectorAll(".toggle-wa").forEach(button => {
+    button.addEventListener("click", async () => {
+      const row = button.closest("tr");
+      const uid = row.dataset.userUid;
+      const whatsappAtivo = button.dataset.active !== "true";
+      button.disabled = true;
+      try {
+        await api(`/api/admin/usuarios/${encodeURIComponent(uid)}`, {
+          method: "PATCH",
+          body: JSON.stringify({ whatsappAtivo })
+        });
+        setMessage(dashboardFeedback, whatsappAtivo ? "Envios WhatsApp ativados." : "Envios WhatsApp desativados.");
+        await carregarDashboard();
+      } catch (error) {
+        setMessage(dashboardFeedback, error.message);
+      } finally {
+        button.disabled = false;
+      }
+    });
+  });
 
   tbody.querySelectorAll(".save-role").forEach(button => {
     button.addEventListener("click", async () => {
@@ -459,13 +501,21 @@ function renderUsers(users) {
 
 function renderLeads(leads) {
   const tbody = $("#leads-lista");
+  const normalize = value => String(value ?? "").toLocaleLowerCase("pt-BR").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const query = normalize(leadSearchTerm.trim());
+  const filteredLeads = query ? leads.filter(lead => normalize([lead.nome, lead.telefone, lead.email, lead.imovelId, lead.mensagem, lead.preferencias, lead.status, lead.responsavelNome].join(" ")).includes(query)) : leads;
 
   if (!leads.length) {
     tbody.innerHTML = '<tr><td colspan="5">Nenhum lead recebido.</td></tr>';
     return;
   }
 
-  tbody.innerHTML = leads.map(lead => `
+  if (!filteredLeads.length) {
+    tbody.innerHTML = '<tr><td colspan="5">Nenhum lead encontrado para essa busca.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filteredLeads.map(lead => `
     <tr>
       <td>${escapeHtml(lead.nome || "—")}<div class="dash-subtitle">${escapeHtml(lead.mensagem || "")}</div></td>
       <td>${escapeHtml(lead.telefone || "—")}</td>
@@ -576,7 +626,20 @@ $("#usuarios-lista").addEventListener("change", event => {
   }
 });
 
-$("#admin-property-search")?.addEventListener("input", () => renderProperties(dashboardData?.imoveis || []));
+$("#admin-broker-search")?.addEventListener("input", event => {
+  brokerSearchTerm = event.target.value || "";
+  renderUsers(dashboardData?.usuarios || []);
+});
+$("#admin-lead-search")?.addEventListener("input", event => {
+  leadSearchTerm = event.target.value || "";
+  renderLeads(dashboardData?.leads || []);
+});
+
+$("#admin-property-search")?.addEventListener("input", event => {
+  propertySearchTerm = event.target.value || "";
+  renderProperties(dashboardData?.imoveis || []);
+});
+
 refreshButton.addEventListener("click", carregarDashboard);
 
 logoutButton.addEventListener("click", async () => {
@@ -605,6 +668,7 @@ propertyForm.addEventListener("submit", async event => {
     cidade: $("#prop-cidade").value.trim(),
     estado: $("#prop-estado").value.trim().toUpperCase(),
     bairro: $("#prop-bairro").value.trim(),
+    regiao: $("#prop-regiao").value,
     areaM2: $("#prop-area").value,
     quartos: $("#prop-quartos").value,
     suites: $("#prop-suites").value,
@@ -618,19 +682,21 @@ propertyForm.addEventListener("submit", async event => {
   };
 
   try {
-    const selectedFiles = [
-      ...Array.from($("#prop-fotos").files || []),
-      ...Array.from($("#prop-documentos").files || [])
-    ];
     const imageFiles = Array.from($("#prop-fotos").files || []);
     const pdfFiles = Array.from($("#prop-documentos").files || []);
-    const maxSingleBytes = 25 * 1024 * 1024;
+    // Junta imagens e PDFs para usar o mesmo fluxo de envio individual.
+    const selectedFiles = [...imageFiles, ...pdfFiles];
+    const maxImageBytes = 50 * 1024 * 1024;
+    const maxPdfBytes = 100 * 1024 * 1024;
 
     if (imageFiles.length > 40 || pdfFiles.length > 40) {
       throw new Error("O limite é de 40 imagens e 40 PDFs por imóvel.");
     }
-    if (selectedFiles.some(file => file.size > maxSingleBytes)) {
-      throw new Error("Cada arquivo pode ter no máximo 25 MB.");
+    if (imageFiles.some(file => file.size > maxImageBytes)) {
+      throw new Error("Cada imagem pode ter no máximo 50 MB.");
+    }
+    if (pdfFiles.some(file => file.size > maxPdfBytes)) {
+      throw new Error("Cada PDF pode ter no máximo 100 MB.");
     }
 
     let propertyId = propertyForm.dataset.pendingUploadId || "";
@@ -707,8 +773,6 @@ propertyForm.addEventListener("submit", async event => {
     submitButton.disabled = false;
   }
 });
-
-
 
 
 onAuthStateChanged(auth, user => {

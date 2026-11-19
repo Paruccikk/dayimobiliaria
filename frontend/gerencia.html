@@ -30,6 +30,7 @@
     </section>
     <section class="dash-panel">
       <h2>Minha equipe</h2>
+      <div class="property-search"><label class="property-search-box" for="manager-broker-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg><input id="manager-broker-search" type="search" placeholder="Localizar corretor por nome ou e-mail..." autocomplete="off"></label><span class="property-search-hint">Filtra os corretores da sua equipe.</span></div>
       <div class="dash-table-wrap"><table class="dash-table">
         <thead><tr><th>Corretor</th><th>E-mail</th><th>Imóveis</th><th>Leads</th></tr></thead>
         <tbody id="manager-team"><tr><td colspan="4">Carregando…</td></tr></tbody>
@@ -37,6 +38,7 @@
     </section>
     <section class="dash-panel">
       <h2>Produtividade por corretor</h2>
+      <div class="property-search"><label class="property-search-box" for="manager-performance-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg><input id="manager-performance-search" type="search" placeholder="Localizar corretor por nome..." autocomplete="off"></label><span class="property-search-hint">Filtra os indicadores individuais.</span></div>
       <div class="dash-table-wrap"><table class="dash-table">
         <thead><tr><th>Corretor</th><th>Imóveis</th><th>Leads</th><th>Novos</th><th>Propostas</th><th>Fechados</th><th>Visitas</th><th>Realizadas</th></tr></thead>
         <tbody id="manager-performance"><tr><td colspan="8">Carregando…</td></tr></tbody>
@@ -44,6 +46,7 @@
     </section>
     <section class="dash-panel">
       <h2>Leads recentes</h2>
+      <div class="property-search"><label class="property-search-box" for="manager-lead-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg><input id="manager-lead-search" type="search" placeholder="Localizar lead por nome, telefone, corretor ou imóvel..." autocomplete="off"></label><span class="property-search-hint">Filtra os leads da equipe.</span></div>
       <div class="dash-table-wrap"><table class="dash-table">
         <thead><tr><th>Cliente</th><th>Telefone</th><th>Corretor</th><th>Status</th><th>Data</th></tr></thead>
         <tbody id="manager-leads"><tr><td colspan="5">Carregando…</td></tr></tbody>
@@ -51,11 +54,7 @@
     </section>
     <section class="dash-panel">
       <h2>Imóveis da equipe</h2>
-      <div class="property-search">
-        <label for="manager-property-search">Buscar imóvel da equipe</label>
-        <input id="manager-property-search" type="search" placeholder="Título, bairro, cidade, corretor ou status..." autocomplete="off">
-        <span id="manager-property-search-count" class="property-search-count" aria-live="polite"></span>
-      </div>
+      <div class="property-search"><label class="property-search-box" for="manager-property-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-4-4"></path></svg><input id="manager-property-search" type="search" placeholder="Buscar por título, código, cidade, bairro ou corretor..." autocomplete="off"></label><span class="property-search-hint">Filtra os imóveis de toda a equipe.</span></div>
       <div class="dash-table-wrap"><table class="dash-table">
         <thead><tr><th>Imóvel</th><th>Finalidade</th><th>Preço</th><th>Corretor</th><th>Status</th></tr></thead>
         <tbody id="manager-properties"><tr><td colspan="5">Carregando…</td></tr></tbody>
