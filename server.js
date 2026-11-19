@@ -424,6 +424,15 @@ app.post("/api/auth/registrar", async (req, res) => {
     };
 
     await userRef.set(profile);
+    const alertConsent = profile.consentimentos;
+    await db.ref("alertaDay/inscricoes/" + decoded.uid).set({
+      email: alertConsent.email ? profile.email : null,
+      whatsapp: alertConsent.whatsapp ? whatsapp : null,
+      endereco,
+      consentimentos: { email: alertConsent.email, whatsapp: alertConsent.whatsapp, push: alertConsent.push },
+      status: "ativo",
+      atualizadoEm: new Date().toISOString()
+    });
 
     return res.status(201).json({
       ok: true,
