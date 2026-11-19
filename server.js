@@ -1092,15 +1092,13 @@ async function alertaSendEmail(to,title,message,link) {
 app.post('/api/admin/alerta-day/disparar', requireFirebase, allowRoles('administrador'), async (req,res) => {
   const b=req.body||{}, propertyId=cleanString(b.imovelId,100), title=cleanString(b.titulo,90), message=cleanString(b.mensagem,220), channels=Array.isArray(b.canais)?[...new Set(b.canais)]:[];
   const lat=Number(b.centro?.lat), lng=Number(b.centro?.lng), radius=Number(b.raioMetros);
-  if (!propertyId||!title||!message||!Number.isFinite(lat)||lat < -90||lat > 90||!Number.isFinite(lng)||lng < -180||lng > 180||!Number.isFinite(radius)||radius < 100||radius > 30000||!channels.length||channels.some(c=>!['push','whatsapp'].includes(c))) return res.status(400).json({error:'Dados da campanha inválidos.'});
+  if (!title||!message||!Number.isFinite(lat)||lat < -90||lat > 90||!Number.isFinite(lng)||lng < -180||lng > 180||!Number.isFinite(radius)||radius < 100||radius > 30000||!channels.length||channels.some(c=>!['push','whatsapp','email'].includes(c))) return res.status(400).json({error:'Dados da campanha inválidos.'});
   if (channels.includes('push') && (!admin || typeof admin.messaging!=='function')) {
     return res.status(503).json({error:'Firebase Cloud Messaging indisponível. Verifique as credenciais do Firebase Admin.'});
   }
-  const hasMeta = !!(process.env.WHATSAPP_PHONE_NUMBER_ID && process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_ALERT_TEMPLATE && /^v\d+\.\d+$/.test(process.env.WHATSAPP_GRAPH_VERSION || ''));
   const hasQrWhatsapp = whatsappClient.isConnected();
-  if (channels.includes('whatsapp') && !hasQrWhatsapp && !hasMeta) {
-    return res.status(503).json({error:'WhatsApp não conectado. Conecte seu WhatsApp via QR Code no painel ou desmarque a opção WhatsApp para enviar apenas por Push.'});
-  }
+  if (channels.includes('whatsapp') && !hasQrWhatsapp) return res.status(503).json({error:'WhatsApp não conectado. Conecte pelo QR Code no painel antes de disparar.'});
+  if (channels.includes('email') && (!process.env.RESEND_API_KEY || !process.env.ALERTA_EMAIL_FROM)) return res.status(503).json({error:'Canal de e-mail ainda não configurado. Configure RESEND_API_KEY e ALERTA_EMAIL_FROM no servidor.'});
   const envBase=(process.env.PUBLIC_SITE_URL||'').replace(/\/$/,'');
   const detectedBase = req.get('host') ? `https://${req.get('host')}` : '';
   const baseUrl = envBase || detectedBase;
@@ -1108,9 +1106,10 @@ app.post('/api/admin/alerta-day/disparar', requireFirebase, allowRoles('administ
     return res.status(503).json({error:'Configure PUBLIC_SITE_URL com o endereço HTTPS público do site no .env.'});
   }
   try {
-    const propertySnap=await db.ref('imoveis/'+propertyId).get(), property=propertySnap.val();
-    if (!property||property.status!=='publicado'||property.publicadoNoSite!==true) return res.status(404).json({error:'Imóvel não publicado ou inexistente.'});
-    const visitorsSnap=await db.ref('alertaDay/visitantes').get();
+    const propertySnap=propertyId?await db.ref('imoveis/'+propertyId).get():null, property=propertySnap?.val()||null;
+    if (propertyId && (!property||property.status!=='publicado'||property.publicadoNoSite!==true)) return res.status(404).json({error:'Imóvel não publicado ou inexistente.'});
+    const [visitorsSnap,usersSnap]=await Promise.all([db.ref('alertaDay/visitantes').get(),db.ref('usuarios').get()]);
+    const usersEmailCache=Object.fromEntries(Object.entries(usersSnap.val()||{}).filter(([,u])=>u.consentimentos?.email?.status==='permitido').map(([uid,u])=>[uid,u.email||'']));
     const visitors=Object.entries(visitorsSnap.val()||{}).filter(([,v])=>v.consentimentoLocalizacao===true&&(!v.expiraEm||Date.parse(v.expiraEm)>Date.now())&&Number.isFinite(Number(v.latitude))&&Number.isFinite(Number(v.longitude))&&alertaDistance(lat,lng,Number(v.latitude),Number(v.longitude))<=radius);
     const pushTargets=channels.includes('push')?visitors.filter(([,v])=>v.pushConsent===true&&v.fcmToken):[];
     const waCandidates=channels.includes('whatsapp')?visitors.filter(([,v])=>v.whatsappConsent===true&&v.telefoneWhatsAppEnc&&isValidUid(v.whatsappOwnerUid)):[];
@@ -1119,13 +1118,14 @@ app.post('/api/admin/alerta-day/disparar', requireFirebase, allowRoles('administ
     const waActiveProfiles=await Promise.all([...permittedUids].map(async uid=>[uid,(await db.ref("usuarios/"+uid+"/whatsappAtivo").get()).val()]));
     const activeUids=new Set(waActiveProfiles.filter(([,active])=>active!==false).map(([uid])=>uid));
     const waTargets=waCandidates.filter(([,v])=>activeUids.has(v.whatsappOwnerUid));
-    const pathLink=cleanString(b.link,500)||('/detalhes.html?id='+encodeURIComponent(propertyId));
-    const firstPhoto=Array.isArray(property.fotos)?property.fotos[0]:null;
+    const emailTargets=channels.includes('email')?visitors.filter(([,v])=>v.whatsappOwnerUid&&/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(usersEmailCache[v.whatsappOwnerUid]||'')):[];
+    const pathLink=cleanString(b.link,500)||(propertyId?('/detalhes.html?id='+encodeURIComponent(propertyId)):'/imoveis.html');
+    const firstPhoto=Array.isArray(property?.fotos)?property.fotos[0]:null;
     const imageUrl=firstPhoto?(/^https:\/\//i.test(firstPhoto)?firstPhoto:baseUrl+'/'+String(firstPhoto).replace(/^\//,'')):null;
     const pushLink=/^https:\/\//i.test(pathLink)?pathLink:(baseUrl?baseUrl+'/'+pathLink.replace(/^\//,''):null);
     const campaignRef=db.ref('alertaDay/campanhas').push();
-    await campaignRef.set({imovelId:propertyId,imovelTitulo:cleanString(property.titulo,180),titulo:title,mensagem:message,link:pathLink,centro:{lat,lng},raioMetros:radius,canais:channels,status:'processando',pushAlvo:pushTargets.length,whatsappAlvo:waTargets.length,criadoEm:new Date().toISOString(),criadoPor:req.user.uid});
-    let pushEnviados=0, whatsappEnviados=0, erros=[];
+    await campaignRef.set({imovelId:propertyId||null,imovelTitulo:cleanString(property?.titulo||'Mensagem regional',180),titulo:title,mensagem:message,link:pathLink,centro:{lat,lng},raioMetros:radius,canais:channels,status:'processando',pushAlvo:pushTargets.length,whatsappAlvo:waTargets.length,emailAlvo:emailTargets.length,criadoEm:new Date().toISOString(),criadoPor:req.user.uid});
+    let pushEnviados=0, whatsappEnviados=0, emailEnviados=0, erros=[];
     if (channels.includes('push')&&pushTargets.length) {
       if (!pushLink) throw new Error('Configure PUBLIC_SITE_URL com a URL HTTPS pública do site para links de Push.');
       const tokens=pushTargets.map(([,v])=>v.fcmToken);
@@ -1151,19 +1151,19 @@ app.post('/api/admin/alerta-day/disparar', requireFirebase, allowRoles('administ
       const fullUrl = pushLink || ((baseUrl||'')+'/'+pathLink.replace(/^\//,''));
       const phone = alertaDecryptPhone(v.telefoneWhatsAppEnc);
       try {
-        if (hasQrWhatsapp) {
-          await whatsappClient.sendAlert(phone, title, message, fullUrl, imageUrl);
-        } else {
-          await alertaSendWhatsApp(phone, title, message, fullUrl);
-        }
+        await whatsappClient.sendAlert(phone, title, message, fullUrl, imageUrl);
         whatsappEnviados++;
       } catch(error) {
         erros.push({canal:'whatsapp',erro:cleanString(error.message,180)});
       }
     }
-    const status=erros.length?(pushEnviados+whatsappEnviados?'parcial':'falhou'):'enviada';
-    await campaignRef.update({status,pushEnviados,whatsappEnviados,erros:erros.slice(0,50),concluidoEm:new Date().toISOString()});
-    return res.json({ok:true,campaignId:campaignRef.key,status,pushEnviados,whatsappEnviados,pushAlvo:pushTargets.length,whatsappAlvo:waTargets.length,erros:erros.length});
+    if (channels.includes('email')) for(const [,v] of emailTargets) {
+      try { await alertaSendEmail(usersEmailCache[v.whatsappOwnerUid],title,message,pushLink||baseUrl+pathLink); emailEnviados++; }
+      catch(error) { erros.push({canal:'email',erro:cleanString(error.message,180)}); }
+    }
+    const status=erros.length?(pushEnviados+whatsappEnviados+emailEnviados?'parcial':'falhou'):'enviada';
+    await campaignRef.update({status,pushEnviados,whatsappEnviados,emailEnviados,erros:erros.slice(0,50),concluidoEm:new Date().toISOString()});
+    return res.json({ok:true,campaignId:campaignRef.key,status,pushEnviados,whatsappEnviados,emailEnviados,pushAlvo:pushTargets.length,whatsappAlvo:waTargets.length,emailAlvo:emailTargets.length,erros:erros.length});
   } catch(error) { return sendServerError(res,'Não foi possível concluir o disparo do Alerta Day.',error); }
 });
 // DASHBOARD ADMINISTRATIVO
