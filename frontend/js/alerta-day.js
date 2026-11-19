@@ -120,7 +120,7 @@ async function searchLocation(query) {
 }
 
 async function refreshReach() {
-  if (!marker) { $("#audience-count").textContent = "Selecione o imóvel"; return; }
+  if (!marker) { $("#audience-count").textContent = "Defina o centro no mapa"; return; }
   const p = marker.getLatLng(), radius = Number($("#radius").value);
   try {
     const channels = [];
@@ -316,6 +316,8 @@ $("#property").addEventListener("change", () => {
   const geocodeBtn = $("#property-geocode-btn");
   if (!p) {
     geocodeBtn.style.display = "none";
+    $("#link").value = "/imoveis.html";
+    updatePreview();
     return;
   }
   $("#link").value = `/detalhes.html?id=${encodeURIComponent(p.id)}`;
@@ -406,7 +408,6 @@ $("#send-button").addEventListener("click", () => {
   if ($("#channel-whatsapp").checked) channels.push("WhatsApp");
   if ($("#channel-email").checked) channels.push("E-mail");
   if (!marker) return message("Defina o centro do raio no mapa.");
-  if (!channels.length) return message("Selecione ao menos um canal.");
   if (!channels.length) return message("Selecione ao menos um canal.");
   $("#confirm-summary").textContent = `${p ? p.titulo : "Mensagem sem imóvel"} · raio de ${$("#radius-label").textContent} · canais: ${channels.join(" + ")}. O servidor fará a validação final de consentimento e destinatários.`;
   const confirmFb = $("#confirm-feedback");
