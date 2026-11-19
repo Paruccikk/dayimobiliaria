@@ -1076,8 +1076,8 @@ app.get('/api/admin/alerta-day/alcance', requireFirebase, allowRoles('administra
     const users=usersSnap.val()||{};
     const targets=Object.values(visitorsSnap.val()||{}).filter(v => v.consentimentoLocalizacao===true && (!v.expiraEm||Date.parse(v.expiraEm)>Date.now()) && Number.isFinite(Number(v.latitude)) && Number.isFinite(Number(v.longitude)) && alertaDistance(lat,lng,Number(v.latitude),Number(v.longitude))<=radius);
     const whatsappTargets=alertaUniqueTargets(targets.filter(v=>channels.includes('whatsapp')&&v.whatsappConsent===true&&v.telefoneWhatsAppEnc&&v.whatsappOwnerUid&&users[v.whatsappOwnerUid]?.consentimentos?.whatsapp?.status==="permitido"&&users[v.whatsappOwnerUid]?.whatsappAtivo!==false),v=>alertaPhoneIdentity(v.telefoneWhatsAppEnc));
-    const pushTargets=alertaUniqueTargets(targets.filter(v=>channels.includes('push')&&v.pushConsent===true&&v.fcmToken),v=>v.fcmToken);
-    const emailTargets=alertaUniqueTargets(targets.filter(v=>{const account=users[v.emailOwnerUid||v.whatsappOwnerUid]||{};const consent=account.consentimentos?.email;return channels.includes("email")&&(v.emailConsent===true||consent===true||consent?.status==="permitido")&&(v.email||account.email)&&account.emailAtivo!==false;}),v=>{const account=users[v.emailOwnerUid||v.whatsappOwnerUid]||{};return v.email||account.email;});
+    const pushTargets=alertaUniqueTargets(targets.filter(v=>channels.includes('push')&&v.pushConsent===true&&v.fcmToken),v=>String(v.fcmToken||'').trim());
+    const emailTargets=alertaUniqueTargets(targets.filter(v=>{const account=users[v.emailOwnerUid||v.whatsappOwnerUid]||{};const consent=account.consentimentos?.email;return channels.includes("email")&&(v.emailConsent===true||consent===true||consent?.status==="permitido")&&(v.email||account.email)&&account.emailAtivo!==false;}),v=>{const account=users[v.emailOwnerUid||v.whatsappOwnerUid]||{};return String(v.email||account.email||'').trim().toLowerCase();});
     return res.json({totalElegiveis:new Set([...whatsappTargets.map(v=>v.whatsappOwnerUid),...pushTargets.map(v=>v.fcmToken),...emailTargets.map(v=>v.emailOwnerUid||v.whatsappOwnerUid||v.email)]).size, totalLocalizacao:targets.length, whatsappElegiveis:whatsappTargets.length, pushElegiveis:pushTargets.length, emailElegiveis:emailTargets.length});
   } catch(error) { return sendServerError(res,'Não foi possível calcular o público.',error); }
 });
@@ -1092,7 +1092,7 @@ async function alertaSendWhatsApp(phone,title,message,link) {
 function alertaUniqueTargets(items, getKey) {
   const seen = new Set();
   return items.filter(item => {
-    const key = String(getKey(item) || '').trim().toLowerCase();
+    const key = String(getKey(item) || '').trim();
     if (!key || seen.has(key)) return false;
     seen.add(key);
     return true;
@@ -1125,6 +1125,8 @@ app.post('/api/admin/alerta-day/disparar', requireFirebase, allowRoles('administ
   }
   let requestRef=null, campaignRef=null;
   try {
+    const propertySnap=await db.ref('imoveis/'+propertyId).get(), property=propertySnap.val();
+    if (!property||property.status!=='publicado'||property.publicadoNoSite!==true) return res.status(404).json({error:'Imóvel não publicado ou inexistente.'});
     campaignRef=db.ref('alertaDay/campanhas').push();
     requestRef=db.ref('alertaDay/solicitacoes/'+req.user.uid+'/'+requestId);
     const claim=await requestRef.transaction(current=>current||{campaignId:campaignRef.key,status:'processando',criadoEm:new Date().toISOString()});
@@ -1133,8 +1135,6 @@ app.post('/api/admin/alerta-day/disparar', requireFirebase, allowRoles('administ
       const previous=saved.campaignId?(await db.ref('alertaDay/campanhas/'+saved.campaignId).get()).val()||{}:{};
       return res.json({ok:true,duplicate:true,campaignId:saved.campaignId||null,status:previous.status||saved.status||'processando',pushEnviados:previous.pushEnviados||0,whatsappEnviados:previous.whatsappEnviados||0,emailEnviados:previous.emailEnviados||0});
     }
-    const propertySnap=await db.ref('imoveis/'+propertyId).get(), property=propertySnap.val();
-    if (!property||property.status!=='publicado'||property.publicadoNoSite!==true) return res.status(404).json({error:'Imóvel não publicado ou inexistente.'});
     const [visitorsSnap, usersSnap]=await Promise.all([db.ref('alertaDay/visitantes').get(),db.ref('usuarios').get()]);
     const users=usersSnap.val()||{};
     const visitors=Object.entries(visitorsSnap.val()||{}).filter(([,v])=>v.consentimentoLocalizacao===true&&(!v.expiraEm||Date.parse(v.expiraEm)>Date.now())&&Number.isFinite(Number(v.latitude))&&Number.isFinite(Number(v.longitude))&&alertaDistance(lat,lng,Number(v.latitude),Number(v.longitude))<=radius);
@@ -1145,7 +1145,7 @@ app.post('/api/admin/alerta-day/disparar', requireFirebase, allowRoles('administ
     const waActiveProfiles=await Promise.all([...permittedUids].map(async uid=>[uid,(await db.ref("usuarios/"+uid+"/whatsappAtivo").get()).val()]));
     const activeUids=new Set(waActiveProfiles.filter(([,active])=>active!==false).map(([uid])=>uid));
     const waTargets=alertaUniqueTargets(waCandidates.filter(([,v])=>activeUids.has(v.whatsappOwnerUid)),([,v])=>alertaPhoneIdentity(v.telefoneWhatsAppEnc));
-    const pushUniqueTargets=alertaUniqueTargets(pushTargets,([,v])=>v.fcmToken);
+    const pushUniqueTargets=alertaUniqueTargets(pushTargets,([,v])=>String(v.fcmToken||'').trim());
     const emailTargets=alertaUniqueTargets(channels.includes("email")?visitors.filter(([,v])=>{const account=users[v.emailOwnerUid||v.whatsappOwnerUid]||{};const consent=account.consentimentos?.email;const allowed=v.emailConsent===true||consent===true||consent?.status==="permitido";const address=String(v.email||account.email||"").trim();return allowed&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)&&account.emailAtivo!==false;}):[],([,v])=>{const account=users[v.emailOwnerUid||v.whatsappOwnerUid]||{};return v.email||account.email;});
     const pathLink=cleanString(b.link,500)||('/detalhes.html?id='+encodeURIComponent(propertyId));
     const firstPhoto=Array.isArray(property.fotos)?property.fotos[0]:null;
