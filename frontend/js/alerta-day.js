@@ -157,11 +157,7 @@ async function loadData() {
   $("#stat-campaigns").textContent = Number(data.resumo?.campanhas || 0).toLocaleString("pt-BR");
   $("#property").innerHTML = '<option value="">Selecione um imóvel publicado</option>' + properties.map(p => `<option value="${p.id}">${escapeHtml(p.titulo)} · ${escapeHtml(p.cidade||"")} · ${money(p.preco)}</option>`).join("");
   $("#campaign-history").innerHTML = (data.campanhas || []).slice(0,6).map(c => `<article><b>${escapeHtml(c.titulo)}</b><br><small>${escapeHtml(c.status||"registrada")} · ${escapeHtml(c.criadoEm||"")}</small></article>`).join("") || "Nenhuma campanha registrada.";
-  if (data.whatsappStatus) {
-    updateWhatsAppUI(data.whatsappStatus);
-  } else {
-    checkWhatsAppStatus();
-  }
+  await ensureWhatsAppConnection(data.whatsappStatus || null);
 }
 
 let waPollTimer = null;
@@ -174,52 +170,57 @@ function updateWhatsAppUI(status) {
   const qrImg = $("#wa-qr-img");
   const qrLoading = $("#wa-qr-loading");
   const qrStatus = $("#wa-qr-status");
-
+  const qrState = $("#wa-qr-state");
+  const connectedState = $("#wa-connected-state");
   if (!badge || !status) return;
 
+  const showQr = () => {
+    if (qrState) qrState.hidden = false;
+    if (connectedState) connectedState.hidden = true;
+    if (btnConnect) btnConnect.hidden = false;
+    if (btnDisconnect) btnDisconnect.hidden = true;
+  };
+
   if (status.status === "connected") {
-    badge.textContent = "🟢 WhatsApp Conectado";
-    badge.style.background = "#dcfce7";
-    badge.style.color = "#15803d";
-    if (phoneLabel) phoneLabel.textContent = status.connectedPhone ? `(${status.connectedPhone})` : "";
-    if (btnConnect) btnConnect.style.display = "none";
-    if (btnDisconnect) btnDisconnect.style.display = "inline-block";
+    badge.textContent = "Conectado";
+    badge.dataset.state = "conectado";
+    if (phoneLabel) phoneLabel.textContent = status.connectedPhone ? "Número: +" + status.connectedPhone : "Número conectado";
+    if (qrState) qrState.hidden = true;
+    if (connectedState) connectedState.hidden = false;
+    if (btnConnect) btnConnect.hidden = true;
+    if (btnDisconnect) btnDisconnect.hidden = false;
+    stopWaPolling();
+    return;
+  }
 
-    if (qrStatus) qrStatus.textContent = "Conectado com sucesso!";
-    setTimeout(() => {
-      $("#whatsapp-qr-dialog")?.close();
-      stopWaPolling();
-    }, 1200);
-  } else if (status.status === "qr_ready" && status.qrCode) {
-    badge.textContent = "🟡 Aguardando leitura do QR";
-    badge.style.background = "#fef9c3";
-    badge.style.color = "#854d0e";
-    if (phoneLabel) phoneLabel.textContent = "";
-    if (btnConnect) btnConnect.style.display = "inline-block";
-    if (btnDisconnect) btnDisconnect.style.display = "none";
-
-    if (qrImg) {
-      qrImg.src = status.qrCode;
-      qrImg.style.display = "block";
-    }
-    if (qrLoading) qrLoading.style.display = "none";
-    if (qrStatus) qrStatus.textContent = "Aponte a câmera do WhatsApp para conectar...";
+  showQr();
+  if (status.status === "qr_ready" && status.qrCode) {
+    badge.textContent = "Leia o QR Code";
+    badge.dataset.state = "qr";
+    if (qrImg) { qrImg.src = status.qrCode; qrImg.hidden = false; }
+    if (qrLoading) qrLoading.hidden = true;
+    if (qrStatus) qrStatus.textContent = "QR Code pronto. Leia com o WhatsApp do celular.";
+    if (btnConnect) btnConnect.textContent = "Gerar novo QR Code";
   } else if (status.status === "connecting") {
-    badge.textContent = "🟡 Conectando...";
-    badge.style.background = "#fef9c3";
-    badge.style.color = "#854d0e";
-    if (qrLoading) {
-      qrLoading.textContent = "Gerando QR Code...";
-      qrLoading.style.display = "block";
-    }
-    if (qrImg) qrImg.style.display = "none";
+    badge.textContent = "Conectando";
+    badge.dataset.state = "conectando";
+    if (qrImg) qrImg.hidden = true;
+    if (qrLoading) { qrLoading.hidden = false; qrLoading.textContent = "Solicitando QR Code ao WhatsApp..."; }
+    if (qrStatus) qrStatus.textContent = "A conexão está sendo iniciada. Esta área será atualizada automaticamente.";
+  } else if (status.status === "error") {
+    badge.textContent = "Falha na conexão";
+    badge.dataset.state = "erro";
+    if (qrImg) qrImg.hidden = true;
+    if (qrLoading) { qrLoading.hidden = false; qrLoading.textContent = status.error || "Não foi possível gerar o QR Code."; }
+    if (qrStatus) qrStatus.textContent = "Verifique os logs do servidor e tente novamente.";
+    if (btnConnect) btnConnect.textContent = "Tentar novamente";
   } else {
-    badge.textContent = "🔴 WhatsApp Desconectado";
-    badge.style.background = "#fee2e2";
-    badge.style.color = "#991b1b";
-    if (phoneLabel) phoneLabel.textContent = "";
-    if (btnConnect) btnConnect.style.display = "inline-block";
-    if (btnDisconnect) btnDisconnect.style.display = "none";
+    badge.textContent = "Desconectado";
+    badge.dataset.state = "desconectado";
+    if (qrImg) qrImg.hidden = true;
+    if (qrLoading) { qrLoading.hidden = false; qrLoading.textContent = "Clique em Gerar QR Code para iniciar a conexão."; }
+    if (qrStatus) qrStatus.textContent = "O QR Code aparecerá aqui quando o WhatsApp iniciar a conexão.";
+    if (btnConnect) btnConnect.textContent = "Gerar QR Code";
   }
 }
 
@@ -236,10 +237,8 @@ async function checkWhatsAppStatus() {
 function startWaPolling() {
   stopWaPolling();
   waPollTimer = setInterval(async () => {
-    const s = await checkWhatsAppStatus();
-    if (s.status === "connected") {
-      stopWaPolling();
-    }
+    const status = await checkWhatsAppStatus();
+    if (status.status === "connected" || status.status === "error") stopWaPolling();
   }, 2500);
 }
 
@@ -250,30 +249,42 @@ function stopWaPolling() {
   }
 }
 
-$("#btn-wa-connect")?.addEventListener("click", async () => {
-  const dialog = $("#whatsapp-qr-dialog");
-  dialog?.showModal();
-  const qrLoading = $("#wa-qr-loading");
-  const qrImg = $("#wa-qr-img");
-  if (qrLoading) { qrLoading.textContent = "Iniciando conexão e gerando QR Code..."; qrLoading.style.display = "block"; }
-  if (qrImg) qrImg.style.display = "none";
+async function ensureWhatsAppConnection(initialStatus = null) {
+  const status = initialStatus || await checkWhatsAppStatus();
+  updateWhatsAppUI(status);
+  if (status.status === "connected" || status.status === "connecting" || status.status === "qr_ready") {
+    if (status.status !== "connected") startWaPolling();
+    return;
+  }
+  if (status.status === "error") return;
 
+  try {
+    const started = await api("/api/admin/whatsapp/connect", { method: "POST" });
+    updateWhatsAppUI(started);
+    if (started.status !== "connected" && started.status !== "error") startWaPolling();
+  } catch (err) {
+    const feedback = $("#wa-qr-feedback");
+    if (feedback) feedback.textContent = "Falha ao iniciar: " + err.message;
+  }
+}
+
+$("#btn-wa-connect")?.addEventListener("click", async () => {
+  const button = $("#btn-wa-connect");
+  if (button) button.disabled = true;
+  const loading = $("#wa-qr-loading");
+  const image = $("#wa-qr-img");
+  if (loading) { loading.hidden = false; loading.textContent = "Iniciando conexão e solicitando QR Code..."; }
+  if (image) image.hidden = true;
   try {
     const data = await api("/api/admin/whatsapp/connect", { method: "POST" });
     updateWhatsAppUI(data);
-    startWaPolling();
+    if (data.status !== "connected" && data.status !== "error") startWaPolling();
   } catch (err) {
-    message("Falha ao iniciar WhatsApp: " + err.message);
+    const feedback = $("#wa-qr-feedback");
+    if (feedback) feedback.textContent = "Falha ao iniciar WhatsApp: " + err.message;
+  } finally {
+    if (button) button.disabled = false;
   }
-});
-
-$("#btn-wa-cancel")?.addEventListener("click", () => {
-  $("#whatsapp-qr-dialog")?.close();
-  stopWaPolling();
-});
-
-$("#whatsapp-qr-dialog")?.addEventListener("close", () => {
-  stopWaPolling();
 });
 
 $("#btn-wa-disconnect")?.addEventListener("click", async () => {
