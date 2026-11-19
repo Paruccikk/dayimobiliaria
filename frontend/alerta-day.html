@@ -32,6 +32,7 @@
       <article><small>Visitantes com localização autorizada</small><strong id="stat-location">—</strong></article>
       <article><small>Inscritos em Push</small><strong id="stat-push">—</strong></article>
       <article><small>Contatos WhatsApp autorizados</small><strong id="stat-whatsapp">—</strong></article>
+      <article><small>E-mails autorizados</small><strong id="stat-email">—</strong></article>
       <article><small>Campanhas realizadas</small><strong id="stat-campaigns">—</strong></article>
     </section>
 
@@ -64,8 +65,11 @@
         </div>
         <button id="btn-add-test-visitor" class="ad-button ad-ghost" type="button" style="font-size:12px;padding:8px 14px;margin-top:4px;width:100%;">📍 Incluir minha localização atual como destinatário de teste</button>
         <div class="ad-step">03 · CANAIS</div><h2>Onde enviar?</h2>
-        <label class="ad-check"><input type="checkbox" id="channel-push" checked><span><b>Notificação Push</b><small>Para dispositivos que ativaram as notificações.</small></span></label>
-        <label class="ad-check"><input type="checkbox" id="channel-whatsapp"><span><b>WhatsApp</b><small>Disparo para contatos cadastrados com autorização de WhatsApp.</small></span></label>
+        <div class="ad-channel-list">
+          <label class="ad-check ad-channel" for="channel-push"><input type="checkbox" id="channel-push" checked><span class="ad-channel-icon ad-icon-push" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg></span><span class="ad-channel-copy"><b>Notificação Push</b><small>Para dispositivos que ativaram as notificações.</small></span></label>
+          <label class="ad-check ad-channel" for="channel-whatsapp"><input type="checkbox" id="channel-whatsapp"><span class="ad-channel-icon ad-icon-whatsapp" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20.5 11.8a8.5 8.5 0 0 1-12.6 7.4L3 20l.9-4.7A8.5 8.5 0 1 1 20.5 11.8Z"/><path d="M8.7 8.1c.3-.5.6-.5.9-.5h.4c.2 0 .4.1.5.4l.7 1.7c.1.3.1.5-.1.7l-.5.6c-.2.2-.2.4 0 .7.5.8 1.2 1.4 2 1.8.3.2.5.1.7-.1l.7-.8c.2-.2.4-.3.7-.2l1.6.8c.3.1.4.3.4.5 0 .3-.2 1.1-.7 1.5-.5.5-1.2.7-1.9.6-1.1-.2-2.4-.8-3.6-1.9-1.1-1-1.9-2.2-2.1-3.2-.2-.9.1-1.7.4-2.1Z"/></svg></span><span class="ad-channel-copy"><b>WhatsApp</b><small>Disparo para contatos que autorizaram receber mensagens.</small></span></label>
+          <label class="ad-check ad-channel" for="channel-email"><input type="checkbox" id="channel-email"><span class="ad-channel-icon ad-icon-email" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m4 7 8 6 8-6"/></svg></span><span class="ad-channel-copy"><b>E-mail</b><small>Para clientes que autorizaram receber alertas por e-mail.</small></span></label>
+        </div>
 
 
 
