@@ -1,4 +1,5 @@
-import { auth } from "./firebase-client.js";
+import { auth, app } from "./firebase-client.js";
+import { getMessaging, getToken } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js";
 import {
   createUserWithEmailAndPassword,
   updateProfile,
@@ -108,6 +109,7 @@ form?.addEventListener("submit", async event => {
   const confirmation = document.querySelector("#confirm-password")?.value || "";
   const consentimentoWhatsApp = document.querySelector("#consentimento-whatsapp")?.checked === true;
   const consentimentoEmail = document.querySelector("#consentimento-email")?.checked === true;
+  const consentimentoPush = document.querySelector("#consentimento-push")?.checked === true;
   const consentimentoPrivacidade = document.querySelector("#consentimento-privacidade")?.checked === true;
   const endereco = document.querySelector("#endereco")?.value.trim() || "";
   const consentimentoLocalizacao = document.querySelector("#consentimento-localizacao")?.checked === true;
@@ -139,6 +141,7 @@ form?.addEventListener("submit", async event => {
     }
 
     const token = await user.getIdToken(true);
+    const visitorId = alertaDayVisitorId();
     const response = await fetch("/api/auth/registrar", {
       method: "POST",
       headers: {
@@ -154,13 +157,37 @@ form?.addEventListener("submit", async event => {
         consentimentoEmail,
         consentimentoWhatsApp,
         consentimentoLocalizacao,
-        visitorId: alertaDayVisitorId(),
+        visitorId,
         ...(coords || {})
       })
     });
 
     const result = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(result.error || "Não foi possível salvar seu perfil.");
+
+    if (consentimentoPush) {
+      try {
+        if (!("Notification" in window) || !("serviceWorker" in navigator)) throw new Error("Este navegador não oferece notificações Push.");
+        const permission = await Notification.requestPermission();
+        if (permission !== "granted") throw new Error("Permissão de notificações não concedida.");
+        const configResponse = await fetch("/api/alerta-day/config");
+        const config = await configResponse.json();
+        if (!config.vapidKey) throw new Error("Chave de notificações indisponível.");
+        const registration = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
+        const messaging = getMessaging(app);
+        const pushToken = await getToken(messaging, { vapidKey: config.vapidKey, serviceWorkerRegistration: registration });
+        if (!pushToken) throw new Error("Não foi possível gerar o token de notificações.");
+        const pushResponse = await fetch("/api/alerta-day/push", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ visitorId, token: pushToken, consentimento: true })
+        });
+        if (!pushResponse.ok) throw new Error("Não foi possível ativar as notificações no servidor.");
+      } catch (pushError) {
+        console.warn("[Alerta Day] Cadastro concluído, mas o Push não foi ativado:", pushError.message);
+        showMessage("Cadastro realizado. Não foi possível ativar o Push: " + pushError.message, true);
+      }
+    }
 
     await signOut(auth);
     currentUser = null;
