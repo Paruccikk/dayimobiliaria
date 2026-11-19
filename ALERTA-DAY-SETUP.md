@@ -37,3 +37,13 @@ Quando há vínculo com uma conta, uma revogação explícita na conta ou `whats
 
 ## Privacidade
 Consentimentos de WhatsApp, e-mail, Push e localização são independentes. A localização é opcional e expira em até 90 dias. O painel exibe somente totais e resultados, não coordenadas individuais. A política de privacidade precisa de revisão jurídica antes de produção.
+
+
+## Endereço do usuário e alcance regional
+
+- A página `/minha-conta.html` permite que cada usuário autenticado informe ou atualize CEP, rua, número, bairro, cidade e UF.
+- O endereço só entra no cálculo regional quando o usuário marca explicitamente a autorização de uso para alertas por região.
+- Ao salvar com autorização, o servidor geocodifica o endereço e grava a localização vinculada ao UID em `alertaDay/inscricoes/{uid}`, preservando as preferências de canais já existentes.
+- O Alerta Day considera essa localização do perfil além das localizações previamente autorizadas pelos visitantes. Não há rastreamento GPS em tempo real.
+- O consentimento pode ser revogado na mesma página; nesse caso, as coordenadas deixam de contar para o alcance regional.
+- A conexão WhatsApp e o QR Code são exibidos no painel lateral da página `/alerta-day.html`; o QR não usa mais janela modal.
