@@ -402,12 +402,28 @@ app.post("/api/auth/registrar", async (req, res) => {
   const endereco = cleanString(req.body?.endereco, 220);
   const visitorKey = (consentimentoWhatsApp || consentimentoLocalizacao) ? alertaVisitorKey(req.body?.visitorId) : null;
   const whatsappPhone = consentimentoWhatsApp ? alertaPhone(celular) : "";
-  const lat = Number(req.body?.latitude);
-  const lng = Number(req.body?.longitude);
-  const accuracy = Number(req.body?.accuracy);
-  const hasValidLocation = Number.isFinite(lat) && lat >= -90 && lat <= 90 && Number.isFinite(lng) && lng >= -180 && lng <= 180;
+  let lat = Number(req.body?.latitude);
+  let lng = Number(req.body?.longitude);
+  let accuracy = Number(req.body?.accuracy);
+  let hasValidLocation = Number.isFinite(lat) && lat >= -90 && lat <= 90 && Number.isFinite(lng) && lng >= -180 && lng <= 180;
   const solicitacaoPapel =
     req.body?.tipoCadastro === "corretor" ? "corretor" : "cliente";
+
+  if (consentimentoLocalizacao && !hasValidLocation && endereco) {
+    try {
+      const geoUrl = "https://nominatim.openstreetmap.org/search?format=json&countrycodes=br&limit=1&q=" + encodeURIComponent(endereco);
+      const geoResponse = await fetch(geoUrl, { headers: { "User-Agent": "DayImobiliaria-AlertaDay/1.0 (contato@dayimobiliaria.com.br)" } });
+      const geoData = await geoResponse.json();
+      if (Array.isArray(geoData) && geoData[0]) {
+        lat = Number(geoData[0].lat);
+        lng = Number(geoData[0].lon);
+        accuracy = null;
+        hasValidLocation = Number.isFinite(lat) && Number.isFinite(lng);
+      }
+    } catch (error) {
+      console.warn("[Alerta Day] Não foi possível localizar endereço informado:", error.message);
+    }
+  }
 
   if (!nome || !consentimentoPrivacidade) {
     return res.status(400).json({ error: "Informe seu nome e aceite as Políticas de Privacidade." });
