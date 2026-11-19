@@ -629,7 +629,7 @@ app.get("/api/auth/perfil", requireAuthenticated, (req, res) => {
 });
 
 // Atualização do endereço do próprio usuário e consentimento de localização regional.
-app.patch("/api/conta/perfil", requireFirebase, async (req, res) => {
+app.patch("/api/conta/perfil", requireFirebase, allowRoles("administrador"), async (req, res) => {
   const raw = req.body?.endereco || {};
   const endereco = {
     cep: cleanString(raw.cep, 12),
@@ -2241,101 +2241,8 @@ async function alertaLoadAudience() {
   }
   return [...merged.entries()];
 }
-// Configuração pública: somente a chave VAPID pública pode ser exposta.
-app.get("/api/alerta-day/config", (_req, res) => {
-  return res.json({ vapidKey: process.env.FIREBASE_VAPID_PUBLIC_KEY || "" });
-});
-
-app.post("/api/alerta-day/localizacao", async (req, res) => {
-  if (!db) return firebaseUnavailable(res);
-  const visitorId = cleanString(req.body?.visitorId, 100);
-  const lat = Number(req.body?.latitude), lng = Number(req.body?.longitude);
-  if (!alertaPublicId(visitorId) || req.body?.consentimento !== true || !alertaValidCoordinate(lat, lng)) {
-    return res.status(400).json({ error: "Identificador, autorização e coordenadas válidas são necessários." });
-  }
-  try {
-    const ref = db.ref("alertaDay/inscricoes/" + visitorId);
-    const previous = (await ref.get()).val() || {};
-    await ref.update({
-      localizacao: { consentimento: true, latitude: lat, longitude: lng, precisao: Math.min(100000, Math.max(0, Number(req.body.accuracy) || 0)), atualizadoEm: new Date().toISOString(), expiraEm: new Date(Date.now() + 90 * 86400000).toISOString() },
-      consentimentos: previous.consentimentos || {},
-      atualizadoEm: new Date().toISOString()
-    });
-    return res.json({ ok: true });
-  } catch (error) { return sendServerError(res, "Não foi possível salvar a localização autorizada.", error); }
-});
-
-app.post("/api/alerta-day/push", async (req, res) => {
-  if (!db) return firebaseUnavailable(res);
-  const visitorId = cleanString(req.body?.visitorId, 100);
-  const token = cleanString(req.body?.token, 4096);
-  if (!alertaPublicId(visitorId) || req.body?.consentimento !== true || token.length < 30) {
-    return res.status(400).json({ error: "Identificador, autorização e token Push válidos são necessários." });
-  }
-  try {
-    const ref = db.ref("alertaDay/inscricoes/" + visitorId);
-    const previous = (await ref.get()).val() || {};
-    await ref.update({
-      pushToken: token,
-      consentimentos: { ...(previous.consentimentos || {}), push: true },
-      status: "ativo",
-      atualizadoEm: new Date().toISOString()
-    });
-    return res.json({ ok: true });
-  } catch (error) { return sendServerError(res, "Não foi possível registrar o dispositivo Push.", error); }
-});
-
-app.post("/api/alerta-day/whatsapp", async (req, res) => {
-  if (!db) return firebaseUnavailable(res);
-  const visitorId = cleanString(req.body?.visitorId, 100);
-  const phone = alertaPhone(req.body?.telefone);
-  if (!alertaPublicId(visitorId) || req.body?.consentimento !== true || phone.length < 10) {
-    return res.status(400).json({ error: "Informe um WhatsApp válido e autorize o recebimento." });
-  }
-  try {
-    const ref = db.ref("alertaDay/inscricoes/" + visitorId);
-    const previous = (await ref.get()).val() || {};
-    await ref.update({
-      whatsapp: phone,
-      consentimentos: { ...(previous.consentimentos || {}), whatsapp: true },
-      status: "ativo",
-      consentimentoWhatsappEm: new Date().toISOString(),
-      atualizadoEm: new Date().toISOString()
-    });
-    return res.json({ ok: true });
-  } catch (error) { return sendServerError(res, "Não foi possível registrar a autorização do WhatsApp.", error); }
-});
-
-app.post("/api/alerta-day/email", async (req, res) => {
-  if (!db) return firebaseUnavailable(res);
-  const visitorId = cleanString(req.body?.visitorId, 100);
-  const email = cleanString(req.body?.email, 180).toLowerCase();
-  if (!alertaPublicId(visitorId) || req.body?.consentimento !== true || !email.includes("@") || email.length > 180) return res.status(400).json({ error: "Informe um e-mail válido e autorize o recebimento." });
-  try {
-    const ref = db.ref("alertaDay/inscricoes/" + visitorId);
-    const previous = (await ref.get()).val() || {};
-    await ref.update({ email, consentimentos: { ...(previous.consentimentos || {}), email: true }, status: "ativo", consentimentoEmailEm: new Date().toISOString(), atualizadoEm: new Date().toISOString() });
-    return res.json({ ok: true });
-  } catch (error) { return sendServerError(res, "Não foi possível registrar a autorização de e-mail.", error); }
-});
-app.delete("/api/alerta-day/preferencias", async (req, res) => {
-  if (!db) return firebaseUnavailable(res);
-  const visitorId = cleanString(req.body?.visitorId, 100);
-  if (!alertaPublicId(visitorId)) return res.status(400).json({ error: "Identificador inválido." });
-  try {
-    await db.ref("alertaDay/inscricoes/" + visitorId).update({
-      status: "revogado",
-      pushToken: null,
-      whatsapp: null,
-      email: null,
-      consentimentos: { push: false, whatsapp: false, email: false },
-      localizacao: { consentimento: false, latitude: null, longitude: null, removidoEm: new Date().toISOString() },
-      revogadoEm: new Date().toISOString()
-    });
-    return res.json({ ok: true });
-  } catch (error) { return sendServerError(res, "Não foi possível remover as preferências.", error); }
-});
-
+// A inscrição pública e a tela de preferências foram desativadas.
+// O Alerta Day utiliza somente registros existentes com consentimento válido.
 app.get("/api/admin/alerta-day/dados", requireFirebase, allowRoles("administrador"), async (_req, res) => {
   try {
     const [audience, properties, campaignsSnap] = await Promise.all([
