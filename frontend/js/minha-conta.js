@@ -52,7 +52,7 @@ $("#conta-form")?.addEventListener("submit", async event => {
   try {
     const result = await api("/api/conta/perfil", {
       method: "PATCH",
-      body: JSON.stringify({ endereco, consentimentoLocalizacao: $("#consent-location").checked })
+      body: JSON.stringify({ endereco, consentimentoLocalizacao: $("#consent-location").checked, visitorId: localStorage.getItem("rdprime.alertaDay.visitor.v1") || "" })
     });
     feedback(result.localizacaoAtiva
       ? "Endereço salvo e localização regional autorizada. Sua conta já pode ser considerada no alcance de campanhas próximas."
