@@ -1944,7 +1944,8 @@ function alertaValidCoordinate(lat, lng) {
     Math.abs(Number(lat)) <= 90 && Math.abs(Number(lng)) <= 180;
 }
 function alertaPhone(value) {
-  return String(value || "").replace(/\D/g, "").slice(0, 15);
+  const digits = String(value || "").replace(/\D/g, "").slice(0, 15);
+  return digits.length >= 10 ? digits : "";
 }
 function alertaLocation(item) {
   return item?.localizacao || {
