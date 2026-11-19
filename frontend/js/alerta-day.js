@@ -126,6 +126,7 @@ async function refreshReach() {
     const channels = [];
     if ($("#channel-push").checked) channels.push("push");
     if ($("#channel-whatsapp").checked) channels.push("whatsapp");
+    if ($("#channel-email").checked) channels.push("email");
     const data = await api(`/api/admin/alerta-day/alcance?lat=${p.lat}&lng=${p.lng}&raio=${radius}&canais=${channels.join(",")}`);
     const elegiveis = Number(data.totalElegiveis || 0);
     const totalLoc = Number(data.totalLocalizacao || 0);
@@ -139,7 +140,8 @@ async function refreshReach() {
       } else {
         const pushCount = Number(data.pushElegiveis || 0);
         const whatsappCount = Number(data.whatsappElegiveis || 0);
-        detail.textContent = `${totalLoc} com localização · Push: ${pushCount} · WhatsApp: ${whatsappCount}`;
+        const emailCount = Number(data.emailElegiveis || 0);
+        detail.textContent = `${totalLoc} com localização · Push: ${pushCount} · WhatsApp: ${whatsappCount} · E-mail: ${emailCount}`;
       }
     }
   } catch (e) {
@@ -154,6 +156,7 @@ async function loadData() {
   $("#stat-location").textContent = Number(data.resumo?.localizacao || 0).toLocaleString("pt-BR");
   $("#stat-push").textContent = Number(data.resumo?.push || 0).toLocaleString("pt-BR");
   $("#stat-whatsapp").textContent = Number(data.resumo?.whatsapp || 0).toLocaleString("pt-BR");
+  $("#stat-email").textContent = Number(data.resumo?.email || 0).toLocaleString("pt-BR");
   $("#stat-campaigns").textContent = Number(data.resumo?.campanhas || 0).toLocaleString("pt-BR");
   $("#property").innerHTML = '<option value="">Selecione um imóvel publicado</option>' + properties.map(p => `<option value="${p.id}">${escapeHtml(p.titulo)} · ${escapeHtml(p.cidade||"")} · ${money(p.preco)}</option>`).join("");
   $("#campaign-history").innerHTML = (data.campanhas || []).slice(0,6).map(c => `<article><b>${escapeHtml(c.titulo)}</b><br><small>${escapeHtml(c.status||"registrada")} · ${escapeHtml(c.criadoEm||"")}</small></article>`).join("") || "Nenhuma campanha registrada.";
@@ -404,6 +407,7 @@ $("#btn-add-test-visitor")?.addEventListener("click", async () => {
 $("#radius").addEventListener("input", drawCircle);
 $("#channel-push").addEventListener("change", refreshReach);
 $("#channel-whatsapp").addEventListener("change", refreshReach);
+$("#channel-email").addEventListener("change", refreshReach);
 $("#title").addEventListener("input", updatePreview);
 $("#message").addEventListener("input", updatePreview);
 $("#preview-button").addEventListener("click", updatePreview);
@@ -412,6 +416,7 @@ $("#send-button").addEventListener("click", () => {
   const p = selectedProperty(), channels = [];
   if ($("#channel-push").checked) channels.push("Push");
   if ($("#channel-whatsapp").checked) channels.push("WhatsApp");
+  if ($("#channel-email").checked) channels.push("E-mail");
   if (!p) return message("Selecione um imóvel.");
   if (!marker) return message("Defina o centro do raio no mapa.");
   if (!channels.length) return message("Selecione ao menos um canal.");
@@ -428,6 +433,7 @@ $("#confirm-send").addEventListener("click", async e => {
   const channels = [];
   if ($("#channel-push").checked) channels.push("push");
   if ($("#channel-whatsapp").checked) channels.push("whatsapp");
+  if ($("#channel-email").checked) channels.push("email");
   const button = $("#confirm-send");
   const confirmFb = $("#confirm-feedback");
   if (confirmFb) confirmFb.hidden = true;
@@ -446,7 +452,7 @@ $("#confirm-send").addEventListener("click", async e => {
       })
     });
     $("#confirm-dialog").close();
-    message(`Campanha processada. Push: ${result.pushEnviados||0}; WhatsApp: ${result.whatsappEnviados||0}. Consulte o histórico para detalhes.`);
+    message(`Campanha processada. Push: ${result.pushEnviados||0}; WhatsApp: ${result.whatsappEnviados||0}; E-mail: ${result.emailEnviados||0}.`);
     await loadData();
   } catch (err) {
     if (confirmFb) {
