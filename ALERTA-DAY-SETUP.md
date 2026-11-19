@@ -14,6 +14,12 @@ Configure no Render (ou no ambiente Node):
 
 | Variável | Uso |
 |---|---|
+| `WHATSAPP_WEB_ENABLED` | Defina `false` para desativar a sessão QR; padrão habilitado |
+| `WHATSAPP_SESSION_PATH` | Diretório persistente da sessão; padrão `data/whatsapp-session` |
+| `PUPPETEER_EXECUTABLE_PATH` | Caminho do Chromium, se necessário no servidor |
+
+| Variável | Uso |
+|---|---|
 | `FIREBASE_VAPID_PUBLIC_KEY` | Chave pública Web Push criada nas configurações do Firebase Cloud Messaging |
 | `PUBLIC_BASE_URL` | URL pública do site, por exemplo `https://www.rdprimeimoveis.com` |
 | `SMTP_HOST` | Servidor SMTP de e-mail |
@@ -21,12 +27,8 @@ Configure no Render (ou no ambiente Node):
 | `SMTP_SECURE` | `true` para TLS implícito, normalmente porta 465 |
 | `SMTP_USER` / `SMTP_PASS` | Credenciais SMTP |
 | `SMTP_FROM` | Remetente autorizado |
-| `WHATSAPP_CLOUD_TOKEN` | Token permanente da WhatsApp Cloud API da Meta |
-| `WHATSAPP_PHONE_NUMBER_ID` | ID do número de telefone no WhatsApp Business |
-| `WHATSAPP_ALERT_TEMPLATE` | Nome de um modelo aprovado pela Meta, com três variáveis no corpo |
-| `WHATSAPP_ALERT_TEMPLATE_LANG` | Idioma do modelo; padrão `pt_BR` |
 
-**WhatsApp:** o envio de campanhas usa a API oficial da Meta. O modelo precisa estar aprovado e ter três parâmetros de texto no corpo (título, mensagem e link). A sessão WhatsApp Web/QR já existente no projeto não substitui essas credenciais.
+**WhatsApp:** o envio das campanhas usa a sessão persistente do WhatsApp Web conectada pelo QR Code na Central Alerta Day ou em `/whatsapp.html`. A sessão fica no servidor em `data/whatsapp-session` (ou no caminho definido por `WHATSAPP_SESSION_PATH`). Preserve esse diretório em backups e restrinja o acesso. Os envios são sequenciais e somente para contatos com consentimento WhatsApp ativo. `whatsapp-web.js` é uma integração não oficial; o WhatsApp pode encerrar a sessão ou restringir a conta. Evite disparos em massa e respeite imediatamente os pedidos de descadastro.
 
 **Push:** no Firebase Console, habilite Cloud Messaging e gere/configure a chave Web Push (VAPID). O site precisa estar publicado em HTTPS. O usuário ainda precisa conceder permissão no navegador.
 
@@ -41,3 +43,8 @@ Configure no Render (ou no ambiente Node):
 
 ## Limitação atual de segmentação
 O raio geográfico usa coordenadas obtidas com autorização de localização. Endereços digitados no cadastro são armazenados, mas ainda não são geocodificados automaticamente; portanto, para aparecer em campanhas por raio, o usuário precisa autorizar a localização no site.
+
+
+## Mapa
+- O mapa Leaflet usa tiles Esri Street Map e tenta Esri Topographic como alternativa se o primeiro serviço falhar.
+- O painel recalcula o tamanho do mapa após login e quando a área muda de dimensão, evitando o mapa cinza após a abertura da página.
