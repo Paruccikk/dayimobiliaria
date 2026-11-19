@@ -18,6 +18,8 @@ class WhatsAppClient {
     this.qrCode = null;
     this.connectedPhone = null;
     this.isStarting = false;
+    this.lastError = null;
+    this.connectionTimer = null;
   }
 
   isConnected() {
@@ -29,6 +31,7 @@ class WhatsAppClient {
       status: this.status,
       qrCode: this.qrCode,
       connectedPhone: this.connectedPhone,
+      error: this.lastError,
     };
   }
 
@@ -39,6 +42,17 @@ class WhatsAppClient {
 
     this.isStarting = true;
     this.status = "connecting";
+    this.lastError = null;
+    clearTimeout(this.connectionTimer);
+    this.connectionTimer = setTimeout(() => {
+      if (this.status === "connecting") {
+        this.lastError = "O WhatsApp não retornou o QR Code após 25 segundos. Tente novamente e confira os logs do servidor.";
+        this.status = "error";
+        this.isStarting = false;
+        try { this.sock?.end(new Error(this.lastError)); } catch (_) {}
+        this.sock = null;
+      }
+    }, 25000);
 
     try {
       fs.mkdirSync(AUTH_DIR, { recursive: true });
@@ -61,20 +75,27 @@ class WhatsAppClient {
 
         if (qr) {
           try {
-            this.qrCode = await qrcode.toDataURL(qr, { margin: 2, scale: 7 });
+            this.qrCode = await qrcode.toDataURL(qr, { margin: 2, scale: 8, errorCorrectionLevel: "H" });
             this.status = "qr_ready";
+            this.lastError = null;
+            clearTimeout(this.connectionTimer);
+            console.log("[WhatsApp] QR Code gerado e disponível no painel.");
           } catch (err) {
+            this.lastError = err.message || "Falha ao converter o QR Code em imagem.";
+            this.status = "error";
             console.error("[WhatsApp] Erro ao gerar QR Code:", err);
           }
         }
 
         if (connection === "close") {
+          clearTimeout(this.connectionTimer);
           const statusCode = lastDisconnect?.error?.output?.statusCode;
           const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
 
           console.log(`[WhatsApp] Conexão fechada. Motivo: ${statusCode}. Reconectar: ${shouldReconnect}`);
 
           this.status = "disconnected";
+          this.lastError = statusCode ? `Conexão encerrada pelo WhatsApp (código ${statusCode}).` : null;
           this.qrCode = null;
           this.connectedPhone = null;
           this.sock = null;
@@ -88,7 +109,9 @@ class WhatsAppClient {
             setTimeout(() => this.startConnection(), 3000);
           }
         } else if (connection === "open") {
+          clearTimeout(this.connectionTimer);
           this.status = "connected";
+          this.lastError = null;
           this.qrCode = null;
           this.isStarting = false;
           const rawId = this.sock?.user?.id || "";
@@ -98,7 +121,9 @@ class WhatsAppClient {
       });
     } catch (error) {
       console.error("[WhatsApp] Erro ao iniciar cliente:", error);
-      this.status = "disconnected";
+      clearTimeout(this.connectionTimer);
+      this.status = "error";
+      this.lastError = error.message || "Não foi possível iniciar a conexão do WhatsApp.";
       this.isStarting = false;
     }
 
@@ -113,8 +138,10 @@ class WhatsAppClient {
       }
     } catch (e) {}
 
+    clearTimeout(this.connectionTimer);
     this.sock = null;
     this.status = "disconnected";
+    this.lastError = null;
     this.qrCode = null;
     this.connectedPhone = null;
     this.isStarting = false;
