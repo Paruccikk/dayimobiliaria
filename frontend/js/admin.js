@@ -684,6 +684,8 @@ propertyForm.addEventListener("submit", async event => {
   try {
     const imageFiles = Array.from($("#prop-fotos").files || []);
     const pdfFiles = Array.from($("#prop-documentos").files || []);
+    // Junta imagens e PDFs para usar o mesmo fluxo de envio individual.
+    const selectedFiles = [...imageFiles, ...pdfFiles];
     const maxImageBytes = 50 * 1024 * 1024;
     const maxPdfBytes = 100 * 1024 * 1024;
 
