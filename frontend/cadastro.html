@@ -61,8 +61,10 @@
       <label for="nome">Nome completo</label>
       <input id="nome" name="nome" autocomplete="name" maxlength="120" placeholder="Seu nome e sobrenome" required>
 
-      <label for="celular">WhatsApp</label>
-      <input id="celular" name="celular" type="tel" autocomplete="tel" maxlength="20" placeholder="(11) 99999-9999" required>
+      <label for="celular">WhatsApp (opcional)</label>
+      <input id="celular" name="celular" type="tel" autocomplete="tel" maxlength="20" placeholder="(11) 99999-9999">
+      <label for="endereco">Endereço (opcional)</label>
+      <input id="endereco" name="endereco" autocomplete="street-address" maxlength="220" placeholder="Rua, número, bairro, cidade e CEP">
 
       <label for="email">E-mail</label>
       <input id="email" name="email" type="email" autocomplete="email" placeholder="seu@email.com" required>
@@ -79,15 +81,19 @@
           <span>Li e concordo com as <b>Políticas de Privacidade</b>.</span>
         </label>
         <p style="margin:12px 0; font-size:13px; line-height:1.5; color:var(--text-soft, #a0aec0);">
-          As autorizações de alertas abaixo são opcionais e independentes. Você pode escolher uma, as duas ou nenhuma.
+          Autorizações opcionais e independentes. Você escolhe por quais canais deseja receber oportunidades e pode cancelar quando quiser.
         </p>
+        <label for="consentimento-email" class="auth-consent-label">
+          <input id="consentimento-email" type="checkbox">
+          <span><b>Autorizo receber alertas por e-mail</b> no endereço informado no cadastro.</span>
+        </label>
         <label for="consentimento-whatsapp" class="auth-consent-label">
           <input id="consentimento-whatsapp" type="checkbox">
           <span><b>Autorizo receber alertas pelo WhatsApp</b> no número informado no cadastro. Posso cancelar essa autorização quando quiser.</span>
         </label>
         <label for="consentimento-localizacao" class="auth-consent-label" style="margin-top:12px !important;">
           <input id="consentimento-localizacao" type="checkbox">
-          <span><b>Autorizo o uso da minha localização</b> para calcular a proximidade de imóveis e enviar alertas da região. A localização expira em até 90 dias e posso retirar a autorização.</span>
+          <span><b>Autorizo o uso da minha localização</b> para calcular a proximidade de imóveis e enviar alertas da região. O navegador solicitará permissão; a localização expira em até 90 dias e posso retirar a autorização.</span>
         </label>
       </div>
 
