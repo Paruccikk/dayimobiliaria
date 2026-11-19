@@ -63,7 +63,13 @@ function buildModal() {
   let whatsappAlreadyAuthorized = false;
   const refreshWhatsAppPreference = async () => {
     try {
-      const response = await fetch("/api/alerta-day/preferencias?visitorId=" + encodeURIComponent(visitorId()));
+      const currentUser = auth.currentUser;
+      if (!currentUser) throw new Error("Entre na sua conta para consultar as preferências.");
+      const token = await currentUser.getIdToken();
+      const response = await fetch("/api/alerta-day/preferencias?visitorId=" + encodeURIComponent(visitorId()), {
+        headers: { Authorization: "Bearer " + token },
+        cache: "no-store"
+      });
       const data = await response.json();
       whatsappAlreadyAuthorized = response.ok && data.whatsappConsent === true;
       whatsappInfo.textContent = whatsappAlreadyAuthorized
@@ -77,6 +83,7 @@ function buildModal() {
   };
   onAuthStateChanged(auth, currentUser => {
     whatsappAuthorize.hidden = !currentUser || whatsappAlreadyAuthorized;
+    if (currentUser) refreshWhatsAppPreference();
   });
   refreshWhatsAppPreference();
 
