@@ -456,7 +456,7 @@ $("#confirm-send").addEventListener("click", async e => {
     });
     activeCampaignRequestId = null;
     $("#confirm-dialog").close();
-    message(`Campanha processada. Push: ${result.pushEnviados||0}; WhatsApp: ${result.whatsappEnviados||0}; E-mail: ${result.emailEnviados||0}.`);
+    message(`Campanha processada. Push: ${result.pushEnviados||0}; WhatsApp enviados: ${result.whatsappEnviados||0}; duplicados bloqueados: ${result.whatsappDuplicados||0}; E-mail: ${result.emailEnviados||0}.`);
     await loadData();
   } catch (err) {
     if (confirmFb) {
