@@ -1075,9 +1075,9 @@ app.get('/api/admin/alerta-day/alcance', requireFirebase, allowRoles('administra
     const [visitorsSnap, usersSnap]=await Promise.all([db.ref('alertaDay/visitantes').get(),db.ref('usuarios').get()]);
     const users=usersSnap.val()||{};
     const targets=Object.values(visitorsSnap.val()||{}).filter(v => v.consentimentoLocalizacao===true && (!v.expiraEm||Date.parse(v.expiraEm)>Date.now()) && Number.isFinite(Number(v.latitude)) && Number.isFinite(Number(v.longitude)) && alertaDistance(lat,lng,Number(v.latitude),Number(v.longitude))<=radius);
-    const whatsappTargets=targets.filter(v=>channels.includes('whatsapp')&&v.whatsappConsent===true&&v.telefoneWhatsAppEnc&&v.whatsappOwnerUid&&users[v.whatsappOwnerUid]?.consentimentos?.whatsapp?.status==="permitido"&&users[v.whatsappOwnerUid]?.whatsappAtivo!==false);
-    const pushTargets=targets.filter(v=>channels.includes('push')&&v.pushConsent===true&&v.fcmToken);
-    const emailTargets=targets.filter(v=>{const account=users[v.emailOwnerUid||v.whatsappOwnerUid]||{};const consent=account.consentimentos?.email;return channels.includes("email")&&(v.emailConsent===true||consent===true||consent?.status==="permitido")&&(v.email||account.email)&&account.emailAtivo!==false;});
+    const whatsappTargets=alertaUniqueTargets(targets.filter(v=>channels.includes('whatsapp')&&v.whatsappConsent===true&&v.telefoneWhatsAppEnc&&v.whatsappOwnerUid&&users[v.whatsappOwnerUid]?.consentimentos?.whatsapp?.status==="permitido"&&users[v.whatsappOwnerUid]?.whatsappAtivo!==false),v=>alertaPhoneIdentity(v.telefoneWhatsAppEnc));
+    const pushTargets=alertaUniqueTargets(targets.filter(v=>channels.includes('push')&&v.pushConsent===true&&v.fcmToken),v=>v.fcmToken);
+    const emailTargets=alertaUniqueTargets(targets.filter(v=>{const account=users[v.emailOwnerUid||v.whatsappOwnerUid]||{};const consent=account.consentimentos?.email;return channels.includes("email")&&(v.emailConsent===true||consent===true||consent?.status==="permitido")&&(v.email||account.email)&&account.emailAtivo!==false;}),v=>{const account=users[v.emailOwnerUid||v.whatsappOwnerUid]||{};return v.email||account.email;});
     return res.json({totalElegiveis:new Set([...whatsappTargets.map(v=>v.whatsappOwnerUid),...pushTargets.map(v=>v.fcmToken),...emailTargets.map(v=>v.emailOwnerUid||v.whatsappOwnerUid||v.email)]).size, totalLocalizacao:targets.length, whatsappElegiveis:whatsappTargets.length, pushElegiveis:pushTargets.length, emailElegiveis:emailTargets.length});
   } catch(error) { return sendServerError(res,'Não foi possível calcular o público.',error); }
 });
@@ -1087,10 +1087,27 @@ async function alertaSendWhatsApp(phone,title,message,link) {
   const response=await fetch('https://graph.facebook.com/'+graphVersion+'/'+encodeURIComponent(phoneId)+'/messages',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({messaging_product:'whatsapp',to:phone,type:'template',template:{name:template,language:{code:process.env.WHATSAPP_TEMPLATE_LANGUAGE||'pt_BR'},components:[{type:'body',parameters:[{type:'text',text:title},{type:'text',text:message},{type:'text',text:link}]}]}})});
   const result=await response.json().catch(()=>({})); if(!response.ok) throw new Error(result.error?.message||'Falha no WhatsApp'); return result;
 }
+
+// Evita disparar duas vezes para o mesmo destino quando existem registros antigos duplicados.
+function alertaUniqueTargets(items, getKey) {
+  const seen = new Set();
+  return items.filter(item => {
+    const key = String(getKey(item) || '').trim().toLowerCase();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+function alertaPhoneIdentity(encryptedPhone) {
+  try { return alertaDecryptPhone(encryptedPhone).replace(/\D/g, ''); }
+  catch (_) { return ''; }
+}
 app.post('/api/admin/alerta-day/disparar', requireFirebase, allowRoles('administrador'), async (req,res) => {
   const b=req.body||{}, propertyId=cleanString(b.imovelId,100), title=cleanString(b.titulo,90), message=cleanString(b.mensagem,220), channels=Array.isArray(b.canais)?[...new Set(b.canais)]:[];
+  const requestId=cleanString(b.requestId,80);
   const lat=Number(b.centro?.lat), lng=Number(b.centro?.lng), radius=Number(b.raioMetros);
   if (!propertyId||!title||!message||!Number.isFinite(lat)||lat < -90||lat > 90||!Number.isFinite(lng)||lng < -180||lng > 180||!Number.isFinite(radius)||radius < 100||radius > 30000||!channels.length||channels.some(c=>!['push','whatsapp','email'].includes(c))) return res.status(400).json({error:'Dados da campanha inválidos.'});
+  if (!/^[A-Za-z0-9_-]{16,80}$/.test(requestId)) return res.status(400).json({error:'Identificador da solicitação inválido. Atualize a página e tente novamente.'});
   if (channels.includes('email') && (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS || !process.env.SMTP_FROM)) return res.status(503).json({error:'Canal de e-mail não configurado. Configure SMTP_HOST, SMTP_USER, SMTP_PASS e SMTP_FROM no .env.'});
   if (channels.includes('push') && (!admin || typeof admin.messaging!=='function')) {
     return res.status(503).json({error:'Firebase Cloud Messaging indisponível. Verifique as credenciais do Firebase Admin.'});
@@ -1106,7 +1123,16 @@ app.post('/api/admin/alerta-day/disparar', requireFirebase, allowRoles('administ
   if (!baseUrl || !/^https?:\/\/[^/]+$/i.test(baseUrl)) {
     return res.status(503).json({error:'Configure PUBLIC_SITE_URL com o endereço HTTPS público do site no .env.'});
   }
+  let requestRef=null, campaignRef=null;
   try {
+    campaignRef=db.ref('alertaDay/campanhas').push();
+    requestRef=db.ref('alertaDay/solicitacoes/'+req.user.uid+'/'+requestId);
+    const claim=await requestRef.transaction(current=>current||{campaignId:campaignRef.key,status:'processando',criadoEm:new Date().toISOString()});
+    if(!claim.committed){
+      const saved=claim.snapshot.val()||{};
+      const previous=saved.campaignId?(await db.ref('alertaDay/campanhas/'+saved.campaignId).get()).val()||{}:{};
+      return res.json({ok:true,duplicate:true,campaignId:saved.campaignId||null,status:previous.status||saved.status||'processando',pushEnviados:previous.pushEnviados||0,whatsappEnviados:previous.whatsappEnviados||0,emailEnviados:previous.emailEnviados||0});
+    }
     const propertySnap=await db.ref('imoveis/'+propertyId).get(), property=propertySnap.val();
     if (!property||property.status!=='publicado'||property.publicadoNoSite!==true) return res.status(404).json({error:'Imóvel não publicado ou inexistente.'});
     const [visitorsSnap, usersSnap]=await Promise.all([db.ref('alertaDay/visitantes').get(),db.ref('usuarios').get()]);
@@ -1118,18 +1144,19 @@ app.post('/api/admin/alerta-day/disparar', requireFirebase, allowRoles('administ
     const permittedUids=new Set(waProfiles.filter(([,status])=>status==="permitido").map(([uid])=>uid));
     const waActiveProfiles=await Promise.all([...permittedUids].map(async uid=>[uid,(await db.ref("usuarios/"+uid+"/whatsappAtivo").get()).val()]));
     const activeUids=new Set(waActiveProfiles.filter(([,active])=>active!==false).map(([uid])=>uid));
-    const waTargets=waCandidates.filter(([,v])=>activeUids.has(v.whatsappOwnerUid));
-    const emailTargets=channels.includes("email")?visitors.filter(([,v])=>{const account=users[v.emailOwnerUid||v.whatsappOwnerUid]||{};const consent=account.consentimentos?.email;const allowed=v.emailConsent===true||consent===true||consent?.status==="permitido";const address=String(v.email||account.email||"").trim();return allowed&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)&&account.emailAtivo!==false;}):[];
+    const waTargets=alertaUniqueTargets(waCandidates.filter(([,v])=>activeUids.has(v.whatsappOwnerUid)),([,v])=>alertaPhoneIdentity(v.telefoneWhatsAppEnc));
+    const pushUniqueTargets=alertaUniqueTargets(pushTargets,([,v])=>v.fcmToken);
+    const emailTargets=alertaUniqueTargets(channels.includes("email")?visitors.filter(([,v])=>{const account=users[v.emailOwnerUid||v.whatsappOwnerUid]||{};const consent=account.consentimentos?.email;const allowed=v.emailConsent===true||consent===true||consent?.status==="permitido";const address=String(v.email||account.email||"").trim();return allowed&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)&&account.emailAtivo!==false;}):[],([,v])=>{const account=users[v.emailOwnerUid||v.whatsappOwnerUid]||{};return v.email||account.email;});
     const pathLink=cleanString(b.link,500)||('/detalhes.html?id='+encodeURIComponent(propertyId));
     const firstPhoto=Array.isArray(property.fotos)?property.fotos[0]:null;
     const imageUrl=firstPhoto?(/^https:\/\//i.test(firstPhoto)?firstPhoto:baseUrl+'/'+String(firstPhoto).replace(/^\//,'')):null;
     const pushLink=/^https:\/\//i.test(pathLink)?pathLink:(baseUrl?baseUrl+'/'+pathLink.replace(/^\//,''):null);
-    const campaignRef=db.ref('alertaDay/campanhas').push();
-    await campaignRef.set({imovelId:propertyId,imovelTitulo:cleanString(property.titulo,180),titulo:title,mensagem:message,link:pathLink,centro:{lat,lng},raioMetros:radius,canais:channels,status:'processando',pushAlvo:pushTargets.length,whatsappAlvo:waTargets.length,emailAlvo:emailTargets.length,criadoEm:new Date().toISOString(),criadoPor:req.user.uid});
+    const pushTargetsFinal=alertaUniqueTargets(pushUniqueTargets,([,v])=>v.fcmToken);
+    await campaignRef.set({imovelId:propertyId,imovelTitulo:cleanString(property.titulo,180),titulo:title,mensagem:message,link:pathLink,centro:{lat,lng},raioMetros:radius,canais:channels,status:'processando',pushAlvo:pushTargetsFinal.length,whatsappAlvo:waTargets.length,emailAlvo:emailTargets.length,criadoEm:new Date().toISOString(),criadoPor:req.user.uid,requestId});
     let pushEnviados=0, whatsappEnviados=0, emailEnviados=0, erros=[];
     if (channels.includes('push')&&pushTargets.length) {
       if (!pushLink) throw new Error('Configure PUBLIC_SITE_URL com a URL HTTPS pública do site para links de Push.');
-      const tokens=pushTargets.map(([,v])=>v.fcmToken);
+      const tokens=pushTargetsFinal.map(([,v])=>v.fcmToken);
       for(let i=0;i<tokens.length;i+=500) {
         const batch=tokens.slice(i,i+500), result=await admin.messaging().sendEachForMulticast({
           tokens: batch,
@@ -1174,8 +1201,12 @@ app.post('/api/admin/alerta-day/disparar', requireFirebase, allowRoles('administ
     const totalSent=pushEnviados+whatsappEnviados+emailEnviados;
     const status=erros.length?(totalSent?'parcial':'falhou'):'enviada';
     await campaignRef.update({status,pushEnviados,whatsappEnviados,emailEnviados,erros:erros.slice(0,50),concluidoEm:new Date().toISOString()});
-    return res.json({ok:true,campaignId:campaignRef.key,status,pushEnviados,whatsappEnviados,emailEnviados,pushAlvo:pushTargets.length,whatsappAlvo:waTargets.length,emailAlvo:emailTargets.length,erros:erros.length});
-  } catch(error) { return sendServerError(res,'Não foi possível concluir o disparo do Alerta Day.',error); }
+    await requestRef.update({status,pushEnviados,whatsappEnviados,emailEnviados,concluidoEm:new Date().toISOString()});
+    return res.json({ok:true,campaignId:campaignRef.key,status,pushEnviados,whatsappEnviados,emailEnviados,pushAlvo:pushTargetsFinal.length,whatsappAlvo:waTargets.length,emailAlvo:emailTargets.length,erros:erros.length});
+  } catch(error) {
+    if(requestRef) await requestRef.update({status:'falhou',erro:cleanString(error.message,180),concluidoEm:new Date().toISOString()}).catch(()=>{});
+    return sendServerError(res,'Não foi possível concluir o disparo do Alerta Day.',error);
+  }
 });
 // DASHBOARD ADMINISTRATIVO
 // --------------------------------------------------
