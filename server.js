@@ -641,7 +641,7 @@ app.patch("/api/conta/perfil", requireFirebase, async (req, res) => {
     estado: cleanString(raw.estado, 2).toUpperCase()
   };
   const consentimentoLocalizacao = req.body?.consentimentoLocalizacao === true;
-  if (!endereco.rua && !/^\\d{5}-?\\d{3}$/.test(endereco.cep.replace(/\\D/g, ""))) {
+  if (!endereco.rua && !/^\d{5}-?\d{3}$/.test(endereco.cep.replace(/\D/g, ""))) {
     return res.status(400).json({ error: "Informe o CEP ou o endereço para localizar sua região." });
   }
 
@@ -649,8 +649,8 @@ app.patch("/api/conta/perfil", requireFirebase, async (req, res) => {
   if (consentimentoLocalizacao) {
     try {
       // O CEP oficial corrige variações de digitação no nome da rua e no bairro.
-      const cepDigits = endereco.cep.replace(/\\D/g, "");
-      if (/^\\d{8}$/.test(cepDigits)) {
+      const cepDigits = endereco.cep.replace(/\D/g, "");
+      if (/^\d{8}$/.test(cepDigits)) {
         const cepResponse = await fetch("https://viacep.com.br/ws/" + cepDigits + "/json/", {
           headers: { "User-Agent": "RDPrimeImoveis-AlertaDay/1.0" }
         });
@@ -661,7 +661,7 @@ app.patch("/api/conta/perfil", requireFirebase, async (req, res) => {
             endereco.bairro = cleanString(cepData.bairro, 100) || endereco.bairro;
             endereco.cidade = cleanString(cepData.localidade, 100) || endereco.cidade;
             endereco.estado = cleanString(cepData.uf, 2).toUpperCase() || endereco.estado;
-            endereco.cep = cepDigits.replace(/^(\\d{5})(\\d{3})$/, "$1-$2");
+            endereco.cep = cepDigits.replace(/^(\d{5})(\d{3})$/, "$1-$2");
           }
         }
       }
@@ -673,7 +673,7 @@ app.patch("/api/conta/perfil", requireFirebase, async (req, res) => {
       // Não envia número fictício (ex.: XXX-) e tenta primeiro o endereço completo,
       // depois rua/bairro sem número e por último o CEP. Isso evita bloquear CEPs
       // válidos quando o geocodificador não reconhece o número da residência.
-      const numero = /^(?:xxx?[- ]?|s\\/?n|sem número|nao informado)$/i.test(endereco.numero.trim()) ? "" : endereco.numero;
+      const numero = /^(?:xxx?[- ]?|s\/?n|sem número|nao informado)$/i.test(endereco.numero.trim()) ? "" : endereco.numero;
       const queries = [
         [endereco.rua, numero, endereco.bairro, endereco.cidade, endereco.estado, endereco.cep, "Brasil"],
         [endereco.rua, endereco.bairro, endereco.cidade, endereco.estado, endereco.cep, "Brasil"],
