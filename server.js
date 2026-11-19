@@ -1068,16 +1068,10 @@ app.get('/api/admin/alerta-day/alcance', requireFirebase, allowRoles('administra
     const targets=Object.values(visitorsSnap.val()||{}).filter(v => v.consentimentoLocalizacao===true && (!v.expiraEm||Date.parse(v.expiraEm)>Date.now()) && Number.isFinite(Number(v.latitude)) && Number.isFinite(Number(v.longitude)) && alertaDistance(lat,lng,Number(v.latitude),Number(v.longitude))<=radius);
     const whatsappTargets=targets.filter(v=>channels.includes('whatsapp')&&v.whatsappConsent===true&&v.telefoneWhatsAppEnc&&v.whatsappOwnerUid&&users[v.whatsappOwnerUid]?.consentimentos?.whatsapp?.status==="permitido"&&users[v.whatsappOwnerUid]?.whatsappAtivo!==false);
     const pushTargets=targets.filter(v=>channels.includes('push')&&v.pushConsent===true&&v.fcmToken);
-    const emailTargets=targets.filter(v=>channels.includes('email')&&v.whatsappOwnerUid&&(users[v.ownerUid||v.whatsappOwnerUid]?.consentimentos?.email?.status==="permitido")&&/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(users[v.ownerUid||v.whatsappOwnerUid]?.email||""));
-    return res.json({totalElegiveis:new Set([...whatsappTargets.map(v=>v.whatsappOwnerUid),...pushTargets.map(v=>v.fcmToken),...emailTargets.map(v=>v.whatsappOwnerUid)]).size, totalLocalizacao:targets.length, whatsappElegiveis:whatsappTargets.length, pushElegiveis:pushTargets.length, emailElegiveis:emailTargets.length});
+    const emailTargets=targets.filter(v=>channels.includes('email')&&v.whatsappOwnerUid&&(users[v.ownerUid||v.whatsappOwnerUid]?.consentimentos?.email?.status==="permitido")&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(users[v.ownerUid||v.whatsappOwnerUid]?.email||""));
+    return res.json({totalElegiveis:new Set([...whatsappTargets.map(v=>v.whatsappOwnerUid),...pushTargets.map(v=>v.fcmToken),...emailTargets.map(v=>v.ownerUid||v.whatsappOwnerUid)]).size, totalLocalizacao:targets.length, whatsappElegiveis:whatsappTargets.length, pushElegiveis:pushTargets.length, emailElegiveis:emailTargets.length});
   } catch(error) { return sendServerError(res,'Não foi possível calcular o público.',error); }
 });
-async function alertaSendWhatsApp(phone,title,message,link) {
-  const phoneId=process.env.WHATSAPP_PHONE_NUMBER_ID, token=process.env.WHATSAPP_ACCESS_TOKEN, template=process.env.WHATSAPP_ALERT_TEMPLATE, graphVersion=process.env.WHATSAPP_GRAPH_VERSION;
-  if (!phoneId||!token||!template||!/^v\d+\.\d+$/.test(graphVersion||'')) throw new Error('Configure as credenciais, o modelo aprovado e WHATSAPP_GRAPH_VERSION da WhatsApp Cloud API.');
-  const response=await fetch('https://graph.facebook.com/'+graphVersion+'/'+encodeURIComponent(phoneId)+'/messages',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({messaging_product:'whatsapp',to:phone,type:'template',template:{name:template,language:{code:process.env.WHATSAPP_TEMPLATE_LANGUAGE||'pt_BR'},components:[{type:'body',parameters:[{type:'text',text:title},{type:'text',text:message},{type:'text',text:link}]}]}})});
-  const result=await response.json().catch(()=>({})); if(!response.ok) throw new Error(result.error?.message||'Falha no WhatsApp'); return result;
-}
 async function alertaSendEmail(to,title,message,link) {
   const apiKey=process.env.RESEND_API_KEY, from=process.env.ALERTA_EMAIL_FROM;
   if(!apiKey||!from) throw new Error("Canal de e-mail não configurado. Configure RESEND_API_KEY e ALERTA_EMAIL_FROM.");
@@ -1119,7 +1113,7 @@ app.post('/api/admin/alerta-day/disparar', requireFirebase, allowRoles('administ
     const waActiveProfiles=await Promise.all([...permittedUids].map(async uid=>[uid,(await db.ref("usuarios/"+uid+"/whatsappAtivo").get()).val()]));
     const activeUids=new Set(waActiveProfiles.filter(([,active])=>active!==false).map(([uid])=>uid));
     const waTargets=waCandidates.filter(([,v])=>activeUids.has(v.whatsappOwnerUid));
-    const emailTargets=channels.includes('email')?visitors.filter(([,v])=>(v.ownerUid||v.whatsappOwnerUid)&&/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(usersEmailCache[v.ownerUid||v.whatsappOwnerUid]||'')):[];
+    const emailTargets=channels.includes('email')?visitors.filter(([,v])=>(v.ownerUid||v.whatsappOwnerUid)&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(usersEmailCache[v.ownerUid||v.whatsappOwnerUid]||'')):[];
     const pathLink=cleanString(b.link,500)||(propertyId?('/detalhes.html?id='+encodeURIComponent(propertyId)):'/imoveis.html');
     const firstPhoto=Array.isArray(property?.fotos)?property.fotos[0]:null;
     const imageUrl=firstPhoto?(/^https:\/\//i.test(firstPhoto)?firstPhoto:baseUrl+'/'+String(firstPhoto).replace(/^\//,'')):null;
