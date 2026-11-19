@@ -1897,6 +1897,230 @@ app.use((err, _req, res, _next) => {
   });
 });
 
+
+
+// --------------------------------------------------
+// ALERTA DAY — CAPTURA DE PREFERÊNCIAS E CAMPANHAS
+// Todas as rotas /api/admin/alerta-day exigem administrador ativo.
+// Localização é opcional; o servidor retorna somente totais ao painel.
+// --------------------------------------------------
+function alertaDistanceMeters(aLat, aLng, bLat, bLng) {
+  const rad = value => value * Math.PI / 180;
+  const dLat = rad(bLat - aLat), dLng = rad(bLng - aLng);
+  const x = Math.sin(dLat / 2) ** 2 +
+    Math.cos(rad(aLat)) * Math.cos(rad(bLat)) * Math.sin(dLng / 2) ** 2;
+  return 6371000 * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
+}
+function alertaValidCoordinate(lat, lng) {
+  return Number.isFinite(Number(lat)) && Number.isFinite(Number(lng)) &&
+    Math.abs(Number(lat)) <= 90 && Math.abs(Number(lng)) <= 180;
+}
+function alertaPhone(value) {
+  return String(value || "").replace(/\D/g, "").slice(0, 15);
+}
+function alertaWithinRegion(item, center, radius) {
+  if (!item?.localizacao?.consentimento || !alertaValidCoordinate(item.localizacao.latitude, item.localizacao.longitude)) return false;
+  return alertaDistanceMeters(center.lat, center.lng, Number(item.localizacao.latitude), Number(item.localizacao.longitude)) <= radius;
+}
+function alertaEligible(item, channel) {
+  return item?.consentimentos?.[channel] === true && item?.status !== "revogado";
+}
+function alertaPublicId(value) {
+  return typeof value === "string" && /^[a-zA-Z0-9_-]{12,100}$/.test(value);
+}
+
+// Configuração pública: somente a chave VAPID pública pode ser exposta.
+app.get("/api/alerta-day/config", (_req, res) => {
+  return res.json({ vapidKey: process.env.FIREBASE_VAPID_PUBLIC_KEY || "" });
+});
+
+app.post("/api/alerta-day/localizacao", async (req, res) => {
+  if (!db) return firebaseUnavailable(res);
+  const visitorId = cleanString(req.body?.visitorId, 100);
+  const lat = Number(req.body?.latitude), lng = Number(req.body?.longitude);
+  if (!alertaPublicId(visitorId) || req.body?.consentimento !== true || !alertaValidCoordinate(lat, lng)) {
+    return res.status(400).json({ error: "Identificador, autorização e coordenadas válidas são necessários." });
+  }
+  try {
+    const ref = db.ref("alertaDay/inscricoes/" + visitorId);
+    const previous = (await ref.get()).val() || {};
+    await ref.update({
+      localizacao: { consentimento: true, latitude: lat, longitude: lng, precisao: Math.min(100000, Math.max(0, Number(req.body.accuracy) || 0)), atualizadoEm: new Date().toISOString(), expiraEm: new Date(Date.now() + 90 * 86400000).toISOString() },
+      consentimentos: previous.consentimentos || {},
+      atualizadoEm: new Date().toISOString()
+    });
+    return res.json({ ok: true });
+  } catch (error) { return sendServerError(res, "Não foi possível salvar a localização autorizada.", error); }
+});
+
+app.post("/api/alerta-day/push", async (req, res) => {
+  if (!db) return firebaseUnavailable(res);
+  const visitorId = cleanString(req.body?.visitorId, 100);
+  const token = cleanString(req.body?.token, 4096);
+  if (!alertaPublicId(visitorId) || req.body?.consentimento !== true || token.length < 30) {
+    return res.status(400).json({ error: "Identificador, autorização e token Push válidos são necessários." });
+  }
+  try {
+    const ref = db.ref("alertaDay/inscricoes/" + visitorId);
+    const previous = (await ref.get()).val() || {};
+    await ref.update({
+      pushToken: token,
+      consentimentos: { ...(previous.consentimentos || {}), push: true },
+      status: "ativo",
+      atualizadoEm: new Date().toISOString()
+    });
+    return res.json({ ok: true });
+  } catch (error) { return sendServerError(res, "Não foi possível registrar o dispositivo Push.", error); }
+});
+
+app.post("/api/alerta-day/whatsapp", async (req, res) => {
+  if (!db) return firebaseUnavailable(res);
+  const visitorId = cleanString(req.body?.visitorId, 100);
+  const phone = alertaPhone(req.body?.telefone);
+  if (!alertaPublicId(visitorId) || req.body?.consentimento !== true || phone.length < 10) {
+    return res.status(400).json({ error: "Informe um WhatsApp válido e autorize o recebimento." });
+  }
+  try {
+    const ref = db.ref("alertaDay/inscricoes/" + visitorId);
+    const previous = (await ref.get()).val() || {};
+    await ref.update({
+      whatsapp: phone,
+      consentimentos: { ...(previous.consentimentos || {}), whatsapp: true },
+      status: "ativo",
+      consentimentoWhatsappEm: new Date().toISOString(),
+      atualizadoEm: new Date().toISOString()
+    });
+    return res.json({ ok: true });
+  } catch (error) { return sendServerError(res, "Não foi possível registrar a autorização do WhatsApp.", error); }
+});
+
+app.delete("/api/alerta-day/preferencias", async (req, res) => {
+  if (!db) return firebaseUnavailable(res);
+  const visitorId = cleanString(req.body?.visitorId, 100);
+  if (!alertaPublicId(visitorId)) return res.status(400).json({ error: "Identificador inválido." });
+  try {
+    await db.ref("alertaDay/inscricoes/" + visitorId).update({
+      status: "revogado",
+      pushToken: null,
+      whatsapp: null,
+      consentimentos: { push: false, whatsapp: false, email: false },
+      localizacao: { consentimento: false, latitude: null, longitude: null, removidoEm: new Date().toISOString() },
+      revogadoEm: new Date().toISOString()
+    });
+    return res.json({ ok: true });
+  } catch (error) { return sendServerError(res, "Não foi possível remover as preferências.", error); }
+});
+
+app.get("/api/admin/alerta-day/dados", requireFirebase, allowRoles("administrador"), async (_req, res) => {
+  try {
+    const [subsSnap, properties, campaignsSnap] = await Promise.all([
+      db.ref("alertaDay/inscricoes").get(),
+      fetchPublishedPropertiesWithRetry(),
+      db.ref("alertaDay/campanhas").get()
+    ]);
+    const subs = Object.values(subsSnap.val() || {}).filter(s => s?.status !== "revogado");
+    const campaigns = Object.entries(campaignsSnap.val() || {}).map(([id, c]) => ({ id, ...c }))
+      .sort((a,b) => String(b.criadoEm || "").localeCompare(String(a.criadoEm || "")));
+    return res.json({
+      imoveis: properties.map(p => ({ id:p.id, titulo:p.titulo || "Imóvel", cidade:p.cidade || "", bairro:p.bairro || "", categoria:p.categoria || "", finalidade:p.finalidade || "", preco:p.preco ?? null, fotos:Array.isArray(p.fotos)?p.fotos:[], latitude:p.latitude ?? null, longitude:p.longitude ?? null })),
+      resumo: {
+        localizacao: subs.filter(s => s.localizacao?.consentimento === true && s.localizacao?.expiraEm && Date.parse(s.localizacao.expiraEm) > Date.now()).length,
+        push: subs.filter(s => alertaEligible(s,"push") && s.pushToken).length,
+        whatsapp: subs.filter(s => alertaEligible(s,"whatsapp") && s.whatsapp).length,
+        campanhas: campaigns.length
+      },
+      campanhas: campaigns.slice(0, 12).map(c => ({ id:c.id, titulo:c.titulo, status:c.status, criadoEm:c.criadoEm, pushEnviados:c.pushEnviados || 0, whatsappEnviados:c.whatsappEnviados || 0 }))
+    });
+  } catch (error) { return sendServerError(res, "Não foi possível carregar os dados do Alerta Day.", error); }
+});
+
+app.get("/api/admin/alerta-day/alcance", requireFirebase, allowRoles("administrador"), async (req, res) => {
+  const lat = Number(req.query.lat), lng = Number(req.query.lng), radius = Number(req.query.raio);
+  if (!alertaValidCoordinate(lat,lng) || !Number.isFinite(radius) || radius < 500 || radius > 30000) return res.status(400).json({ error: "Centro ou raio inválido." });
+  try {
+    const channels = String(req.query.canais || "push").split(",").filter(c => ["push","whatsapp","email"].includes(c));
+    const snap = await db.ref("alertaDay/inscricoes").get();
+    const totalElegiveis = Object.values(snap.val() || {}).filter(item =>
+      alertaWithinRegion(item,{lat,lng},radius) &&
+      channels.some(channel => alertaEligible(item,channel) && (channel !== "push" || item.pushToken) && (channel !== "whatsapp" || item.whatsapp) && (channel !== "email" || item.email))
+    ).length;
+    return res.json({ totalElegiveis });
+  } catch (error) { return sendServerError(res, "Não foi possível calcular o alcance da campanha.", error); }
+});
+
+app.post("/api/admin/alerta-day/disparar", requireFirebase, allowRoles("administrador"), async (req, res) => {
+  const body = req.body || {};
+  const propertyId = cleanString(body.imovelId, 128);
+  const title = cleanString(body.titulo, 90);
+  const message = cleanString(body.mensagem, 220);
+  const link = cleanString(body.link, 500);
+  const center = body.centro || {};
+  const radius = Number(body.raioMetros);
+  const channels = Array.isArray(body.canais) ? [...new Set(body.canais)] : [];
+  if (!propertyId || !title || !message || !alertaValidCoordinate(center.lat,center.lng) || !Number.isFinite(radius) || radius < 500 || radius > 30000 || !channels.length || channels.some(c => !["push","whatsapp","email"].includes(c))) {
+    return res.status(400).json({ error: "Preencha imóvel, conteúdo, região, raio e canais válidos." });
+  }
+  try {
+    const [propertySnap, subsSnap] = await Promise.all([
+      db.ref("imoveis/" + propertyId).get(),
+      db.ref("alertaDay/inscricoes").get()
+    ]);
+    const property = propertySnap.val();
+    if (!property || property.status !== "publicado" || property.publicadoNoSite !== true) return res.status(404).json({ error: "O imóvel selecionado não está publicado." });
+    const recipients = Object.entries(subsSnap.val() || {}).filter(([,item]) =>
+      alertaWithinRegion(item,{lat:Number(center.lat),lng:Number(center.lng)},radius) &&
+      channels.some(channel => alertaEligible(item,channel) && (channel !== "push" || item.pushToken) && (channel !== "whatsapp" || item.whatsapp) && (channel !== "email" || item.email))
+    );
+    const campaignRef = db.ref("alertaDay/campanhas").push();
+    const campaignId = campaignRef.key;
+    await campaignRef.set({ titulo:title, mensagem:message, link:link || ("/detalhes.html?id="+encodeURIComponent(propertyId)), imovelId:propertyId, centro:{lat:Number(center.lat),lng:Number(center.lng)}, raioMetros:radius, canais:channels, status:"processando", criadoPor:req.user.uid, criadoEm:new Date().toISOString(), elegiveis:recipients.length });
+    let pushSent = 0, whatsappSent = 0, emailSent = 0, failures = 0;
+    const targetUrl = (link || ("/detalhes.html?id="+encodeURIComponent(propertyId))).startsWith("http")
+      ? (link || "") : ((process.env.PUBLIC_BASE_URL || "https://www.rdprimeimoveis.com") + (link || ("/detalhes.html?id="+encodeURIComponent(propertyId))));
+    const pushTargets = recipients.filter(([,item]) => channels.includes("push") && alertaEligible(item,"push") && item.pushToken);
+    if (pushTargets.length && admin?.messaging) {
+      for (let i=0;i<pushTargets.length;i+=500) {
+        const batch = pushTargets.slice(i,i+500);
+        try {
+          const result = await admin.messaging().sendEachForMulticast({
+            tokens: batch.map(([,item]) => item.pushToken),
+            notification: { title, body: message },
+            data: { url: targetUrl, campaignId, propertyId },
+            webpush: { fcmOptions: { link: targetUrl }, notification: { icon: "/img/logo.png", tag: "alerta-day-" + campaignId } }
+          });
+          pushSent += result.successCount; failures += result.failureCount;
+          await Promise.all(result.responses.map((r,index) => {
+            if (!r.success && ["messaging/registration-token-not-registered","messaging/invalid-registration-token"].includes(r.error?.code)) return db.ref("alertaDay/inscricoes/"+batch[index][0]+"/pushToken").remove();
+            return Promise.resolve();
+          }));
+        } catch (error) { failures += batch.length; console.error("[Alerta Day Push]",error.message); }
+      }
+    } else if (pushTargets.length) failures += pushTargets.length;
+
+    const whatsappTargets = recipients.filter(([,item]) => channels.includes("whatsapp") && alertaEligible(item,"whatsapp") && item.whatsapp);
+    if (whatsappTargets.length && process.env.WHATSAPP_CLOUD_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID) {
+      for (const [id,item] of whatsappTargets) {
+        try {
+          const template = process.env.WHATSAPP_ALERT_TEMPLATE;
+          if (!template) throw new Error("WHATSAPP_ALERT_TEMPLATE não configurado.");
+          const response = await fetch("https://graph.facebook.com/v21.0/"+process.env.WHATSAPP_PHONE_NUMBER_ID+"/messages", {
+            method:"POST", headers:{Authorization:"Bearer "+process.env.WHATSAPP_CLOUD_TOKEN,"Content-Type":"application/json"},
+            body:JSON.stringify({messaging_product:"whatsapp",to:item.whatsapp,type:"template",template:{name:template,language:{code:process.env.WHATSAPP_ALERT_TEMPLATE_LANG || "pt_BR"},components:[{type:"body",parameters:[{type:"text",text:title},{type:"text",text:message},{type:"text",text:targetUrl}]}]}})
+          });
+          if (!response.ok) throw new Error("Meta API HTTP "+response.status);
+          whatsappSent++;
+        } catch (error) { failures++; console.warn("[Alerta Day WhatsApp]",id,error.message); }
+      }
+    } else if (whatsappTargets.length) failures += whatsappTargets.length;
+
+    const emailTargets = recipients.filter(([,item]) => channels.includes("email") && alertaEligible(item,"email") && item.email);
+    if (emailTargets.length) failures += emailTargets.length; // SMTP ainda não configurado nesta instalação.
+
+    await campaignRef.update({ status: failures ? (pushSent+whatsappSent+emailSent ? "parcial" : "falhou") : "concluida", pushEnviados:pushSent, whatsappEnviados:whatsappSent, emailEnviados:emailSent, falhas:failures, finalizadoEm:new Date().toISOString() });
+    return res.json({ ok:true, campaignId, elegiveis:recipients.length, pushEnviados:pushSent, whatsappEnviados:whatsappSent, emailEnviados:emailSent, falhas:failures });
+  } catch (error) { return sendServerError(res, "Não foi possível processar a campanha Alerta Day.", error); }
+});
+
 // --------------------------------------------------
 // INICIAR SERVIDOR
 // --------------------------------------------------
