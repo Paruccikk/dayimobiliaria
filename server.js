@@ -1099,8 +1099,12 @@ function alertaUniqueTargets(items, getKey) {
   });
 }
 function alertaPhoneIdentity(encryptedPhone) {
-  try { return alertaDecryptPhone(encryptedPhone).replace(/\D/g, ''); }
-  catch (_) { return ''; }
+  try {
+    const digits = alertaDecryptPhone(encryptedPhone).replace(/\D/g, '');
+    if (!digits) return '';
+    // Canonicaliza números locais e números já armazenados com DDI 55.
+    return digits.startsWith('55') ? digits : '55' + digits;
+  } catch (_) { return ''; }
 }
 app.post('/api/admin/alerta-day/disparar', requireFirebase, allowRoles('administrador'), async (req,res) => {
   const b=req.body||{}, propertyId=cleanString(b.imovelId,100), title=cleanString(b.titulo,90), message=cleanString(b.mensagem,220), channels=Array.isArray(b.canais)?[...new Set(b.canais)]:[];
@@ -1175,18 +1179,47 @@ app.post('/api/admin/alerta-day/disparar', requireFirebase, allowRoles('administ
         result.responses.forEach((item,index)=>{if(!item.success){erros.push({canal:'push',tokenFinal:batch[index].slice(-8),erro:item.error?.code||'falha'});if(['messaging/registration-token-not-registered','messaging/invalid-registration-token'].includes(item.error?.code)){const entry=pushTargets.find(([,v])=>v.fcmToken===batch[index]);if(entry)db.ref('alertaDay/visitantes/'+entry[0]).update({fcmToken:null,pushConsent:false}).catch(()=>{});}}});
       }
     }
+    let whatsappDuplicados=0;
     if (channels.includes('whatsapp')) for(const [key,v] of waTargets) {
       const fullUrl = pushLink || ((baseUrl||'')+'/'+pathLink.replace(/^\//,''));
-      const phone = alertaDecryptPhone(v.telefoneWhatsAppEnc);
+      const phone = alertaPhoneIdentity(v.telefoneWhatsAppEnc);
+      // Trava persistente no Firebase por telefone + conteúdo. Protege inclusive
+      // contra duas campanhas com requestId diferentes ou múltiplos processos PM2.
+      const dispatchKey = crypto.createHash('sha256')
+        .update([phone,title,message,fullUrl].join('|'))
+        .digest('hex');
+      const dispatchRef = db.ref('alertaDay/whatsappDispatches/'+dispatchKey);
+      const now = Date.now();
       try {
-        if (hasQrWhatsapp) {
-          await whatsappClient.sendAlert(phone, title, message, fullUrl, imageUrl);
-        } else {
-          await alertaSendWhatsApp(phone, title, message, fullUrl);
+        const reservation = await dispatchRef.transaction(current => {
+          if (current && Number(current.expiresAt) > now) return;
+          return {
+            campaignId: campaignRef.key,
+            status: 'processando',
+            criadoEm: new Date(now).toISOString(),
+            expiresAt: now + 30 * 60 * 1000
+          };
+        });
+        if (!reservation.committed) {
+          whatsappDuplicados++;
+          continue;
         }
-        whatsappEnviados++;
+        try {
+          if (hasQrWhatsapp) {
+            await whatsappClient.sendAlert(phone, title, message, fullUrl, imageUrl);
+          } else {
+            await alertaSendWhatsApp(phone, title, message, fullUrl);
+          }
+          whatsappEnviados++;
+          await dispatchRef.update({status:'enviado',enviadoEm:new Date().toISOString()});
+        } catch(error) {
+          // Não liberamos a trava em caso de erro: a confirmação pode ter se perdido
+          // depois que o WhatsApp aceitou a mensagem. Expira automaticamente em 30 min.
+          await dispatchRef.update({status:'resultado_indefinido',erro:cleanString(error.message,180)});
+          erros.push({canal:'whatsapp',erro:cleanString(error.message,180)});
+        }
       } catch(error) {
-        erros.push({canal:'whatsapp',erro:cleanString(error.message,180)});
+        erros.push({canal:'whatsapp',erro:'Não foi possível reservar o envio único deste destinatário.'});
       }
     }
     if (channels.includes('email') && emailTargets.length) {
@@ -1200,9 +1233,9 @@ app.post('/api/admin/alerta-day/disparar', requireFirebase, allowRoles('administ
     }
     const totalSent=pushEnviados+whatsappEnviados+emailEnviados;
     const status=erros.length?(totalSent?'parcial':'falhou'):'enviada';
-    await campaignRef.update({status,pushEnviados,whatsappEnviados,emailEnviados,erros:erros.slice(0,50),concluidoEm:new Date().toISOString()});
-    await requestRef.update({status,pushEnviados,whatsappEnviados,emailEnviados,concluidoEm:new Date().toISOString()});
-    return res.json({ok:true,campaignId:campaignRef.key,status,pushEnviados,whatsappEnviados,emailEnviados,pushAlvo:pushTargetsFinal.length,whatsappAlvo:waTargets.length,emailAlvo:emailTargets.length,erros:erros.length});
+    await campaignRef.update({status,pushEnviados,whatsappEnviados,whatsappDuplicados,emailEnviados,erros:erros.slice(0,50),concluidoEm:new Date().toISOString()});
+    await requestRef.update({status,pushEnviados,whatsappEnviados,whatsappDuplicados,emailEnviados,concluidoEm:new Date().toISOString()});
+    return res.json({ok:true,campaignId:campaignRef.key,status,pushEnviados,whatsappEnviados,whatsappDuplicados,emailEnviados,pushAlvo:pushTargetsFinal.length,whatsappAlvo:waTargets.length,emailAlvo:emailTargets.length,erros:erros.length});
   } catch(error) {
     if(requestRef) await requestRef.update({status:'falhou',erro:cleanString(error.message,180),concluidoEm:new Date().toISOString()}).catch(()=>{});
     return sendServerError(res,'Não foi possível concluir o disparo do Alerta Day.',error);
