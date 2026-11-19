@@ -126,6 +126,7 @@ async function refreshReach() {
     const channels = [];
     if ($("#channel-push").checked) channels.push("push");
     if ($("#channel-whatsapp").checked) channels.push("whatsapp");
+    if ($("#channel-email").checked) channels.push("email");
     const data = await api(`/api/admin/alerta-day/alcance?lat=${p.lat}&lng=${p.lng}&raio=${radius}&canais=${channels.join(",")}`);
     const elegiveis = Number(data.totalElegiveis || 0);
     const totalLoc = Number(data.totalLocalizacao || 0);
@@ -139,7 +140,8 @@ async function refreshReach() {
       } else {
         const pushCount = Number(data.pushElegiveis || 0);
         const whatsappCount = Number(data.whatsappElegiveis || 0);
-        detail.textContent = `${totalLoc} com localização · Push: ${pushCount} · WhatsApp: ${whatsappCount}`;
+        const emailCount = Number(data.emailElegiveis || 0);
+        detail.textContent = `${totalLoc} com localização · Push: ${pushCount} · WhatsApp: ${whatsappCount} · E-mail: ${emailCount}`;
       }
     }
   } catch (e) {
@@ -288,7 +290,7 @@ $("#btn-wa-disconnect")?.addEventListener("click", async () => {
 });
 
 function escapeHtml(v) { return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
-function selectedProperty() { return properties.find(p => p.id === $("#property").value); }
+function selectedProperty() { return properties.find(p => p.id === $("#property").value) || null; }
 
 function updatePreview() {
   $("#preview-title").textContent=$("#title").value.trim()||"Alerta Day";
@@ -393,6 +395,7 @@ $("#btn-add-test-visitor")?.addEventListener("click", async () => {
 $("#radius").addEventListener("input", drawCircle);
 $("#channel-push").addEventListener("change", refreshReach);
 $("#channel-whatsapp").addEventListener("change", refreshReach);
+$("#channel-email").addEventListener("change", refreshReach);
 $("#title").addEventListener("input", updatePreview);
 $("#message").addEventListener("input", updatePreview);
 $("#preview-button").addEventListener("click", updatePreview);
@@ -401,10 +404,11 @@ $("#send-button").addEventListener("click", () => {
   const p = selectedProperty(), channels = [];
   if ($("#channel-push").checked) channels.push("Push");
   if ($("#channel-whatsapp").checked) channels.push("WhatsApp");
-  if (!p) return message("Selecione um imóvel.");
+  if ($("#channel-email").checked) channels.push("E-mail");
   if (!marker) return message("Defina o centro do raio no mapa.");
   if (!channels.length) return message("Selecione ao menos um canal.");
-  $("#confirm-summary").textContent = `${p.titulo} · raio de ${$("#radius-label").textContent} · canais: ${channels.join(" + ")}. O servidor fará a validação final de consentimento e destinatários.`;
+  if (!channels.length) return message("Selecione ao menos um canal.");
+  $("#confirm-summary").textContent = `${p ? p.titulo : "Mensagem sem imóvel"} · raio de ${$("#radius-label").textContent} · canais: ${channels.join(" + ")}. O servidor fará a validação final de consentimento e destinatários.`;
   const confirmFb = $("#confirm-feedback");
   if (confirmFb) { confirmFb.hidden = true; confirmFb.textContent = ""; }
   $("#confirm-dialog").showModal();
@@ -413,10 +417,11 @@ $("#send-button").addEventListener("click", () => {
 $("#confirm-send").addEventListener("click", async e => {
   e.preventDefault();
   const p = selectedProperty(), center = marker?.getLatLng();
-  if (!p || !center) return;
+  if (!center) return;
   const channels = [];
   if ($("#channel-push").checked) channels.push("push");
   if ($("#channel-whatsapp").checked) channels.push("whatsapp");
+  if ($("#channel-email").checked) channels.push("email");
   const button = $("#confirm-send");
   const confirmFb = $("#confirm-feedback");
   if (confirmFb) confirmFb.hidden = true;
@@ -425,7 +430,7 @@ $("#confirm-send").addEventListener("click", async e => {
     const result = await api("/api/admin/alerta-day/disparar", {
       method: "POST",
       body: JSON.stringify({
-        imovelId: p.id,
+        imovelId: p?.id || "",
         titulo: $("#title").value.trim(),
         mensagem: $("#message").value.trim(),
         link: $("#link").value.trim(),
