@@ -682,19 +682,25 @@ app.patch("/api/conta/perfil", requireFirebase, async (req, res) => {
       ].map(parts => parts.filter(Boolean).join(", ")).filter(Boolean);
 
       let geocodeError = null;
-      for (const query of [...new Set(queries)]) {
+      const uniqueQueries = [...new Set(queries)];
+      for (let index = 0; index < uniqueQueries.length; index += 1) {
+        const query = uniqueQueries[index];
         const url = "https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=br&q=" + encodeURIComponent(query);
         const response = await fetch(url, {
           headers: { "User-Agent": "RDPrimeImoveis-AlertaDay/1.0 (localizacao de endereco informado pelo usuario)" }
         });
         if (!response.ok) {
           geocodeError = new Error("Serviço de geocodificação indisponível.");
-          continue;
+        } else {
+          const results = await response.json();
+          if (Array.isArray(results) && results.length && alertaValidCoordinate(results[0].lat, results[0].lon)) {
+            coords = { latitude: Number(results[0].lat), longitude: Number(results[0].lon) };
+            break;
+          }
         }
-        const results = await response.json();
-        if (Array.isArray(results) && results.length && alertaValidCoordinate(results[0].lat, results[0].lon)) {
-          coords = { latitude: Number(results[0].lat), longitude: Number(results[0].lon) };
-          break;
+        // Respeita o limite público do Nominatim (uma consulta por segundo).
+        if (index < uniqueQueries.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 1100));
         }
       }
 
