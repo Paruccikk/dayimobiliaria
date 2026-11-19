@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#0b1220">
-  <title>Meu endereço | R&D Prime Imóveis</title>
+  <title>Configuração de endereço | Administração R&D Prime</title>
   <link rel="stylesheet" href="/css/style.css">
   <link rel="stylesheet" href="/css/minha-conta.css">
 </head>
@@ -11,12 +11,12 @@
   <main class="conta-shell">
     <header class="conta-header">
       <a class="conta-brand" href="/">R&D <span>PRIME IMÓVEIS</span></a>
-      <nav><a href="/">Voltar ao site</a><a href="/alerta-day.html">Central Alerta Day</a></nav>
+      <nav><a href="/admin.html">Voltar ao administrativo</a></nav>
     </header>
     <section class="conta-card">
-      <div class="conta-eyebrow">MINHA CONTA</div>
+      <div class="conta-eyebrow">ÁREA ADMINISTRATIVA · ALERTA DAY</div>
       <h1>Meu endereço</h1>
-      <p class="conta-intro">Complete ou atualize seu endereço para que o Alerta Day consiga identificar sua região e calcular o alcance dos avisos locais.</p>
+      <p class="conta-intro">Área restrita a administradores. Configure o endereço usado para definir a região das campanhas do Alerta Day.</p>
       <div id="conta-loading" class="conta-feedback">Carregando seus dados...</div>
       <form id="conta-form" hidden>
         <div class="conta-grid">
@@ -30,7 +30,7 @@
         </div>
         <label class="conta-consent"><input id="consent-location" type="checkbox"><span><strong>Autorizo usar meu endereço para alertas por região.</strong><small>O endereço será convertido em coordenadas aproximadas para calcular se há campanhas próximas. Não é rastreamento GPS em tempo real. Você pode retirar esta autorização quando quiser.</small></span></label>
         <div id="conta-feedback" class="conta-feedback" role="status" aria-live="polite"></div>
-        <div class="conta-actions"><button id="save-address" type="submit">Salvar endereço</button><a href="/alerta-day.html">Voltar à Central Alerta Day</a></div>
+        <div class="conta-actions"><button id="save-address" type="submit">Salvar endereço</button><a href="/admin.html">Voltar ao administrativo</a></div>
       </form>
       <p class="conta-privacy">Seu endereço e coordenadas são usados somente para os recursos de localização e alertas autorizados.</p>
     </section>
