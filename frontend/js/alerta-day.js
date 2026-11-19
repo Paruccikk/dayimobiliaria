@@ -3,6 +3,7 @@ import { signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https:/
 
 const $ = (s) => document.querySelector(s);
 let user = null, map = null, circle = null, marker = null, properties = [];
+let activeCampaignRequestId = null;
 
 function fixLeafletIcons() {
   if (window.L && L.Icon && L.Icon.Default) {
@@ -420,6 +421,7 @@ $("#send-button").addEventListener("click", () => {
   if (!p) return message("Selecione um imóvel.");
   if (!marker) return message("Defina o centro do raio no mapa.");
   if (!channels.length) return message("Selecione ao menos um canal.");
+  activeCampaignRequestId = crypto.randomUUID();
   $("#confirm-summary").textContent = `${p.titulo} · raio de ${$("#radius-label").textContent} · canais: ${channels.join(" + ")}. O servidor fará a validação final de consentimento e destinatários.`;
   const confirmFb = $("#confirm-feedback");
   if (confirmFb) { confirmFb.hidden = true; confirmFb.textContent = ""; }
@@ -443,6 +445,7 @@ $("#confirm-send").addEventListener("click", async e => {
       method: "POST",
       body: JSON.stringify({
         imovelId: p.id,
+        requestId: activeCampaignRequestId || crypto.randomUUID(),
         titulo: $("#title").value.trim(),
         mensagem: $("#message").value.trim(),
         link: $("#link").value.trim(),
@@ -451,6 +454,7 @@ $("#confirm-send").addEventListener("click", async e => {
         canais: channels
       })
     });
+    activeCampaignRequestId = null;
     $("#confirm-dialog").close();
     message(`Campanha processada. Push: ${result.pushEnviados||0}; WhatsApp: ${result.whatsappEnviados||0}; E-mail: ${result.emailEnviados||0}.`);
     await loadData();
