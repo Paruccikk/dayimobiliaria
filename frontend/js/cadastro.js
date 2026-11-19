@@ -107,10 +107,14 @@ form?.addEventListener("submit", async event => {
   const password = document.querySelector("#password")?.value || "";
   const confirmation = document.querySelector("#confirm-password")?.value || "";
   const consentimentoWhatsApp = document.querySelector("#consentimento-whatsapp")?.checked === true;
+  const consentimentoEmail = document.querySelector("#consentimento-email")?.checked === true;
+  const consentimentoPrivacidade = document.querySelector("#consentimento-privacidade")?.checked === true;
+  const endereco = document.querySelector("#endereco")?.value.trim() || "";
   const consentimentoLocalizacao = document.querySelector("#consentimento-localizacao")?.checked === true;
 
-  if (!nome || !celular || !email) return showMessage("Preencha todos os campos obrigatórios.");
-  if (celular.replace(/\D/g, "").length < 10) return showMessage("Informe um número de WhatsApp válido com DDD.");
+  if (!nome || !email) return showMessage("Preencha nome e e-mail.");
+  if (!consentimentoPrivacidade) return showMessage("É necessário aceitar as Políticas de Privacidade para criar a conta.");
+  if (consentimentoWhatsApp && celular.replace(/\D/g, "").length < 10) return showMessage("Informe um WhatsApp válido com DDD ou desmarque essa autorização.");
   if (password.length < 6) return showMessage("A senha precisa ter pelo menos 6 caracteres.");
   if (password !== confirmation) return showMessage("As senhas não conferem.");
 
@@ -145,6 +149,9 @@ form?.addEventListener("submit", async event => {
         nome,
         celular,
         telefone: celular,
+        endereco,
+        consentimentoPrivacidade,
+        consentimentoEmail,
         consentimentoWhatsApp,
         consentimentoLocalizacao,
         visitorId: alertaDayVisitorId(),
