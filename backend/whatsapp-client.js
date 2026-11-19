@@ -140,16 +140,14 @@ class WhatsAppClient {
     const jid = `${fullPhone}@s.whatsapp.net`;
     const text = `📢 *${title}*\n\n${message}\n\n🔗 *Acesse o imóvel:* ${link}`;
 
-    // Envia a foto principal como mídia com legenda; mantém texto como fallback.
+    // Faz somente uma tentativa por destinatário. Se a confirmação do envio da mídia
+    // falhar, não reenviamos texto automaticamente: a entrega pode ter ocorrido e o
+    // fallback poderia gerar uma segunda mensagem para a mesma pessoa.
     if (typeof imageUrl === "string" && /^https:\/\//i.test(imageUrl)) {
-      try {
-        return await this.sock.sendMessage(jid, {
-          image: { url: imageUrl },
-          caption: text
-        });
-      } catch (error) {
-        console.warn("[WhatsApp] Não foi possível enviar a foto; tentando texto:", error.message);
-      }
+      return await this.sock.sendMessage(jid, {
+        image: { url: imageUrl },
+        caption: text
+      });
     }
 
     return await this.sock.sendMessage(jid, { text });
