@@ -1059,7 +1059,7 @@ app.post('/api/admin/alerta-day/test-visitor', requireFirebase, allowRoles('admi
 });
 app.get('/api/admin/alerta-day/alcance', requireFirebase, allowRoles('administrador'), async (req,res) => {
   const lat=Number(req.query.lat), lng=Number(req.query.lng), radius=Number(req.query.raio);
-  const channels=(req.query.canais===undefined?'push,whatsapp':String(req.query.canais)).split(',').filter(c=>['push','whatsapp'].includes(c));
+  const channels=(req.query.canais===undefined?'push,whatsapp,email':String(req.query.canais)).split(',').filter(c=>['push','whatsapp','email'].includes(c));
   if (!Number.isFinite(lat)||lat < -90||lat > 90||!Number.isFinite(lng)||lng < -180||lng > 180||!Number.isFinite(radius)||radius < 100||radius > 30000) return res.status(400).json({error:'Centro ou raio inválido.'});
   try {
     const [visitorsSnap, usersSnap]=await Promise.all([db.ref('alertaDay/visitantes').get(),db.ref('usuarios').get()]);
@@ -1067,7 +1067,8 @@ app.get('/api/admin/alerta-day/alcance', requireFirebase, allowRoles('administra
     const targets=Object.values(visitorsSnap.val()||{}).filter(v => v.consentimentoLocalizacao===true && (!v.expiraEm||Date.parse(v.expiraEm)>Date.now()) && Number.isFinite(Number(v.latitude)) && Number.isFinite(Number(v.longitude)) && alertaDistance(lat,lng,Number(v.latitude),Number(v.longitude))<=radius);
     const whatsappTargets=targets.filter(v=>channels.includes('whatsapp')&&v.whatsappConsent===true&&v.telefoneWhatsAppEnc&&v.whatsappOwnerUid&&users[v.whatsappOwnerUid]?.consentimentos?.whatsapp?.status==="permitido"&&users[v.whatsappOwnerUid]?.whatsappAtivo!==false);
     const pushTargets=targets.filter(v=>channels.includes('push')&&v.pushConsent===true&&v.fcmToken);
-    return res.json({totalElegiveis:new Set([...whatsappTargets.map(v=>v.whatsappOwnerUid),...pushTargets.map(v=>v.fcmToken)]).size, totalLocalizacao:targets.length, whatsappElegiveis:whatsappTargets.length, pushElegiveis:pushTargets.length});
+    const emailTargets=targets.filter(v=>channels.includes('email')&&v.whatsappOwnerUid&&users[v.whatsappOwnerUid]?.consentimentos?.email?.status==="permitido"&&/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(users[v.whatsappOwnerUid]?.email||""));
+    return res.json({totalElegiveis:new Set([...whatsappTargets.map(v=>v.whatsappOwnerUid),...pushTargets.map(v=>v.fcmToken),...emailTargets.map(v=>v.whatsappOwnerUid)]).size, totalLocalizacao:targets.length, whatsappElegiveis:whatsappTargets.length, pushElegiveis:pushTargets.length, emailElegiveis:emailTargets.length});
   } catch(error) { return sendServerError(res,'Não foi possível calcular o público.',error); }
 });
 async function alertaSendWhatsApp(phone,title,message,link) {
