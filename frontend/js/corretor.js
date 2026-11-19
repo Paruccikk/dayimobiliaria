@@ -183,6 +183,7 @@ $("#property-form").addEventListener("submit", async (e) => {
     cidade: $("#prop-cidade").value,
     estado: $("#prop-estado").value,
     bairro: $("#prop-bairro").value,
+    regiao: $("#prop-regiao").value,
     areaM2: $("#prop-area").value,
     quartos: $("#prop-quartos").value,
     suites: $("#prop-suites").value,
