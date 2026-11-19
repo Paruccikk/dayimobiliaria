@@ -40,7 +40,18 @@
 <label class="ad-check"><input type="checkbox" id="channel-push" checked><span><b>Notificação Push</b><small>Somente dispositivos com autorização ativa.</small></span></label>
 <label class="ad-check"><input type="checkbox" id="channel-whatsapp"><span><b>WhatsApp</b><small>Somente contatos que autorizaram esse canal.</small></span></label>
 <label class="ad-check"><input type="checkbox" id="channel-email"><span><b>E-mail</b><small>Reservado para destinatários com consentimento específico; SMTP precisa estar configurado.</small></span></label>
-<p class="ad-note">O WhatsApp usa a API oficial da Meta e modelo aprovado. Sem as credenciais e o modelo configurados, nenhum envio por esse canal será realizado.</p>
+<section class="ad-whatsapp-connect">
+  <div class="ad-whatsapp-top">
+    <div><strong>Conexão WhatsApp Web</strong><small id="wa-status-message">Verificando conexão salva no servidor…</small></div>
+    <span id="wa-status-badge" data-state="desconectado">Desconectado</span>
+  </div>
+  <div class="ad-whatsapp-actions">
+    <button id="wa-connect" class="ad-button ad-secondary" type="button">Ler QR Code / Conectar</button>
+    <button id="wa-disconnect" class="ad-button ad-ghost" type="button" hidden>Desconectar</button>
+    <a href="/whatsapp.html" target="_blank" rel="noopener noreferrer">Abrir página de conexão</a>
+  </div>
+  <small class="ad-note">O envio usa a sessão conectada por QR Code. Somente contatos com consentimento ativo para WhatsApp entram na campanha.</small>
+</section>
 <button id="preview-button" class="ad-button ad-secondary" type="button">Atualizar prévia</button>
 <button id="send-button" class="ad-button ad-primary" type="button" disabled>Preparar disparo</button><p id="campaign-feedback" role="status" aria-live="polite"></p>
 </section>
@@ -51,6 +62,18 @@
 <section class="ad-panel"><div class="ad-step">SEGURANÇA</div><h2>Regras de envio</h2><ul class="ad-rules"><li>Somente pessoas com consentimento válido por canal.</li><li>Localização é opcional e pode ser removida.</li><li>O painel recebe totais, não coordenadas individuais.</li><li>Campanhas e resultados ficam registrados.</li><li>Acesso à administração validado no servidor.</li></ul></section>
 <section class="ad-panel"><div class="ad-step">HISTÓRICO</div><h2>Últimas campanhas</h2><div id="campaign-history" class="ad-history">Nenhuma campanha carregada.</div></section>
 </aside></div>
+<dialog id="wa-qr-dialog" class="ad-dialog ad-qr-dialog">
+  <form method="dialog">
+    <h2>Conectar WhatsApp da R&D Prime</h2>
+    <p>1. Abra o WhatsApp no celular. 2. Entre em <b>Aparelhos conectados</b>. 3. Toque em <b>Conectar aparelho</b> e leia este QR Code.</p>
+    <div class="ad-qr-frame">
+      <img id="wa-qr-image" alt="QR Code para conectar o WhatsApp" hidden>
+      <span id="wa-qr-placeholder">Clique em “Ler QR Code / Conectar” para gerar o código.</span>
+    </div>
+    <p id="wa-qr-feedback" role="status" aria-live="polite"></p>
+    <div class="ad-dialog-actions"><button class="ad-button ad-ghost" value="close" type="submit">Fechar</button></div>
+  </form>
+</dialog>
 <dialog id="confirm-dialog" class="ad-dialog"><form method="dialog"><h2>Confirmar disparo?</h2><p id="confirm-summary"></p><div class="ad-dialog-actions"><button class="ad-button ad-ghost" value="cancel">Voltar</button><button id="confirm-send" class="ad-button ad-primary" value="confirm">Confirmar envio</button></div></form></dialog>
 </main>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script><script type="module" src="/js/alerta-day.js"></script>
