@@ -20,6 +20,7 @@ class WhatsAppClient {
     this.isStarting = false;
     this.lastError = null;
     this.connectionTimer = null;
+    this.timedOut = false;
   }
 
   isConnected() {
@@ -43,10 +44,12 @@ class WhatsAppClient {
     this.isStarting = true;
     this.status = "connecting";
     this.lastError = null;
+    this.timedOut = false;
     clearTimeout(this.connectionTimer);
     this.connectionTimer = setTimeout(() => {
       if (this.status === "connecting") {
         this.lastError = "O WhatsApp não retornou o QR Code após 25 segundos. Tente novamente e confira os logs do servidor.";
+        this.timedOut = true;
         this.status = "error";
         this.isStarting = false;
         try { this.sock?.end(new Error(this.lastError)); } catch (_) {}
@@ -90,12 +93,14 @@ class WhatsAppClient {
         if (connection === "close") {
           clearTimeout(this.connectionTimer);
           const statusCode = lastDisconnect?.error?.output?.statusCode;
-          const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
+          const connectionTimedOut = this.timedOut;
+          this.timedOut = false;
+          const shouldReconnect = !connectionTimedOut && statusCode !== DisconnectReason.loggedOut;
 
           console.log(`[WhatsApp] Conexão fechada. Motivo: ${statusCode}. Reconectar: ${shouldReconnect}`);
 
-          this.status = "disconnected";
-          this.lastError = statusCode ? `Conexão encerrada pelo WhatsApp (código ${statusCode}).` : null;
+          this.status = connectionTimedOut ? "error" : "disconnected";
+          if (!connectionTimedOut) this.lastError = statusCode ? `Conexão encerrada pelo WhatsApp (código ${statusCode}).` : null;
           this.qrCode = null;
           this.connectedPhone = null;
           this.sock = null;
