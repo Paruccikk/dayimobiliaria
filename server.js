@@ -416,7 +416,7 @@ app.post("/api/auth/registrar", async (req, res) => {
 
   const canEncrypt = Boolean(alertaConfiguredEncryptionKey());
 
-  if ((consentimentoWhatsApp || consentimentoLocalizacao) && !visitorKey) {
+  if ((consentimentoWhatsApp || consentimentoEmail || consentimentoLocalizacao) && !visitorKey) {
     return res.status(400).json({ error: "Não foi possível identificar este dispositivo. Atualize a página e tente novamente." });
   }
   if (consentimentoWhatsApp && !whatsappPhone) {
@@ -1119,7 +1119,7 @@ app.post('/api/admin/alerta-day/disparar', requireFirebase, allowRoles('administ
     const waActiveProfiles=await Promise.all([...permittedUids].map(async uid=>[uid,(await db.ref("usuarios/"+uid+"/whatsappAtivo").get()).val()]));
     const activeUids=new Set(waActiveProfiles.filter(([,active])=>active!==false).map(([uid])=>uid));
     const waTargets=waCandidates.filter(([,v])=>activeUids.has(v.whatsappOwnerUid));
-    const emailTargets=channels.includes("email")?visitors.filter(([,v])=>{const account=users[v.emailOwnerUid||v.whatsappOwnerUid]||{};const consent=account.consentimentos?.email;const allowed=v.emailConsent===true||consent===true||consent?.status==="permitido";const address=String(v.email||account.email||"").trim();return allowed&&/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(address)&&account.emailAtivo!==false;}):[];
+    const emailTargets=channels.includes("email")?visitors.filter(([,v])=>{const account=users[v.emailOwnerUid||v.whatsappOwnerUid]||{};const consent=account.consentimentos?.email;const allowed=v.emailConsent===true||consent===true||consent?.status==="permitido";const address=String(v.email||account.email||"").trim();return allowed&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)&&account.emailAtivo!==false;}):[];
     const pathLink=cleanString(b.link,500)||('/detalhes.html?id='+encodeURIComponent(propertyId));
     const firstPhoto=Array.isArray(property.fotos)?property.fotos[0]:null;
     const imageUrl=firstPhoto?(/^https:\/\//i.test(firstPhoto)?firstPhoto:baseUrl+'/'+String(firstPhoto).replace(/^\//,'')):null;
@@ -1167,7 +1167,7 @@ app.post('/api/admin/alerta-day/disparar', requireFirebase, allowRoles('administ
       for (const [,visitor] of emailTargets) {
         const account=users[visitor.emailOwnerUid||visitor.whatsappOwnerUid]||{};
         const address=String(visitor.email||account.email||'').trim();
-        try { await transporter.sendMail({from:process.env.SMTP_FROM,to:address,subject:title,text:message+'\\n\\nConfira o imóvel: '+pushLink}); emailEnviados++; }
+        try { await transporter.sendMail({from:process.env.SMTP_FROM,to:address,subject:title,text:message+'\n\nConfira o imóvel: '+pushLink}); emailEnviados++; }
         catch(error) { erros.push({canal:'email',erro:cleanString(error.message,180)}); }
       }
     }
