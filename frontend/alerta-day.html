@@ -32,14 +32,15 @@
       <article><small>Visitantes com localização autorizada</small><strong id="stat-location">—</strong></article>
       <article><small>Inscritos em Push</small><strong id="stat-push">—</strong></article>
       <article><small>Contatos WhatsApp autorizados</small><strong id="stat-whatsapp">—</strong></article>
+      <article><small>Contatos por e-mail autorizados</small><strong id="stat-email">—</strong></article>
       <article><small>Campanhas realizadas</small><strong id="stat-campaigns">—</strong></article>
     </section>
 
     <div class="ad-layout">
       <section class="ad-panel ad-compose">
         <div class="ad-step">01 · CAMPANHA</div><h2>Monte seu alerta</h2>
-        <label for="property">Imóvel anunciado</label>
-        <select id="property"><option value="">Carregando imóveis publicados…</option></select>
+        <label for="property">Conteúdo do alerta</label>
+        <select id="property"><option value="">Somente mensagem (sem imóvel)</option></select>
         <label for="title">Título da notificação</label><input id="title" maxlength="90" value="Oportunidade perto de você!">
         <label for="message">Mensagem</label><textarea id="message" rows="3" maxlength="220">Um novo imóvel entrou para a carteira da Day. Confira os detalhes.</textarea>
         <label for="link">Link do anúncio</label><input id="link" placeholder="Será preenchido pelo imóvel selecionado">
@@ -65,7 +66,8 @@
         <button id="btn-add-test-visitor" class="ad-button ad-ghost" type="button" style="font-size:12px;padding:8px 14px;margin-top:4px;width:100%;">📍 Incluir minha localização atual como destinatário de teste</button>
         <div class="ad-step">03 · CANAIS</div><h2>Onde enviar?</h2>
         <label class="ad-check"><input type="checkbox" id="channel-push" checked><span><b>Notificação Push</b><small>Para dispositivos que ativaram as notificações.</small></span></label>
-        <label class="ad-check"><input type="checkbox" id="channel-whatsapp"><span><b>WhatsApp</b><small>Disparo para contatos cadastrados com autorização de WhatsApp.</small></span></label>
+        <label class="ad-check"><input type="checkbox" id="channel-whatsapp"><span><b>WhatsApp</b><small>Disparo pelo WhatsApp conectado via QR Code para contatos que autorizaram.</small></span></label>
+        <label class="ad-check"><input type="checkbox" id="channel-email"><span><b>E-mail</b><small>Requer configurar o remetente e a chave Resend no servidor.</small></span></label>
 
         <div class="ad-whatsapp-card" id="whatsapp-conn-card" style="margin: -6px 0 16px; padding: 14px; background: #f8fafc; border: 1px solid var(--ad-line); border-radius: 12px;">
           <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
