@@ -280,3 +280,101 @@
   .detail-gallery-arrow.next { right:10px; }
   .detail-thumb { flex-basis:76px; width:76px; height:58px; }
 }
+
+/* ---------- Correção de largura e responsividade da página de detalhes ---------- */
+.detail-section,
+.detail-section > .container,
+#property-detail,
+.detail-grid,
+.detail-main,
+.detail-card {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.detail-grid {
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+  gap: clamp(20px, 3vw, 36px);
+  width: 100%;
+}
+
+.detail-main,
+.detail-header,
+.detail-about {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.detail-title,
+.detail-location,
+.detail-about p,
+.detail-ref,
+.detail-price {
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+.detail-card {
+  width: 100%;
+  position: sticky;
+  top: 100px;
+}
+
+.detail-gallery,
+.detail-gallery img {
+  max-width: 100%;
+}
+
+.detail-gallery .detail-main-image {
+  width: 100%;
+  height: auto;
+  max-height: min(620px, 68vh);
+  object-fit: contain;
+}
+
+.navbar .nav-inner {
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+}
+
+@media (max-width: 1100px) {
+  .detail-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+  }
+
+  .detail-card {
+    position: static;
+    width: 100%;
+  }
+}
+
+@media (max-width: 720px) {
+  .detail-section > .container {
+    width: min(100% - 28px, 100%);
+  }
+
+  .detail-about {
+    padding: 20px;
+    margin-top: 24px;
+  }
+
+  .detail-card {
+    padding: 20px;
+  }
+
+  .detail-price {
+    font-size: clamp(1.45rem, 7vw, 1.8rem);
+  }
+
+  .detail-features {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .back-link {
+    max-width: 100%;
+    white-space: normal;
+  }
+}
