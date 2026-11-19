@@ -1,0 +1,16 @@
+[hidden]{display:none!important}
+.conta-page{min-height:100vh;background:#0b1220;color:#e8edf5;padding:24px;font-family:Inter,Arial,sans-serif}
+.conta-shell{max-width:980px;margin:0 auto}.conta-header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:12px 0 34px}
+.conta-brand{font-weight:900;letter-spacing:.12em;color:#e9bd68}.conta-brand span{color:#dce5f1;font-size:.75em;margin-left:6px}
+.conta-header nav{display:flex;gap:18px;flex-wrap:wrap}.conta-header nav a,.conta-actions a{color:#e9bd68;font-size:13px;text-decoration:none}
+.conta-card{max-width:760px;margin:0 auto;padding:clamp(22px,5vw,42px);border:1px solid #26364d;border-radius:20px;background:linear-gradient(145deg,rgba(201,155,78,.08),transparent 35%),#111c2d;box-shadow:0 18px 50px #0005}
+.conta-eyebrow{font-size:10px;font-weight:800;letter-spacing:.18em;color:#d7aa5c}.conta-card h1{font-size:clamp(27px,4vw,38px);margin:10px 0;color:#fff}.conta-intro{max-width:620px;color:#aab7ca;font-size:14px;line-height:1.7;margin:0 0 26px}
+.conta-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.conta-grid label{display:grid;gap:7px;color:#c7d2e2;font-size:12px;font-weight:700}.conta-grid label.wide{grid-column:1/-1}
+.conta-grid input{width:100%;box-sizing:border-box;min-height:46px;padding:12px 13px;border:1px solid #34465e;border-radius:9px;background:#0b1422;color:#f3f6fb;font:500 14px Inter,Arial,sans-serif;outline:none}
+.conta-grid input:focus{border-color:#c99b4e;box-shadow:0 0 0 3px #c99b4e22}
+.conta-consent{display:flex;align-items:flex-start;gap:12px;margin:22px 0;padding:16px;border:1px solid #34465e;border-radius:12px;background:#0b1422}
+.conta-consent input{width:18px;height:18px;margin:2px 0 0;accent-color:#c99b4e;flex:none}.conta-consent span{display:grid;gap:6px}.conta-consent strong{font-size:13px;color:#f3f6fb}.conta-consent small{font-size:11px;line-height:1.6;color:#9eacc0}
+.conta-feedback{min-height:22px;margin:12px 0;color:#e9bd68;font-size:13px;line-height:1.6}.conta-feedback[data-error="true"]{color:#fca5a5}
+.conta-actions{display:flex;align-items:center;gap:18px;flex-wrap:wrap}.conta-actions button{border:1px solid #c99b4e;border-radius:9px;padding:13px 20px;background:#c99b4e;color:#111827;font-weight:800;cursor:pointer}.conta-actions button:disabled{opacity:.6;cursor:wait}
+.conta-privacy{margin:24px 0 0;padding-top:18px;border-top:1px solid #26364d;color:#8797ad;font-size:11px;line-height:1.6}
+@media(max-width:560px){.conta-page{padding:14px}.conta-header{align-items:flex-start;flex-direction:column;margin-bottom:22px}.conta-grid{grid-template-columns:1fr}.conta-grid label.wide{grid-column:1}.conta-card{padding:22px 17px}}

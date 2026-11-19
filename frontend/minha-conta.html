@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0b1220">
+  <title>Meu endereço | R&D Prime Imóveis</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/minha-conta.css">
+</head>
+<body class="conta-page">
+  <main class="conta-shell">
+    <header class="conta-header">
+      <a class="conta-brand" href="/">R&D <span>PRIME IMÓVEIS</span></a>
+      <nav><a href="/">Voltar ao site</a><a href="/alerta-day.html">Central Alerta Day</a></nav>
+    </header>
+    <section class="conta-card">
+      <div class="conta-eyebrow">MINHA CONTA</div>
+      <h1>Meu endereço</h1>
+      <p class="conta-intro">Complete ou atualize seu endereço para que o Alerta Day consiga identificar sua região e calcular o alcance dos avisos locais.</p>
+      <div id="conta-loading" class="conta-feedback">Carregando seus dados...</div>
+      <form id="conta-form" hidden>
+        <div class="conta-grid">
+          <label>CEP<input id="cep" name="cep" autocomplete="postal-code" maxlength="9" placeholder="00000-000"></label>
+          <label>Número<input id="numero" name="numero" autocomplete="address-line2" maxlength="20" placeholder="Nº"></label>
+          <label class="wide">Rua / Avenida<input id="rua" name="rua" autocomplete="street-address" maxlength="160" required></label>
+          <label>Complemento<input id="complemento" name="complemento" maxlength="80"></label>
+          <label>Bairro<input id="bairro" name="bairro" maxlength="100" required></label>
+          <label>Cidade<input id="cidade" name="cidade" maxlength="100" required></label>
+          <label>Estado (UF)<input id="estado" name="estado" maxlength="2" placeholder="SP" required></label>
+        </div>
+        <label class="conta-consent"><input id="consent-location" type="checkbox"><span><strong>Autorizo usar meu endereço para alertas por região.</strong><small>O endereço será convertido em coordenadas aproximadas para calcular se há campanhas próximas. Não é rastreamento GPS em tempo real. Você pode retirar esta autorização quando quiser.</small></span></label>
+        <div id="conta-feedback" class="conta-feedback" role="status" aria-live="polite"></div>
+        <div class="conta-actions"><button id="save-address" type="submit">Salvar endereço</button><a href="/alerta-day.html">Voltar à Central Alerta Day</a></div>
+      </form>
+      <p class="conta-privacy">Seu endereço e coordenadas são usados somente para os recursos de localização e alertas autorizados.</p>
+    </section>
+  </main>
+  <script type="module" src="/js/minha-conta.js"></script>
+</body>
+</html>

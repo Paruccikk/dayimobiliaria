@@ -9,7 +9,8 @@ const helmet = require("helmet");
 const compression = require("compression");
 const rateLimit = require("express-rate-limit");
 const multer = require("multer");
-const whatsappWeb = require("./backend/whatsapp-web");
+const whatsappClient = require("./backend/whatsapp-client");
+const nodemailer = require("nodemailer");
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
@@ -32,11 +33,12 @@ app.use(
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "https://www.gstatic.com"],
+        scriptSrc: ["'self'", "https://www.gstatic.com", "https://unpkg.com"],
         styleSrc: [
           "'self'",
           "'unsafe-inline'",
           "https://fonts.googleapis.com",
+          "https://unpkg.com",
         ],
         fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
         imgSrc: ["'self'", "data:", "blob:", "https:"],
@@ -47,6 +49,10 @@ app.use(
           "https://*.firebasedatabase.app",
           "https://*.firebaseapp.com",
           "https://securetoken.googleapis.com",
+          "https://fcmregistrations.googleapis.com",
+          "https://fcm.googleapis.com",
+          "https://*.arcgisonline.com",
+          "https://services.arcgisonline.com",
         ],
         objectSrc: ["'none'"],
         upgradeInsecureRequests:
@@ -383,16 +389,14 @@ app.post("/api/auth/registrar", async (req, res) => {
   }
 
   const nome = cleanString(req.body?.nome, 120);
-  const telefone = cleanString(req.body?.telefone, 30);
-  const celular = cleanString(req.body?.celular, 30);
-  const solicitacaoPapel =
-    req.body?.tipoCadastro === "corretor" ? "corretor" : "cliente";
-
-  if (!nome || !telefone || !celular) {
-    return res.status(400).json({
-      error: "Nome, telefone e número de celular são obrigatórios.",
-    });
-  }
+  const whatsapp = cleanString(req.body?.whatsapp, 30);
+  const consent = req.body?.consentimentos || {};
+  const policyAccepted = req.body?.aceitouPolitica === true;
+  const solicitacaoPapel = req.body?.tipoCadastro === "corretor" ? "corretor" : "cliente";
+  const enderecoRaw = req.body?.endereco || {};
+  const endereco = { cep: cleanString(enderecoRaw.cep, 12), rua: cleanString(enderecoRaw.rua, 160), numero: cleanString(enderecoRaw.numero, 20), complemento: cleanString(enderecoRaw.complemento, 80), bairro: cleanString(enderecoRaw.bairro, 100), cidade: cleanString(enderecoRaw.cidade, 100), estado: cleanString(enderecoRaw.estado, 2) };
+  if (!nome || !policyAccepted) return res.status(400).json({ error: "Informe seu nome e aceite a Política de Privacidade para continuar." });
+  if (consent.whatsapp === true && whatsapp.replace(/\D/g, "").length < 10) return res.status(400).json({ error: "Informe um WhatsApp válido para autorizar mensagens por esse canal." });
 
   try {
     const userRecord = await auth.getUser(decoded.uid);
@@ -409,8 +413,11 @@ app.post("/api/auth/registrar", async (req, res) => {
     const profile = {
       nome,
       email: userRecord.email || decoded.email || "",
-      telefone,
-      celular,
+      telefone: whatsapp,
+      celular: whatsapp,
+      whatsapp,
+      endereco,
+      consentimentos: { whatsapp: consent.whatsapp === true, email: consent.email === true, push: consent.push === true, politicaPrivacidade: true, versaoPolitica: "2026-11-19", aceitoEm: new Date().toISOString() },
       papel: "cliente",
       solicitacaoPapel,
       ativo: true,
@@ -419,6 +426,30 @@ app.post("/api/auth/registrar", async (req, res) => {
     };
 
     await userRef.set(profile);
+    const alertConsent = profile.consentimentos;
+    const visitorId = cleanString(req.body?.visitorId, 100);
+    let visitorPreferences = null;
+    if (visitorId && visitorId !== decoded.uid && /^[a-zA-Z0-9_-]{12,100}$/.test(visitorId)) {
+      const visitorRef = db.ref("alertaDay/inscricoes/" + visitorId);
+      visitorPreferences = (await visitorRef.get()).val();
+      if (visitorPreferences?.status === "revogado") visitorPreferences = null;
+    }
+    const previousConsents = visitorPreferences?.consentimentos || {};
+    await db.ref("alertaDay/inscricoes/" + decoded.uid).set({
+      email: alertConsent.email ? profile.email : (previousConsents.email ? visitorPreferences.email : null),
+      whatsapp: alertConsent.whatsapp ? whatsapp : (previousConsents.whatsapp ? visitorPreferences.whatsapp : null),
+      endereco,
+      pushToken: previousConsents.push === true ? visitorPreferences.pushToken || null : null,
+      localizacao: visitorPreferences?.localizacao || null,
+      consentimentos: {
+        email: alertConsent.email || previousConsents.email === true,
+        whatsapp: alertConsent.whatsapp || previousConsents.whatsapp === true,
+        push: alertConsent.push || previousConsents.push === true
+      },
+      status: "ativo",
+      atualizadoEm: new Date().toISOString()
+    });
+    if (visitorPreferences) await db.ref("alertaDay/inscricoes/" + visitorId).remove();
 
     return res.status(201).json({
       ok: true,
@@ -569,23 +600,20 @@ function allowRoles(...roles) {
 }
 
 
-// --------------------------------------------------
-// CONEXÃO DO WHATSAPP WEB (QR CODE) — ADMINISTRADOR
-// --------------------------------------------------
+// WhatsApp do Alerta Day: conexão QR gerenciada somente dentro da própria central.
 app.get("/api/admin/whatsapp/status", requireFirebase, allowRoles("administrador"), (_req, res) => {
-  return res.json(whatsappWeb.getStatus());
+  return res.json(whatsappClient.getStatus());
 });
-app.post("/api/admin/whatsapp/conectar", requireFirebase, allowRoles("administrador"), async (_req, res) => {
+app.post("/api/admin/whatsapp/connect", requireFirebase, allowRoles("administrador"), async (_req, res) => {
   try {
-    const status = await whatsappWeb.connect();
-    return res.json(status);
+    return res.json(await whatsappClient.startConnection());
   } catch (error) {
     return res.status(503).json({ error: error.message || "Não foi possível iniciar a conexão do WhatsApp." });
   }
 });
-app.post("/api/admin/whatsapp/desconectar", requireFirebase, allowRoles("administrador"), async (_req, res) => {
+app.post("/api/admin/whatsapp/disconnect", requireFirebase, allowRoles("administrador"), async (_req, res) => {
   try {
-    return res.json(await whatsappWeb.disconnect());
+    return res.json(await whatsappClient.logout());
   } catch (error) {
     return res.status(500).json({ error: error.message || "Não foi possível desconectar o WhatsApp." });
   }
@@ -599,6 +627,158 @@ app.get("/api/auth/perfil", requireAuthenticated, (req, res) => {
       req.profile?.ativo === true && req.profile?.status === "ativo",
   });
 });
+
+// Atualização do endereço do próprio usuário e consentimento de localização regional.
+app.patch("/api/conta/perfil", requireFirebase, async (req, res) => {
+  const raw = req.body?.endereco || {};
+  const endereco = {
+    cep: cleanString(raw.cep, 12),
+    rua: cleanString(raw.rua, 160),
+    numero: cleanString(raw.numero, 20),
+    complemento: cleanString(raw.complemento, 80),
+    bairro: cleanString(raw.bairro, 100),
+    cidade: cleanString(raw.cidade, 100),
+    estado: cleanString(raw.estado, 2).toUpperCase()
+  };
+  const consentimentoLocalizacao = req.body?.consentimentoLocalizacao === true;
+  if (!endereco.rua && !/^\d{5}-?\d{3}$/.test(endereco.cep.replace(/\D/g, ""))) {
+    return res.status(400).json({ error: "Informe o CEP ou o endereço para localizar sua região." });
+  }
+
+  let coords = null;
+  if (consentimentoLocalizacao) {
+    try {
+      // O CEP oficial corrige variações de digitação no nome da rua e no bairro.
+      const cepDigits = endereco.cep.replace(/\D/g, "");
+      if (/^\d{8}$/.test(cepDigits)) {
+        const cepResponse = await fetch("https://viacep.com.br/ws/" + cepDigits + "/json/", {
+          headers: { "User-Agent": "RDPrimeImoveis-AlertaDay/1.0" }
+        });
+        if (cepResponse.ok) {
+          const cepData = await cepResponse.json();
+          if (!cepData.erro) {
+            endereco.rua = cleanString(cepData.logradouro, 160) || endereco.rua;
+            endereco.bairro = cleanString(cepData.bairro, 100) || endereco.bairro;
+            endereco.cidade = cleanString(cepData.localidade, 100) || endereco.cidade;
+            endereco.estado = cleanString(cepData.uf, 2).toUpperCase() || endereco.estado;
+            endereco.cep = cepDigits.replace(/^(\d{5})(\d{3})$/, "$1-$2");
+          }
+        }
+      }
+
+      if (!endereco.bairro || !endereco.cidade || !/^[A-Z]{2}$/.test(endereco.estado)) {
+        return res.status(400).json({ error: "Confira o CEP e informe bairro, cidade e UF." });
+      }
+
+      // Não envia número fictício (ex.: XXX-) e tenta primeiro o endereço completo,
+      // depois rua/bairro sem número e por último o CEP. Isso evita bloquear CEPs
+      // válidos quando o geocodificador não reconhece o número da residência.
+      const numero = /^(?:xxx?[- ]?|s\/?n|sem número|nao informado)$/i.test(endereco.numero.trim()) ? "" : endereco.numero;
+      const queries = [
+        [endereco.rua, numero, endereco.bairro, endereco.cidade, endereco.estado, endereco.cep, "Brasil"],
+        [endereco.rua, endereco.bairro, endereco.cidade, endereco.estado, endereco.cep, "Brasil"],
+        [endereco.cep, endereco.bairro, endereco.cidade, endereco.estado, "Brasil"],
+        [endereco.cep, endereco.cidade, endereco.estado, "Brasil"]
+      ].map(parts => parts.filter(Boolean).join(", ")).filter(Boolean);
+
+      let geocodeError = null;
+      const uniqueQueries = [...new Set(queries)];
+      for (let index = 0; index < uniqueQueries.length; index += 1) {
+        const query = uniqueQueries[index];
+        const url = "https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=br&q=" + encodeURIComponent(query);
+        const response = await fetch(url, {
+          headers: { "User-Agent": "RDPrimeImoveis-AlertaDay/1.0 (localizacao de endereco informado pelo usuario)" }
+        });
+        if (!response.ok) {
+          geocodeError = new Error("Serviço de geocodificação indisponível.");
+        } else {
+          const results = await response.json();
+          if (Array.isArray(results) && results.length && alertaValidCoordinate(results[0].lat, results[0].lon)) {
+            coords = { latitude: Number(results[0].lat), longitude: Number(results[0].lon) };
+            break;
+          }
+        }
+        // Respeita o limite público do Nominatim (uma consulta por segundo).
+        if (index < uniqueQueries.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 1100));
+        }
+      }
+
+      if (!coords) {
+        if (geocodeError) return res.status(503).json({ error: geocodeError.message });
+        return res.status(422).json({ error: "Não encontramos esse CEP no mapa. Confira o CEP, bairro, cidade e UF; o número da casa é opcional." });
+      }
+    } catch (error) {
+      return sendServerError(res, "Não foi possível localizar o endereço informado.", error);
+    }
+  }
+
+  const now = new Date().toISOString();
+  const profileConsent = { ...(req.profile.consentimentos || {}), localizacao: consentimentoLocalizacao };
+  const enderecoSalvo = {
+    ...endereco,
+    latitude: coords?.latitude ?? null,
+    longitude: coords?.longitude ?? null,
+    consentimentoLocalizacao,
+    atualizadoEm: now
+  };
+
+  try {
+    const [subscriptionSnap, visitorSnap] = await Promise.all([
+      db.ref("alertaDay/inscricoes/" + req.user.uid).get(),
+      (alertaPublicId(cleanString(req.body?.visitorId, 100)) && cleanString(req.body?.visitorId, 100) !== req.user.uid)
+        ? db.ref("alertaDay/inscricoes/" + cleanString(req.body.visitorId, 100)).get()
+        : Promise.resolve(null)
+    ]);
+    const accountSubscription = subscriptionSnap.val() || {};
+    const visitorSubscription = visitorSnap?.val() || {};
+    const transferable = visitorSubscription.status !== "revogado" ? visitorSubscription : {};
+    const previousConsents = {
+      ...(transferable.consentimentos || {}),
+      ...(accountSubscription.consentimentos || {})
+    };
+    const userPhone = alertaPhone(req.profile.whatsapp || req.profile.celular || req.profile.telefone || "");
+    const subscription = {
+      ...transferable,
+      ...accountSubscription,
+      ownerUid: req.user.uid,
+      email: req.profile.email || transferable.email || accountSubscription.email || null,
+      whatsapp: userPhone || transferable.whatsapp || accountSubscription.whatsapp || null,
+      endereco: enderecoSalvo,
+      localizacao: {
+        consentimento: consentimentoLocalizacao,
+        latitude: coords?.latitude ?? null,
+        longitude: coords?.longitude ?? null,
+        origem: "endereco_perfil",
+        precisao: null,
+        atualizadoEm: now,
+        expiraEm: consentimentoLocalizacao ? new Date(Date.now() + 365 * 86400000).toISOString() : null
+      },
+      consentimentos: {
+        ...previousConsents,
+        localizacao: consentimentoLocalizacao
+      },
+      status: "ativo",
+      atualizadoEm: now
+    };
+    if (!subscription.pushToken && transferable.pushToken) subscription.pushToken = transferable.pushToken;
+    await Promise.all([
+      db.ref("usuarios/" + req.user.uid).update({
+        endereco: enderecoSalvo,
+        consentimentos: profileConsent,
+        atualizadoEm: now
+      }),
+      db.ref("alertaDay/inscricoes/" + req.user.uid).set(subscription)
+    ]);
+    if (visitorSnap && visitorSnap.exists()) {
+      await db.ref("alertaDay/inscricoes/" + cleanString(req.body.visitorId, 100)).remove().catch(() => {});
+    }
+    return res.json({ ok: true, localizacaoAtiva: consentimentoLocalizacao, endereco: enderecoSalvo });
+  } catch (error) {
+    return sendServerError(res, "Não foi possível salvar o endereço do perfil.", error);
+  }
+});
+
 
 // --------------------------------------------------
 // ADMINISTRAÇÃO DE USUÁRIOS
@@ -1897,6 +2077,408 @@ app.use((err, _req, res, _next) => {
   });
 });
 
+
+
+// --------------------------------------------------
+// ALERTA DAY — CAPTURA DE PREFERÊNCIAS E CAMPANHAS
+// Todas as rotas /api/admin/alerta-day exigem administrador ativo.
+// Localização é opcional; o servidor retorna somente totais ao painel.
+// --------------------------------------------------
+function alertaDistanceMeters(aLat, aLng, bLat, bLng) {
+  const rad = value => value * Math.PI / 180;
+  const dLat = rad(bLat - aLat), dLng = rad(bLng - aLng);
+  const x = Math.sin(dLat / 2) ** 2 +
+    Math.cos(rad(aLat)) * Math.cos(rad(bLat)) * Math.sin(dLng / 2) ** 2;
+  return 6371000 * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
+}
+function alertaValidCoordinate(lat, lng) {
+  return Number.isFinite(Number(lat)) && Number.isFinite(Number(lng)) &&
+    Math.abs(Number(lat)) <= 90 && Math.abs(Number(lng)) <= 180;
+}
+function alertaPhone(value) {
+  const digits = String(value || "").replace(/\D/g, "").slice(0, 15);
+  return digits.length >= 10 ? digits : "";
+}
+function alertaLocation(item) {
+  return item?.localizacao || {
+    consentimento: item?.consentimentoLocalizacao === true,
+    latitude: item?.latitude,
+    longitude: item?.longitude,
+    expiraEm: item?.expiraEm || null
+  };
+}
+function alertaHasValidLocation(item) {
+  const location = alertaLocation(item);
+  return location?.consentimento === true &&
+    (!location.expiraEm || Date.parse(location.expiraEm) > Date.now()) &&
+    alertaValidCoordinate(location.latitude, location.longitude);
+}
+function alertaWithinRegion(item, center, radius) {
+  if (!alertaHasValidLocation(item)) return false;
+  const location = alertaLocation(item);
+  return alertaDistanceMeters(center.lat, center.lng, Number(location.latitude), Number(location.longitude)) <= radius;
+}
+function alertaEligible(item, channel) {
+  return item?.consentimentos?.[channel] === true && item?.status !== "revogado";
+}
+function alertaPublicId(value) {
+  return typeof value === "string" && /^[a-zA-Z0-9_-]{12,100}$/.test(value);
+}
+function alertaConfiguredEncryptionKey() {
+  const raw = String(process.env.ALERTA_DAY_ENCRYPTION_KEY || "").trim();
+  if (/^[a-f0-9]{64}$/i.test(raw)) return Buffer.from(raw, "hex");
+  if (!raw || !/^[A-Za-z0-9+/]+={0,2}$/.test(raw)) return null;
+  const key = Buffer.from(raw, "base64");
+  return key.length === 32 ? key : null;
+}
+function alertaLegacyEncryptionKey() {
+  return crypto.createHash("sha256").update(process.env.FIREBASE_PROJECT_ID || "dayimobiliaria-alerta-day-secret-key").digest();
+}
+function alertaDecryptPhone(value) {
+  const parts = String(value || "").split(".");
+  if (parts.length !== 3) throw new Error("Telefone protegido inválido.");
+  const iv = Buffer.from(parts[0], "base64");
+  const authTag = Buffer.from(parts[1], "base64");
+  const encrypted = Buffer.from(parts[2], "base64");
+  const keys = [alertaConfiguredEncryptionKey(), alertaLegacyEncryptionKey()].filter(Boolean);
+  for (const key of keys) {
+    try {
+      const decipher = crypto.createDecipheriv("aes-256-gcm", key, iv);
+      decipher.setAuthTag(authTag);
+      return Buffer.concat([decipher.update(encrypted), decipher.final()]).toString("utf8");
+    } catch (_) {}
+  }
+  throw new Error("Não foi possível descriptografar o WhatsApp. Verifique ALERTA_DAY_ENCRYPTION_KEY e FIREBASE_PROJECT_ID.");
+}
+function alertaAccountAllows(user, channel) {
+  const consent = user?.consentimentos?.[channel];
+  const status = consent && typeof consent === "object" ? consent.status : null;
+  if (status === "negado" || user?.[channel + "Ativo"] === false) return false;
+  return consent !== false;
+}
+async function alertaLoadAudience() {
+  const [legacySnap, currentSnap, usersSnap] = await Promise.all([
+    db.ref("alertaDay/visitantes").get(),
+    db.ref("alertaDay/inscricoes").get(),
+    db.ref("usuarios").get()
+  ]);
+  const users = usersSnap.val() || {};
+  const merged = new Map();
+  function add(identity, item) {
+    const previous = merged.get(identity) || {};
+    const combined = {
+      ...previous,
+      ...item,
+      localizacao: { ...(previous.localizacao || {}), ...(item.localizacao || {}) },
+      consentimentos: { ...(previous.consentimentos || {}), ...(item.consentimentos || {}) },
+      sourcePaths: [...(previous.sourcePaths || []), ...(item.sourcePaths || [])]
+    };
+    if (!item.pushToken && previous.pushToken && item.consentimentos?.push !== false) combined.pushToken = previous.pushToken;
+    if (!item.whatsapp && previous.whatsapp && item.consentimentos?.whatsapp !== false) combined.whatsapp = previous.whatsapp;
+    if (!item.email && previous.email && item.consentimentos?.email !== false) combined.email = previous.email;
+    merged.set(identity, combined);
+  }
+
+  // Formato legado: alertaDay/visitantes/{hash}, coordenadas planas e telefone cifrado.
+  for (const [key, visitor] of Object.entries(legacySnap.val() || {})) {
+    const ownerUid = visitor.whatsappOwnerUid || visitor.ownerUid || null;
+    const account = ownerUid ? users[ownerUid] || {} : {};
+    let phone = "";
+    if (visitor.whatsappConsent === true && visitor.telefoneWhatsAppEnc) {
+      try { phone = alertaPhone(alertaDecryptPhone(visitor.telefoneWhatsAppEnc)); }
+      catch (error) { console.warn("[Alerta Day] Um WhatsApp legado não pôde ser descriptografado:", error.message); }
+    }
+    const email = String(visitor.email || account.email || "").trim().toLowerCase();
+    const identity = phone ? "phone:" + phone : (ownerUid ? "uid:" + ownerUid : "legacy:" + key);
+    add(identity, {
+      ownerUid,
+      localizacao: {
+        consentimento: visitor.consentimentoLocalizacao === true,
+        latitude: visitor.latitude,
+        longitude: visitor.longitude,
+        expiraEm: visitor.expiraEm || null
+      },
+      pushToken: visitor.fcmToken || null,
+      whatsapp: phone || null,
+      email: email || null,
+      consentimentos: {
+        push: visitor.pushConsent === true && Boolean(visitor.fcmToken),
+        whatsapp: visitor.whatsappConsent === true && Boolean(phone) && alertaAccountAllows(account, "whatsapp"),
+        email: Boolean(email) && (visitor.emailConsent === true || account.consentimentos?.email === true || account.consentimentos?.email?.status === "permitido") && alertaAccountAllows(account, "email")
+      },
+      status: visitor.status === "revogado" ? "revogado" : "ativo",
+      sourcePaths: [{ path: "alertaDay/visitantes/" + key, pushField: "fcmToken" }]
+    });
+  }
+
+  // Formato atual: alertaDay/inscricoes/{visitorId ou uid}, consentimentos aninhados.
+  for (const [key, subscription] of Object.entries(currentSnap.val() || {})) {
+    const ownerUid = subscription.ownerUid || (users[key] ? key : null);
+    const account = ownerUid ? users[ownerUid] || {} : {};
+    const phone = alertaPhone(subscription.whatsapp || account.whatsapp || account.celular || account.telefone || "");
+    const email = String(subscription.email || account.email || "").trim().toLowerCase();
+    const profileAddress = account.endereco || {};
+    const profileLocationAllowed = account.consentimentos?.localizacao === true || profileAddress.consentimentoLocalizacao === true;
+    const profileLocation = profileLocationAllowed && alertaValidCoordinate(profileAddress.latitude, profileAddress.longitude)
+      ? { consentimento: true, latitude: profileAddress.latitude, longitude: profileAddress.longitude, expiraEm: null, origem: "endereco_perfil" }
+      : null;
+    const normalizedLocation = subscription.localizacao || profileLocation;
+    const identity = phone ? "phone:" + phone : (ownerUid ? "uid:" + ownerUid : "subscription:" + key);
+    add(identity, {
+      ownerUid,
+      localizacao: normalizedLocation,
+      pushToken: subscription.pushToken || subscription.fcmToken || null,
+      whatsapp: phone || null,
+      email: email || null,
+      consentimentos: {
+        push: subscription.consentimentos?.push === true && Boolean(subscription.pushToken || subscription.fcmToken),
+        whatsapp: subscription.consentimentos?.whatsapp === true && Boolean(phone) && alertaAccountAllows(account, "whatsapp"),
+        email: subscription.consentimentos?.email === true && Boolean(email) && alertaAccountAllows(account, "email")
+      },
+      status: subscription.status || "ativo",
+      sourcePaths: [{ path: "alertaDay/inscricoes/" + key, pushField: "pushToken" }]
+    });
+  }
+  return [...merged.entries()];
+}
+// Configuração pública: somente a chave VAPID pública pode ser exposta.
+app.get("/api/alerta-day/config", (_req, res) => {
+  return res.json({ vapidKey: process.env.FIREBASE_VAPID_PUBLIC_KEY || "" });
+});
+
+app.post("/api/alerta-day/localizacao", async (req, res) => {
+  if (!db) return firebaseUnavailable(res);
+  const visitorId = cleanString(req.body?.visitorId, 100);
+  const lat = Number(req.body?.latitude), lng = Number(req.body?.longitude);
+  if (!alertaPublicId(visitorId) || req.body?.consentimento !== true || !alertaValidCoordinate(lat, lng)) {
+    return res.status(400).json({ error: "Identificador, autorização e coordenadas válidas são necessários." });
+  }
+  try {
+    const ref = db.ref("alertaDay/inscricoes/" + visitorId);
+    const previous = (await ref.get()).val() || {};
+    await ref.update({
+      localizacao: { consentimento: true, latitude: lat, longitude: lng, precisao: Math.min(100000, Math.max(0, Number(req.body.accuracy) || 0)), atualizadoEm: new Date().toISOString(), expiraEm: new Date(Date.now() + 90 * 86400000).toISOString() },
+      consentimentos: previous.consentimentos || {},
+      atualizadoEm: new Date().toISOString()
+    });
+    return res.json({ ok: true });
+  } catch (error) { return sendServerError(res, "Não foi possível salvar a localização autorizada.", error); }
+});
+
+app.post("/api/alerta-day/push", async (req, res) => {
+  if (!db) return firebaseUnavailable(res);
+  const visitorId = cleanString(req.body?.visitorId, 100);
+  const token = cleanString(req.body?.token, 4096);
+  if (!alertaPublicId(visitorId) || req.body?.consentimento !== true || token.length < 30) {
+    return res.status(400).json({ error: "Identificador, autorização e token Push válidos são necessários." });
+  }
+  try {
+    const ref = db.ref("alertaDay/inscricoes/" + visitorId);
+    const previous = (await ref.get()).val() || {};
+    await ref.update({
+      pushToken: token,
+      consentimentos: { ...(previous.consentimentos || {}), push: true },
+      status: "ativo",
+      atualizadoEm: new Date().toISOString()
+    });
+    return res.json({ ok: true });
+  } catch (error) { return sendServerError(res, "Não foi possível registrar o dispositivo Push.", error); }
+});
+
+app.post("/api/alerta-day/whatsapp", async (req, res) => {
+  if (!db) return firebaseUnavailable(res);
+  const visitorId = cleanString(req.body?.visitorId, 100);
+  const phone = alertaPhone(req.body?.telefone);
+  if (!alertaPublicId(visitorId) || req.body?.consentimento !== true || phone.length < 10) {
+    return res.status(400).json({ error: "Informe um WhatsApp válido e autorize o recebimento." });
+  }
+  try {
+    const ref = db.ref("alertaDay/inscricoes/" + visitorId);
+    const previous = (await ref.get()).val() || {};
+    await ref.update({
+      whatsapp: phone,
+      consentimentos: { ...(previous.consentimentos || {}), whatsapp: true },
+      status: "ativo",
+      consentimentoWhatsappEm: new Date().toISOString(),
+      atualizadoEm: new Date().toISOString()
+    });
+    return res.json({ ok: true });
+  } catch (error) { return sendServerError(res, "Não foi possível registrar a autorização do WhatsApp.", error); }
+});
+
+app.post("/api/alerta-day/email", async (req, res) => {
+  if (!db) return firebaseUnavailable(res);
+  const visitorId = cleanString(req.body?.visitorId, 100);
+  const email = cleanString(req.body?.email, 180).toLowerCase();
+  if (!alertaPublicId(visitorId) || req.body?.consentimento !== true || !email.includes("@") || email.length > 180) return res.status(400).json({ error: "Informe um e-mail válido e autorize o recebimento." });
+  try {
+    const ref = db.ref("alertaDay/inscricoes/" + visitorId);
+    const previous = (await ref.get()).val() || {};
+    await ref.update({ email, consentimentos: { ...(previous.consentimentos || {}), email: true }, status: "ativo", consentimentoEmailEm: new Date().toISOString(), atualizadoEm: new Date().toISOString() });
+    return res.json({ ok: true });
+  } catch (error) { return sendServerError(res, "Não foi possível registrar a autorização de e-mail.", error); }
+});
+app.delete("/api/alerta-day/preferencias", async (req, res) => {
+  if (!db) return firebaseUnavailable(res);
+  const visitorId = cleanString(req.body?.visitorId, 100);
+  if (!alertaPublicId(visitorId)) return res.status(400).json({ error: "Identificador inválido." });
+  try {
+    await db.ref("alertaDay/inscricoes/" + visitorId).update({
+      status: "revogado",
+      pushToken: null,
+      whatsapp: null,
+      email: null,
+      consentimentos: { push: false, whatsapp: false, email: false },
+      localizacao: { consentimento: false, latitude: null, longitude: null, removidoEm: new Date().toISOString() },
+      revogadoEm: new Date().toISOString()
+    });
+    return res.json({ ok: true });
+  } catch (error) { return sendServerError(res, "Não foi possível remover as preferências.", error); }
+});
+
+app.get("/api/admin/alerta-day/dados", requireFirebase, allowRoles("administrador"), async (_req, res) => {
+  try {
+    const [audience, properties, campaignsSnap] = await Promise.all([
+      alertaLoadAudience(),
+      fetchPublishedPropertiesWithRetry(),
+      db.ref("alertaDay/campanhas").get()
+    ]);
+    const located = audience.filter(([,item]) => alertaHasValidLocation(item));
+    const campaigns = Object.entries(campaignsSnap.val() || {}).map(([id,c]) => ({id,...c}))
+      .sort((a,b) => String(b.criadoEm || "").localeCompare(String(a.criadoEm || "")));
+    return res.json({
+      imoveis: properties.map(p => ({id:p.id,titulo:p.titulo || "Imóvel",cidade:p.cidade || "",bairro:p.bairro || "",categoria:p.categoria || "",finalidade:p.finalidade || "",preco:p.preco ?? null,fotos:Array.isArray(p.fotos)?p.fotos:[],latitude:p.latitude ?? null,longitude:p.longitude ?? null})),
+      resumo: {
+        localizacao: located.length,
+        push: located.filter(([,item]) => alertaEligible(item,"push") && item.pushToken).length,
+        whatsapp: located.filter(([,item]) => alertaEligible(item,"whatsapp") && item.whatsapp).length,
+        email: located.filter(([,item]) => alertaEligible(item,"email") && item.email).length,
+        campanhas: campaigns.length
+      },
+      campanhas: campaigns.slice(0,12).map(c => ({id:c.id,titulo:c.titulo,status:c.status,criadoEm:c.criadoEm,pushEnviados:c.pushEnviados || 0,whatsappEnviados:c.whatsappEnviados || 0,emailEnviados:c.emailEnviados || 0})),
+      whatsappStatus: whatsappClient.getStatus()
+    });
+  } catch (error) { return sendServerError(res,"Não foi possível carregar os dados do Alerta Day.",error); }
+});
+
+app.get("/api/admin/alerta-day/geocode", requireFirebase, allowRoles("administrador"), async (req,res) => {
+  const query = cleanString(req.query.q,200);
+  if (!query) return res.status(400).json({error:"Informe um endereço para busca."});
+  try {
+    const response = await fetch("https://nominatim.openstreetmap.org/search?format=json&q="+encodeURIComponent(query)+"&countrycodes=br&limit=1",{
+      headers:{"User-Agent":"RDPrimeImoveis-AlertaDay/1.0"}
+    });
+    if (!response.ok) throw new Error("Serviço de mapas indisponível.");
+    const results = await response.json();
+    if (!Array.isArray(results) || !results.length) return res.status(404).json({error:"Nenhum local encontrado para esta busca."});
+    return res.json({lat:Number(results[0].lat),lng:Number(results[0].lon),display_name:results[0].display_name});
+  } catch(error) { return sendServerError(res,"Falha ao buscar coordenadas.",error); }
+});
+
+app.get("/api/admin/alerta-day/alcance", requireFirebase, allowRoles("administrador"), async (req,res) => {
+  const lat=Number(req.query.lat),lng=Number(req.query.lng),radius=Number(req.query.raio);
+  if (!alertaValidCoordinate(lat,lng)||!Number.isFinite(radius)||radius<500||radius>30000) return res.status(400).json({error:"Centro ou raio inválido."});
+  try {
+    const channels=String(req.query.canais||"push").split(",").filter(c=>["push","whatsapp","email"].includes(c));
+    const audience=await alertaLoadAudience();
+    const located=audience.filter(([,item])=>alertaWithinRegion(item,{lat,lng},radius));
+    const push=located.filter(([,item])=>channels.includes("push")&&alertaEligible(item,"push")&&item.pushToken);
+    const whatsapp=located.filter(([,item])=>channels.includes("whatsapp")&&alertaEligible(item,"whatsapp")&&item.whatsapp);
+    const email=located.filter(([,item])=>channels.includes("email")&&alertaEligible(item,"email")&&item.email);
+    return res.json({
+      totalElegiveis:new Set([...push.map(([id])=>id),...whatsapp.map(([id])=>id),...email.map(([id])=>id)]).size,
+      totalLocalizacao:located.length,
+      pushElegiveis:push.length,
+      whatsappElegiveis:whatsapp.length,
+      emailElegiveis:email.length
+    });
+  } catch(error) { return sendServerError(res,"Não foi possível calcular o público.",error); }
+});
+
+app.post("/api/admin/alerta-day/disparar", requireFirebase, allowRoles("administrador"), async (req,res) => {
+  const body=req.body||{},propertyId=cleanString(body.imovelId,128),title=cleanString(body.titulo,90),message=cleanString(body.mensagem,220),link=cleanString(body.link,500);
+  const center=body.centro||{},lat=Number(center.lat),lng=Number(center.lng),radius=Number(body.raioMetros);
+  const channels=Array.isArray(body.canais)?[...new Set(body.canais)]:[];
+  if(!title||!message||!alertaValidCoordinate(lat,lng)||!Number.isFinite(radius)||radius<500||radius>30000||!channels.length||channels.some(c=>!["push","whatsapp","email"].includes(c))){
+    return res.status(400).json({error:"Preencha conteúdo, região, raio e canais válidos."});
+  }
+  if(channels.includes("whatsapp")&&!whatsappClient.isConnected()) return res.status(503).json({error:"WhatsApp não conectado. Abra a Central Alerta Day e leia o QR Code."});
+  if(channels.includes("push")&&(!admin||typeof admin.messaging!=="function")) return res.status(503).json({error:"Firebase Cloud Messaging indisponível. Verifique as credenciais do Firebase Admin."});
+  if(channels.includes("email")&&(!process.env.SMTP_HOST||!process.env.SMTP_USER||!process.env.SMTP_PASS||!process.env.SMTP_FROM)) return res.status(503).json({error:"Canal de e-mail não configurado. Configure SMTP no servidor."});
+  try{
+    let property=null;
+    if(propertyId){
+      const propertySnap=await db.ref("imoveis/"+propertyId).get();
+      property=propertySnap.val();
+      if(!property||property.status!=="publicado"||property.publicadoNoSite!==true) return res.status(404).json({error:"O imóvel selecionado não está publicado ou não existe."});
+    }
+    const audience=await alertaLoadAudience();
+    const recipients=audience.filter(([,item])=>alertaWithinRegion(item,{lat,lng},radius)&&channels.some(channel=>alertaEligible(item,channel)&&(
+      (channel!=="push"||item.pushToken)&&(channel!=="whatsapp"||item.whatsapp)&&(channel!=="email"||item.email)
+    )));
+    const campaignRef=db.ref("alertaDay/campanhas").push(),campaignId=campaignRef.key;
+    const campaignLink=link||(propertyId?"/detalhes.html?id="+encodeURIComponent(propertyId):"/imoveis.html");
+    const baseUrl=(process.env.PUBLIC_BASE_URL||"https://www.rdprimeimoveis.com").replace(/\/$/,"");
+    const targetUrl=/^https?:\/\//i.test(campaignLink)?campaignLink:baseUrl+"/"+campaignLink.replace(/^\//,"");
+    const photo=Array.isArray(property?.fotos)?property.fotos[0]:null;
+    const imageUrl=photo?(/^https?:\/\//i.test(photo)?photo:baseUrl+"/"+String(photo).replace(/^\//,"")):null;
+    const pushTargets=recipients.filter(([,item])=>channels.includes("push")&&alertaEligible(item,"push")&&item.pushToken);
+    const whatsappTargets=recipients.filter(([,item])=>channels.includes("whatsapp")&&alertaEligible(item,"whatsapp")&&item.whatsapp);
+    const emailTargets=recipients.filter(([,item])=>channels.includes("email")&&alertaEligible(item,"email")&&item.email);
+    await campaignRef.set({
+      imovelId:propertyId||null,imovelTitulo:cleanString(property?.titulo||"Mensagem regional",180),
+      titulo:title,mensagem:message,link:campaignLink,centro:{lat,lng},raioMetros:radius,canais:channels,
+      status:"processando",pushAlvo:pushTargets.length,whatsappAlvo:whatsappTargets.length,emailAlvo:emailTargets.length,
+      elegiveis:recipients.length,criadoPor:req.user.uid,criadoEm:new Date().toISOString()
+    });
+    let pushEnviados=0,whatsappEnviados=0,emailEnviados=0,falhas=0;
+    if(pushTargets.length){
+      for(let i=0;i<pushTargets.length;i+=500){
+        const batch=pushTargets.slice(i,i+500);
+        try{
+          const result=await admin.messaging().sendEachForMulticast({
+            tokens:batch.map(([,item])=>item.pushToken),
+            data:{title,body:message,url:targetUrl,campaignId,propertyId:propertyId||""},
+            webpush:{headers:{TTL:"86400",Urgency:"high"}}
+          });
+          pushEnviados+=result.successCount;falhas+=result.failureCount;
+          for(let index=0;index<result.responses.length;index++){
+            const response=result.responses[index];
+            if(!response.success&&["messaging/registration-token-not-registered","messaging/invalid-registration-token"].includes(response.error?.code)){
+              const item=batch[index][1];
+              for(const source of item.sourcePaths||[]){
+                const field=source.pushField||"pushToken";
+                db.ref(source.path+"/"+field).remove().catch(()=>{});
+              }
+            }
+          }
+        }catch(error){falhas+=batch.length;console.error("[Alerta Day Push]",error.message);}
+      }
+    }
+    for(const [,item] of whatsappTargets){
+      try{
+        await whatsappClient.sendAlert(item.whatsapp,title,message,targetUrl,imageUrl);
+        whatsappEnviados++;
+        await new Promise(resolve=>setTimeout(resolve,1500));
+      }catch(error){falhas++;console.warn("[Alerta Day WhatsApp]",error.message);}
+    }
+    if(emailTargets.length){
+      const transporter=nodemailer.createTransport({
+        host:process.env.SMTP_HOST,port:Number(process.env.SMTP_PORT||587),
+        secure:process.env.SMTP_SECURE==="true",
+        auth:{user:process.env.SMTP_USER,pass:process.env.SMTP_PASS}
+      });
+      for(const [,item] of emailTargets){
+        try{await transporter.sendMail({from:process.env.SMTP_FROM,to:item.email,subject:title,text:message+"\n\nConfira: "+targetUrl});emailEnviados++;}
+        catch(error){falhas++;console.warn("[Alerta Day e-mail]",error.message);}
+      }
+    }
+    const status=falhas?(pushEnviados+whatsappEnviados+emailEnviados?"parcial":"falhou"):"enviada";
+    await campaignRef.update({status,pushEnviados,whatsappEnviados,emailEnviados,falhas,concluidoEm:new Date().toISOString()});
+    return res.json({ok:true,campaignId,status,elegiveis:recipients.length,pushEnviados,whatsappEnviados,emailEnviados,falhas});
+  }catch(error){return sendServerError(res,"Não foi possível concluir a campanha Alerta Day.",error);}
+});
+
 // --------------------------------------------------
 // INICIAR SERVIDOR
 // --------------------------------------------------
@@ -1915,7 +2497,6 @@ app.listen(PORT, () => {
     console.log(
       "Firebase Admin e Realtime Database prontos."
     );
-    whatsappWeb.start().catch(e => console.error("[WhatsApp Web] Inicialização:", e.message));
     scanVisitReminders().catch(e=>console.error("[Lembretes]",e.message));
     setInterval(()=>scanVisitReminders().catch(e=>console.error("[Lembretes]",e.message)),60000);
   }

@@ -40,6 +40,12 @@
     .cadastro-submit{grid-column:1/-1;width:100%;justify-content:center;margin-top:5px}
     .cadastro-feedback{grid-column:1/-1;min-height:22px;margin:0;color:#f0b49f;font-size:12px;line-height:1.6}
     .cadastro-submit:disabled{opacity:.6;cursor:wait;transform:none}
+    .consent-box{display:grid;gap:10px;padding:16px;border:1px solid var(--border-strong);border-radius:12px;background:rgba(255,255,255,.025)}
+    .consent-box>strong{color:var(--text);font-size:13px}
+    .consent-box label{display:flex;gap:9px;align-items:flex-start;color:var(--text-soft);font-size:12px;line-height:1.6;text-transform:none!important;letter-spacing:normal!important}
+    .consent-box input{width:auto!important;min-height:0!important;margin-top:3px;accent-color:var(--gold)}
+    .consent-box a{color:var(--gold-2)}
+    .consent-box small{color:var(--text-mute);font-size:11px}
     .cadastro-login{text-align:center;margin:20px 0 0;color:var(--text-soft);font-size:13px}
     .cadastro-login a{color:var(--gold-2);font-weight:700}
     .cadastro-notice{display:flex;gap:11px;align-items:flex-start;margin-top:22px;padding:14px 15px;border:1px solid rgba(230,180,90,.2);border-radius:12px;background:rgba(230,180,90,.055);color:var(--text-soft);font-size:11px;line-height:1.7}
@@ -111,14 +117,18 @@
             <label for="nome">Nome completo *</label>
             <input id="nome" name="nome" autocomplete="name" maxlength="120" placeholder="Seu nome e sobrenome" required>
           </div>
-          <div class="field">
-            <label for="telefone">Telefone *</label>
-            <input id="telefone" name="telefone" type="tel" autocomplete="tel" maxlength="30" placeholder="(11) 3333-3333" required>
+          <div class="field full">
+            <label for="whatsapp">WhatsApp (opcional)</label>
+            <input id="whatsapp" name="whatsapp" type="tel" autocomplete="tel" maxlength="30" placeholder="(11) 99999-9999">
           </div>
-          <div class="field">
-            <label for="celular">Celular / WhatsApp *</label>
-            <input id="celular" name="celular" type="tel" autocomplete="tel-national" maxlength="30" placeholder="(11) 99999-9999" required>
-          </div>
+          <div class="field full"><label>Endereço (opcional)</label></div>
+          <div class="field"><label for="cep">CEP</label><input id="cep" name="cep" autocomplete="postal-code" maxlength="9" placeholder="00000-000"></div>
+          <div class="field"><label for="numero">Número</label><input id="numero" name="numero" maxlength="20" placeholder="Número"></div>
+          <div class="field full"><label for="rua">Rua</label><input id="rua" name="rua" autocomplete="street-address" maxlength="160" placeholder="Rua / Avenida"></div>
+          <div class="field"><label for="complemento">Complemento</label><input id="complemento" name="complemento" maxlength="80"></div>
+          <div class="field"><label for="bairro">Bairro</label><input id="bairro" name="bairro" maxlength="100"></div>
+          <div class="field"><label for="cidade">Cidade</label><input id="cidade" name="cidade" maxlength="100"></div>
+          <div class="field"><label for="estado">Estado (UF)</label><input id="estado" name="estado" maxlength="2" placeholder="SP"></div>
           <div class="field full">
             <label for="email">E-mail *</label>
             <input id="email" name="email" type="email" autocomplete="email" maxlength="160" placeholder="voce@exemplo.com" required>
@@ -131,6 +141,7 @@
             <label for="confirm-password">Confirmar senha *</label>
             <input id="confirm-password" name="confirm-password" type="password" autocomplete="new-password" minlength="6" placeholder="Digite novamente" required>
           </div>
+<div class="field full consent-box"><strong>Preferências de comunicação</strong><label><input id="consent-whatsapp" type="checkbox"> Aceito receber mensagens pelo WhatsApp.</label><label><input id="consent-email" type="checkbox"> Aceito receber comunicados pelo e-mail.</label><label><input id="consent-push" type="checkbox"> Quero receber notificações no celular (quando ativadas no aparelho).</label><label class="privacy-required"><input id="accept-policy" type="checkbox" required> Li e aceito a <a href="/privacidade.html" target="_blank" rel="noopener">Política de Privacidade</a>.</label><small>Você pode alterar ou cancelar as autorizações a qualquer momento.</small></div>
           <button class="button button-gold cadastro-submit" type="submit">Criar minha conta <span aria-hidden="true">→</span></button>
           <p id="cadastro-feedback" class="cadastro-feedback" role="status" aria-live="polite"></p>
         </form>
@@ -144,5 +155,6 @@
   <a class="cadastro-whatsapp" href="https://wa.me/5511964294254?text=Ol%C3%A1%21%20Gostaria%20de%20atendimento%20da%20R%26D%20Prime%20Im%C3%B3veis." target="_blank" rel="noopener noreferrer" aria-label="Falar com a R&D Prime pelo WhatsApp">WhatsApp</a>
 
   <script type="module" src="/js/cadastro.js"></script>
+  <script type="module" src="/js/alerta-day-visitor.js"></script>
 </body>
 </html>
