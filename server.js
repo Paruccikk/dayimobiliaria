@@ -641,25 +641,68 @@ app.patch("/api/conta/perfil", requireFirebase, async (req, res) => {
     estado: cleanString(raw.estado, 2).toUpperCase()
   };
   const consentimentoLocalizacao = req.body?.consentimentoLocalizacao === true;
-  if (!endereco.rua || !endereco.bairro || !endereco.cidade || !/^[A-Z]{2}$/.test(endereco.estado)) {
-    return res.status(400).json({ error: "Informe rua, bairro, cidade e UF para salvar seu endereço." });
+  if (!endereco.rua && !/^\\d{5}-?\\d{3}$/.test(endereco.cep.replace(/\\D/g, ""))) {
+    return res.status(400).json({ error: "Informe o CEP ou o endereço para localizar sua região." });
   }
 
   let coords = null;
   if (consentimentoLocalizacao) {
-    const query = [endereco.rua, endereco.numero, endereco.bairro, endereco.cidade, endereco.estado, endereco.cep, "Brasil"].filter(Boolean).join(", ");
     try {
-      const response = await fetch("https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=br&q=" + encodeURIComponent(query), {
-        headers: { "User-Agent": "RDPrimeImoveis-AlertaDay/1.0 (localizacao de endereco informado pelo usuario)" }
-      });
-      if (!response.ok) throw new Error("Serviço de geocodificação indisponível.");
-      const results = await response.json();
-      if (!Array.isArray(results) || !results.length || !alertaValidCoordinate(results[0].lat, results[0].lon)) {
-        return res.status(422).json({ error: "Não encontramos as coordenadas desse endereço. Confira rua, número, bairro, cidade e CEP." });
+      // O CEP oficial corrige variações de digitação no nome da rua e no bairro.
+      const cepDigits = endereco.cep.replace(/\\D/g, "");
+      if (/^\\d{8}$/.test(cepDigits)) {
+        const cepResponse = await fetch("https://viacep.com.br/ws/" + cepDigits + "/json/", {
+          headers: { "User-Agent": "RDPrimeImoveis-AlertaDay/1.0" }
+        });
+        if (cepResponse.ok) {
+          const cepData = await cepResponse.json();
+          if (!cepData.erro) {
+            endereco.rua = cleanString(cepData.logradouro, 160) || endereco.rua;
+            endereco.bairro = cleanString(cepData.bairro, 100) || endereco.bairro;
+            endereco.cidade = cleanString(cepData.localidade, 100) || endereco.cidade;
+            endereco.estado = cleanString(cepData.uf, 2).toUpperCase() || endereco.estado;
+            endereco.cep = cepDigits.replace(/^(\\d{5})(\\d{3})$/, "$1-$2");
+          }
+        }
       }
-      coords = { latitude: Number(results[0].lat), longitude: Number(results[0].lon) };
+
+      if (!endereco.bairro || !endereco.cidade || !/^[A-Z]{2}$/.test(endereco.estado)) {
+        return res.status(400).json({ error: "Confira o CEP e informe bairro, cidade e UF." });
+      }
+
+      // Não envia número fictício (ex.: XXX-) e tenta primeiro o endereço completo,
+      // depois rua/bairro sem número e por último o CEP. Isso evita bloquear CEPs
+      // válidos quando o geocodificador não reconhece o número da residência.
+      const numero = /^(?:xxx?[- ]?|s\\/?n|sem número|nao informado)$/i.test(endereco.numero.trim()) ? "" : endereco.numero;
+      const queries = [
+        [endereco.rua, numero, endereco.bairro, endereco.cidade, endereco.estado, endereco.cep, "Brasil"],
+        [endereco.rua, endereco.bairro, endereco.cidade, endereco.estado, endereco.cep, "Brasil"],
+        [endereco.cep, endereco.bairro, endereco.cidade, endereco.estado, "Brasil"],
+        [endereco.cep, endereco.cidade, endereco.estado, "Brasil"]
+      ].map(parts => parts.filter(Boolean).join(", ")).filter(Boolean);
+
+      let geocodeError = null;
+      for (const query of [...new Set(queries)]) {
+        const url = "https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=br&q=" + encodeURIComponent(query);
+        const response = await fetch(url, {
+          headers: { "User-Agent": "RDPrimeImoveis-AlertaDay/1.0 (localizacao de endereco informado pelo usuario)" }
+        });
+        if (!response.ok) {
+          geocodeError = new Error("Serviço de geocodificação indisponível.");
+          continue;
+        }
+        const results = await response.json();
+        if (Array.isArray(results) && results.length && alertaValidCoordinate(results[0].lat, results[0].lon)) {
+          coords = { latitude: Number(results[0].lat), longitude: Number(results[0].lon) };
+          break;
+        }
+      }
+
+      if (!coords) {
+        if (geocodeError) return res.status(503).json({ error: geocodeError.message });
+        return res.status(422).json({ error: "Não encontramos esse CEP no mapa. Confira o CEP, bairro, cidade e UF; o número da casa é opcional." });
+      }
     } catch (error) {
-      if (error.message?.includes("geocodificação")) return res.status(503).json({ error: error.message });
       return sendServerError(res, "Não foi possível localizar o endereço informado.", error);
     }
   }
