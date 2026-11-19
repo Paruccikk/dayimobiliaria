@@ -107,6 +107,7 @@ form?.addEventListener("submit", async event => {
   const password = document.querySelector("#password")?.value || "";
   const confirmation = document.querySelector("#confirm-password")?.value || "";
   const consentimentoWhatsApp = document.querySelector("#consentimento-whatsapp")?.checked === true;
+  const consentimentoEmail = document.querySelector("#consentimento-email")?.checked === true;
   const consentimentoLocalizacao = document.querySelector("#consentimento-localizacao")?.checked === true;
 
   if (!nome || !celular || !email) return showMessage("Preencha todos os campos obrigatórios.");
@@ -146,6 +147,7 @@ form?.addEventListener("submit", async event => {
         celular,
         telefone: celular,
         consentimentoWhatsApp,
+        consentimentoEmail,
         consentimentoLocalizacao,
         visitorId: alertaDayVisitorId(),
         ...(coords || {})
