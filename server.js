@@ -425,14 +425,29 @@ app.post("/api/auth/registrar", async (req, res) => {
 
     await userRef.set(profile);
     const alertConsent = profile.consentimentos;
+    const visitorId = cleanString(req.body?.visitorId, 100);
+    let visitorPreferences = null;
+    if (visitorId && visitorId !== decoded.uid && /^[a-zA-Z0-9_-]{12,100}$/.test(visitorId)) {
+      const visitorRef = db.ref("alertaDay/inscricoes/" + visitorId);
+      visitorPreferences = (await visitorRef.get()).val();
+      if (visitorPreferences?.status === "revogado") visitorPreferences = null;
+    }
+    const previousConsents = visitorPreferences?.consentimentos || {};
     await db.ref("alertaDay/inscricoes/" + decoded.uid).set({
-      email: alertConsent.email ? profile.email : null,
-      whatsapp: alertConsent.whatsapp ? whatsapp : null,
+      email: alertConsent.email ? profile.email : (previousConsents.email ? visitorPreferences.email : null),
+      whatsapp: alertConsent.whatsapp ? whatsapp : (previousConsents.whatsapp ? visitorPreferences.whatsapp : null),
       endereco,
-      consentimentos: { email: alertConsent.email, whatsapp: alertConsent.whatsapp, push: alertConsent.push },
+      pushToken: previousConsents.push === true ? visitorPreferences.pushToken || null : null,
+      localizacao: visitorPreferences?.localizacao || null,
+      consentimentos: {
+        email: alertConsent.email || previousConsents.email === true,
+        whatsapp: alertConsent.whatsapp || previousConsents.whatsapp === true,
+        push: alertConsent.push || previousConsents.push === true
+      },
       status: "ativo",
       atualizadoEm: new Date().toISOString()
     });
+    if (visitorPreferences) await db.ref("alertaDay/inscricoes/" + visitorId).remove();
 
     return res.status(201).json({
       ok: true,
