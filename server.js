@@ -387,16 +387,14 @@ app.post("/api/auth/registrar", async (req, res) => {
   }
 
   const nome = cleanString(req.body?.nome, 120);
-  const telefone = cleanString(req.body?.telefone, 30);
-  const celular = cleanString(req.body?.celular, 30);
-  const solicitacaoPapel =
-    req.body?.tipoCadastro === "corretor" ? "corretor" : "cliente";
-
-  if (!nome || !telefone || !celular) {
-    return res.status(400).json({
-      error: "Nome, telefone e número de celular são obrigatórios.",
-    });
-  }
+  const whatsapp = cleanString(req.body?.whatsapp, 30);
+  const consent = req.body?.consentimentos || {};
+  const policyAccepted = req.body?.aceitouPolitica === true;
+  const solicitacaoPapel = req.body?.tipoCadastro === "corretor" ? "corretor" : "cliente";
+  const enderecoRaw = req.body?.endereco || {};
+  const endereco = { cep: cleanString(enderecoRaw.cep, 12), rua: cleanString(enderecoRaw.rua, 160), numero: cleanString(enderecoRaw.numero, 20), complemento: cleanString(enderecoRaw.complemento, 80), bairro: cleanString(enderecoRaw.bairro, 100), cidade: cleanString(enderecoRaw.cidade, 100), estado: cleanString(enderecoRaw.estado, 2) };
+  if (!nome || !policyAccepted) return res.status(400).json({ error: "Informe seu nome e aceite a Política de Privacidade para continuar." });
+  if (consent.whatsapp === true && whatsapp.replace(/\D/g, "").length < 10) return res.status(400).json({ error: "Informe um WhatsApp válido para autorizar mensagens por esse canal." });
 
   try {
     const userRecord = await auth.getUser(decoded.uid);
@@ -413,8 +411,11 @@ app.post("/api/auth/registrar", async (req, res) => {
     const profile = {
       nome,
       email: userRecord.email || decoded.email || "",
-      telefone,
-      celular,
+      telefone: whatsapp,
+      celular: whatsapp,
+      whatsapp,
+      endereco,
+      consentimentos: { whatsapp: consent.whatsapp === true, email: consent.email === true, push: consent.push === true, politicaPrivacidade: true, versaoPolitica: "2026-11-19", aceitoEm: new Date().toISOString() },
       papel: "cliente",
       solicitacaoPapel,
       ativo: true,
