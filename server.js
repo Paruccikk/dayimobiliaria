@@ -396,7 +396,10 @@ app.post("/api/auth/registrar", async (req, res) => {
   const celular = cleanString(req.body?.celular || req.body?.whatsapp, 30);
   const telefone = cleanString(req.body?.telefone, 30) || celular;
   const consentimentoWhatsApp = req.body?.consentimentoWhatsApp === true;
+  const consentimentoEmail = req.body?.consentimentoEmail === true;
+  const consentimentoPrivacidade = req.body?.consentimentoPrivacidade === true;
   const consentimentoLocalizacao = req.body?.consentimentoLocalizacao === true;
+  const endereco = cleanString(req.body?.endereco, 220);
   const visitorKey = (consentimentoWhatsApp || consentimentoLocalizacao) ? alertaVisitorKey(req.body?.visitorId) : null;
   const whatsappPhone = consentimentoWhatsApp ? alertaPhone(celular) : "";
   const lat = Number(req.body?.latitude);
@@ -406,10 +409,8 @@ app.post("/api/auth/registrar", async (req, res) => {
   const solicitacaoPapel =
     req.body?.tipoCadastro === "corretor" ? "corretor" : "cliente";
 
-  if (!nome || !celular) {
-    return res.status(400).json({
-      error: "Nome e WhatsApp são obrigatórios.",
-    });
+  if (!nome || !consentimentoPrivacidade) {
+    return res.status(400).json({ error: "Informe seu nome e aceite as Políticas de Privacidade." });
   }
 
   const canEncrypt = Boolean(alertaConfiguredEncryptionKey());
@@ -439,13 +440,16 @@ app.post("/api/auth/registrar", async (req, res) => {
     const profile = {
       nome,
       email: userRecord.email || decoded.email || "",
-      telefone,
-      celular,
+      telefone: telefone || "",
+      celular: celular || "",
+      endereco,
       papel: "cliente",
       solicitacaoPapel,
       ativo: true,
       status: "ativo",
       consentimentos: {
+        privacidade: { status: "aceito", atualizadoEm: new Date().toISOString(), origem: "cadastro", versao: "2026-11-19" },
+        email: { status: consentimentoEmail ? "permitido" : "negado", atualizadoEm: new Date().toISOString(), origem: "cadastro", versao: "2026-11-19" },
         whatsapp: {
           status: consentimentoWhatsApp ? "permitido" : "pendente",
           ...(consentimentoWhatsApp ? { atualizadoEm: new Date().toISOString(), origem: "cadastro", versao: "2026-11-16" } : {})
