@@ -1998,6 +1998,18 @@ app.post("/api/alerta-day/whatsapp", async (req, res) => {
   } catch (error) { return sendServerError(res, "Não foi possível registrar a autorização do WhatsApp.", error); }
 });
 
+app.post("/api/alerta-day/email", async (req, res) => {
+  if (!db) return firebaseUnavailable(res);
+  const visitorId = cleanString(req.body?.visitorId, 100);
+  const email = cleanString(req.body?.email, 180).toLowerCase();
+  if (!alertaPublicId(visitorId) || req.body?.consentimento !== true || !email.includes("@") || email.length > 180) return res.status(400).json({ error: "Informe um e-mail válido e autorize o recebimento." });
+  try {
+    const ref = db.ref("alertaDay/inscricoes/" + visitorId);
+    const previous = (await ref.get()).val() || {};
+    await ref.update({ email, consentimentos: { ...(previous.consentimentos || {}), email: true }, status: "ativo", consentimentoEmailEm: new Date().toISOString(), atualizadoEm: new Date().toISOString() });
+    return res.json({ ok: true });
+  } catch (error) { return sendServerError(res, "Não foi possível registrar a autorização de e-mail.", error); }
+});
 app.delete("/api/alerta-day/preferencias", async (req, res) => {
   if (!db) return firebaseUnavailable(res);
   const visitorId = cleanString(req.body?.visitorId, 100);
@@ -2118,7 +2130,15 @@ app.post("/api/admin/alerta-day/disparar", requireFirebase, allowRoles("administ
     } else if (whatsappTargets.length) failures += whatsappTargets.length;
 
     const emailTargets = recipients.filter(([,item]) => channels.includes("email") && alertaEligible(item,"email") && item.email);
-    if (emailTargets.length) failures += emailTargets.length; // SMTP ainda não configurado nesta instalação.
+    if (emailTargets.length) {
+      if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS && process.env.SMTP_FROM) {
+        const transporter = nodemailer.createTransport({ host: process.env.SMTP_HOST, port: Number(process.env.SMTP_PORT || 587), secure: process.env.SMTP_SECURE === "true", auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } });
+        for (const [id,item] of emailTargets) {
+          try { await transporter.sendMail({ from: process.env.SMTP_FROM, to: item.email, subject: title, text: message + "\n\nConfira: " + targetUrl }); emailSent++; }
+          catch (error) { failures++; console.warn("[Alerta Day e-mail]", id, error.message); }
+        }
+      } else { failures += emailTargets.length; console.warn("[Alerta Day e-mail] SMTP não configurado; nenhum e-mail foi enviado."); }
+    }
 
     await campaignRef.update({ status: failures ? (pushSent+whatsappSent+emailSent ? "parcial" : "falhou") : "concluida", pushEnviados:pushSent, whatsappEnviados:whatsappSent, emailEnviados:emailSent, falhas:failures, finalizadoEm:new Date().toISOString() });
     return res.json({ ok:true, campaignId, elegiveis:recipients.length, pushEnviados:pushSent, whatsappEnviados:whatsappSent, emailEnviados:emailSent, falhas:failures });
