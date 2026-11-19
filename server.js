@@ -1077,6 +1077,18 @@ async function alertaSendWhatsApp(phone,title,message,link) {
   const response=await fetch('https://graph.facebook.com/'+graphVersion+'/'+encodeURIComponent(phoneId)+'/messages',{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({messaging_product:'whatsapp',to:phone,type:'template',template:{name:template,language:{code:process.env.WHATSAPP_TEMPLATE_LANGUAGE||'pt_BR'},components:[{type:'body',parameters:[{type:'text',text:title},{type:'text',text:message},{type:'text',text:link}]}]}})});
   const result=await response.json().catch(()=>({})); if(!response.ok) throw new Error(result.error?.message||'Falha no WhatsApp'); return result;
 }
+async function alertaSendEmail(to,title,message,link) {
+  const apiKey=process.env.RESEND_API_KEY, from=process.env.ALERTA_EMAIL_FROM;
+  if(!apiKey||!from) throw new Error("Canal de e-mail não configurado. Configure RESEND_API_KEY e ALERTA_EMAIL_FROM.");
+  const response=await fetch("https://api.resend.com/emails",{
+    method:"POST",
+    headers:{Authorization:"Bearer "+apiKey,"Content-Type":"application/json"},
+    body:JSON.stringify({from,to:[to],subject:title,text:message+"\\n\\nAcesse: "+link+"\\n\\nVocê recebe este alerta porque autorizou comunicações por e-mail da Day Imobiliária."})
+  });
+  const result=await response.json().catch(()=>({}));
+  if(!response.ok) throw new Error(result.message||"Falha no envio do e-mail");
+  return result;
+}
 app.post('/api/admin/alerta-day/disparar', requireFirebase, allowRoles('administrador'), async (req,res) => {
   const b=req.body||{}, propertyId=cleanString(b.imovelId,100), title=cleanString(b.titulo,90), message=cleanString(b.mensagem,220), channels=Array.isArray(b.canais)?[...new Set(b.canais)]:[];
   const lat=Number(b.centro?.lat), lng=Number(b.centro?.lng), radius=Number(b.raioMetros);
