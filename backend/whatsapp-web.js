@@ -126,4 +126,15 @@ async function disconnect() {
   return getStatus();
 }
 
-module.exports = { start, connect, disconnect, getStatus };
+async function sendText(phone, text) {
+  if (!client || state !== "conectado") {
+    throw new Error("WhatsApp Web não está conectado. Leia o QR Code no painel administrativo.");
+  }
+  const digits = String(phone || "").replace(/\\D/g, "");
+  if (digits.length < 10 || digits.length > 15) throw new Error("Número de WhatsApp inválido.");
+  const numberId = await client.getNumberId(digits);
+  if (!numberId || !numberId._serialized) throw new Error("O número " + digits + " não possui uma conta WhatsApp válida.");
+  return client.sendMessage(numberId._serialized, String(text || "").slice(0, 4000));
+}
+
+module.exports = { start, connect, disconnect, getStatus, sendText };
