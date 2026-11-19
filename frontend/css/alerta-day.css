@@ -36,3 +36,31 @@
 .ad-qr-frame img{width:min(260px,100%);height:auto}
 .ad-qr-frame span{color:#334155;font-size:13px;padding:20px}
 #wa-qr-feedback{min-height:20px;color:#e9bd68}
+
+
+/* Ajustes visuais dos canais: os checkboxes não podem ocupar a largura inteira. */
+.ad-channel-list{display:grid;gap:10px;margin:10px 0 18px}
+.ad-check.ad-channel{display:grid;grid-template-columns:18px 38px minmax(0,1fr);align-items:center;gap:12px;margin:0;padding:14px;background:linear-gradient(145deg,#14243a,#0d1929);border:1px solid #30435c;transition:border-color .18s,transform .18s}
+.ad-check.ad-channel:hover{border-color:#c99b4e;transform:translateY(-1px)}
+.ad-check.ad-channel input[type=checkbox]{width:17px!important;height:17px;margin:0;accent-color:#d2a65c}
+.ad-channel-icon{width:36px;height:36px;border-radius:11px;display:grid;place-items:center;background:#233751;color:#e9bd68}
+.ad-channel-icon svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.ad-icon-whatsapp{background:#123c32;color:#4ade80}.ad-icon-email{background:#3a2d20;color:#f3c778}
+.ad-channel-copy{display:grid;gap:4px}.ad-channel-copy b{font-size:13px;color:#f2f5fa}.ad-channel-copy small{font-size:11px;color:#9eacc0;line-height:1.45}
+.ad-wa-panel{position:relative;overflow:hidden;background:radial-gradient(circle at 100% 0,rgba(37,211,102,.10),transparent 42%),#111c2d}
+.ad-wa-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.ad-wa-heading h2{margin:8px 0 4px}.ad-wa-heading p{margin:0;color:#9eacc0;font-size:12px;line-height:1.5}
+#wa-status-badge{white-space:nowrap;display:inline-flex;align-items:center;border:1px solid #42536b;border-radius:99px;padding:6px 10px;font-size:11px;font-weight:800;color:#cbd5e1;background:#0b1422}
+#wa-status-badge[data-state="conectado"]{color:#86efac;border-color:#166534;background:#0d2b20}
+#wa-status-badge[data-state="qr"],#wa-status-badge[data-state="conectando"]{color:#fcd34d;border-color:#854d0e;background:#302713}
+#wa-status-badge[data-state="erro"]{color:#fca5a5;border-color:#991b1b;background:#351719}
+.ad-wa-qr-state{margin-top:16px}.ad-wa-qr-state>p{font-size:12px;color:#cbd5e1;text-align:center;min-height:18px}
+.ad-qr-frame{min-height:270px;display:grid;place-items:center;background:#fff;border:1px solid #dbe2ea;border-radius:14px;padding:12px;max-width:300px;margin:0 auto}
+.ad-qr-frame img{width:min(260px,100%);height:auto;image-rendering:auto}
+.ad-qr-frame span{color:#475569;font-size:12px;line-height:1.5;text-align:center;padding:20px}
+.ad-wa-instructions{display:block;margin:12px auto 0;max-width:330px;text-align:center;color:#9eacc0;font-size:11px;line-height:1.6}
+.ad-wa-connected{display:flex;align-items:center;gap:12px;margin:20px 0;padding:16px;border:1px solid #166534;border-radius:12px;background:#0d2b20}
+.ad-wa-check{width:34px;height:34px;display:grid;place-items:center;border-radius:50%;background:#14532d;color:#86efac;font-weight:900;font-size:18px}
+.ad-wa-connected div{display:grid;gap:4px}.ad-wa-connected strong{color:#bbf7d0;font-size:13px}.ad-wa-connected small{color:#86efac;font-size:12px}
+.ad-wa-actions{display:flex;gap:9px;justify-content:center;flex-wrap:wrap;margin-top:15px}
+#wa-qr-feedback{min-height:18px;text-align:center;color:#fbbf24;font-size:11px;line-height:1.5}
+@media(max-width:560px){.ad-check.ad-channel{grid-template-columns:18px 34px minmax(0,1fr);padding:12px}.ad-channel-icon{width:32px;height:32px}.ad-qr-frame{min-height:230px}.ad-qr-frame img{width:220px}}
