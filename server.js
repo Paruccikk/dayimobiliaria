@@ -10,6 +10,7 @@ const compression = require("compression");
 const rateLimit = require("express-rate-limit");
 const multer = require("multer");
 const whatsappWeb = require("./backend/whatsapp-web");
+const nodemailer = require("nodemailer");
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
@@ -32,11 +33,12 @@ app.use(
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "https://www.gstatic.com"],
+        scriptSrc: ["'self'", "https://www.gstatic.com", "https://unpkg.com"],
         styleSrc: [
           "'self'",
           "'unsafe-inline'",
           "https://fonts.googleapis.com",
+          "https://unpkg.com",
         ],
         fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
         imgSrc: ["'self'", "data:", "blob:", "https:"],
@@ -47,6 +49,8 @@ app.use(
           "https://*.firebasedatabase.app",
           "https://*.firebaseapp.com",
           "https://securetoken.googleapis.com",
+          "https://fcmregistrations.googleapis.com",
+          "https://fcm.googleapis.com",
         ],
         objectSrc: ["'none'"],
         upgradeInsecureRequests:
