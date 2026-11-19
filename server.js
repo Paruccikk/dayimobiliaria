@@ -628,6 +628,109 @@ app.get("/api/auth/perfil", requireAuthenticated, (req, res) => {
   });
 });
 
+// Atualização do endereço do próprio usuário e consentimento de localização regional.
+app.patch("/api/conta/perfil", requireFirebase, async (req, res) => {
+  const raw = req.body?.endereco || {};
+  const endereco = {
+    cep: cleanString(raw.cep, 12),
+    rua: cleanString(raw.rua, 160),
+    numero: cleanString(raw.numero, 20),
+    complemento: cleanString(raw.complemento, 80),
+    bairro: cleanString(raw.bairro, 100),
+    cidade: cleanString(raw.cidade, 100),
+    estado: cleanString(raw.estado, 2).toUpperCase()
+  };
+  const consentimentoLocalizacao = req.body?.consentimentoLocalizacao === true;
+  if (!endereco.rua || !endereco.bairro || !endereco.cidade || !/^[A-Z]{2}$/.test(endereco.estado)) {
+    return res.status(400).json({ error: "Informe rua, bairro, cidade e UF para salvar seu endereço." });
+  }
+
+  let coords = null;
+  if (consentimentoLocalizacao) {
+    const query = [endereco.rua, endereco.numero, endereco.bairro, endereco.cidade, endereco.estado, endereco.cep, "Brasil"].filter(Boolean).join(", ");
+    try {
+      const response = await fetch("https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=br&q=" + encodeURIComponent(query), {
+        headers: { "User-Agent": "RDPrimeImoveis-AlertaDay/1.0 (localizacao de endereco informado pelo usuario)" }
+      });
+      if (!response.ok) throw new Error("Serviço de geocodificação indisponível.");
+      const results = await response.json();
+      if (!Array.isArray(results) || !results.length || !alertaValidCoordinate(results[0].lat, results[0].lon)) {
+        return res.status(422).json({ error: "Não encontramos as coordenadas desse endereço. Confira rua, número, bairro, cidade e CEP." });
+      }
+      coords = { latitude: Number(results[0].lat), longitude: Number(results[0].lon) };
+    } catch (error) {
+      if (error.message?.includes("geocodificação")) return res.status(503).json({ error: error.message });
+      return sendServerError(res, "Não foi possível localizar o endereço informado.", error);
+    }
+  }
+
+  const now = new Date().toISOString();
+  const profileConsent = { ...(req.profile.consentimentos || {}), localizacao: consentimentoLocalizacao };
+  const enderecoSalvo = {
+    ...endereco,
+    latitude: coords?.latitude ?? null,
+    longitude: coords?.longitude ?? null,
+    consentimentoLocalizacao,
+    atualizadoEm: now
+  };
+
+  try {
+    const [subscriptionSnap, visitorSnap] = await Promise.all([
+      db.ref("alertaDay/inscricoes/" + req.user.uid).get(),
+      (alertaPublicId(cleanString(req.body?.visitorId, 100)) && cleanString(req.body?.visitorId, 100) !== req.user.uid)
+        ? db.ref("alertaDay/inscricoes/" + cleanString(req.body.visitorId, 100)).get()
+        : Promise.resolve(null)
+    ]);
+    const accountSubscription = subscriptionSnap.val() || {};
+    const visitorSubscription = visitorSnap?.val() || {};
+    const transferable = visitorSubscription.status !== "revogado" ? visitorSubscription : {};
+    const previousConsents = {
+      ...(transferable.consentimentos || {}),
+      ...(accountSubscription.consentimentos || {})
+    };
+    const userPhone = alertaPhone(req.profile.whatsapp || req.profile.celular || req.profile.telefone || "");
+    const subscription = {
+      ...transferable,
+      ...accountSubscription,
+      ownerUid: req.user.uid,
+      email: req.profile.email || transferable.email || accountSubscription.email || null,
+      whatsapp: userPhone || transferable.whatsapp || accountSubscription.whatsapp || null,
+      endereco: enderecoSalvo,
+      localizacao: {
+        consentimento: consentimentoLocalizacao,
+        latitude: coords?.latitude ?? null,
+        longitude: coords?.longitude ?? null,
+        origem: "endereco_perfil",
+        precisao: null,
+        atualizadoEm: now,
+        expiraEm: consentimentoLocalizacao ? new Date(Date.now() + 365 * 86400000).toISOString() : null
+      },
+      consentimentos: {
+        ...previousConsents,
+        localizacao: consentimentoLocalizacao
+      },
+      status: "ativo",
+      atualizadoEm: now
+    };
+    if (!subscription.pushToken && transferable.pushToken) subscription.pushToken = transferable.pushToken;
+    await Promise.all([
+      db.ref("usuarios/" + req.user.uid).update({
+        endereco: enderecoSalvo,
+        consentimentos: profileConsent,
+        atualizadoEm: now
+      }),
+      db.ref("alertaDay/inscricoes/" + req.user.uid).set(subscription)
+    ]);
+    if (visitorSnap && visitorSnap.exists()) {
+      await db.ref("alertaDay/inscricoes/" + cleanString(req.body.visitorId, 100)).remove().catch(() => {});
+    }
+    return res.json({ ok: true, localizacaoAtiva: consentimentoLocalizacao, endereco: enderecoSalvo });
+  } catch (error) {
+    return sendServerError(res, "Não foi possível salvar o endereço do perfil.", error);
+  }
+});
+
+
 // --------------------------------------------------
 // ADMINISTRAÇÃO DE USUÁRIOS
 // --------------------------------------------------
@@ -2065,10 +2168,16 @@ async function alertaLoadAudience() {
     const account = ownerUid ? users[ownerUid] || {} : {};
     const phone = alertaPhone(subscription.whatsapp || account.whatsapp || account.celular || account.telefone || "");
     const email = String(subscription.email || account.email || "").trim().toLowerCase();
+    const profileAddress = account.endereco || {};
+    const profileLocationAllowed = account.consentimentos?.localizacao === true || profileAddress.consentimentoLocalizacao === true;
+    const profileLocation = profileLocationAllowed && alertaValidCoordinate(profileAddress.latitude, profileAddress.longitude)
+      ? { consentimento: true, latitude: profileAddress.latitude, longitude: profileAddress.longitude, expiraEm: null, origem: "endereco_perfil" }
+      : null;
+    const normalizedLocation = subscription.localizacao || profileLocation;
     const identity = phone ? "phone:" + phone : (ownerUid ? "uid:" + ownerUid : "subscription:" + key);
     add(identity, {
       ownerUid,
-      localizacao: subscription.localizacao || null,
+      localizacao: normalizedLocation,
       pushToken: subscription.pushToken || subscription.fcmToken || null,
       whatsapp: phone || null,
       email: email || null,
