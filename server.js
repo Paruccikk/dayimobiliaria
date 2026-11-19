@@ -51,6 +51,8 @@ app.use(
           "https://securetoken.googleapis.com",
           "https://fcmregistrations.googleapis.com",
           "https://fcm.googleapis.com",
+          "https://*.arcgisonline.com",
+          "https://services.arcgisonline.com",
         ],
         objectSrc: ["'none'"],
         upgradeInsecureRequests:
