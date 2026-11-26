@@ -7,6 +7,8 @@ let currentProfile = null;
 let loading = false;
 let brokerProperties = [];
 let brokerSearchTerm = "";
+let brokerLeads = [];
+let brokerLeadSearchTerm = "";
 
 // Utilitários
 const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
@@ -57,14 +59,32 @@ window.updateAgenda = async function(id, status, btn) {
 
 function renderBrokerProperties() {
   const tbody = $("#imoveis-lista");
-  const normalize = value => String(value ?? "").toLocaleLowerCase("pt-BR").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  const query = normalize(brokerSearchTerm.trim());
-  const filtered = query ? brokerProperties.filter(item => normalize([item.titulo, item.id, item.cidade, item.estado, item.bairro, item.regiao, item.finalidade, item.status].join(" ")).includes(query)) : brokerProperties;
+  const norm = value => String(value ?? "").toLocaleLowerCase("pt-BR").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const query = norm(brokerSearchTerm.trim());
+  const filtered = query ? brokerProperties.filter(item => norm([item.titulo,item.id,item.cidade,item.estado,item.bairro,item.regiao,item.finalidade,item.status].join(" ")).includes(query)) : brokerProperties;
   if (!brokerProperties.length) { tbody.innerHTML = '<tr><td colspan="5">Você ainda não tem imóveis cadastrados.</td></tr>'; return; }
   if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="5">Nenhum imóvel encontrado para essa busca.</td></tr>'; return; }
-  tbody.innerHTML = filtered.map(item => `
-    <tr><td><strong>${escapeHtml(item.titulo)}</strong><div class="dash-subtitle">${escapeHtml(item.bairro || "")} ${item.cidade ? `- ${escapeHtml(item.cidade)}` : ""}</div></td><td>${escapeHtml(item.finalidade)}</td><td>${money(item.preco)}</td><td>${statusPill(item.status)}</td><td><a href="/detalhes.html?id=${encodeURIComponent(item.id)}" class="small-btn light" target="_blank">Ver no site ↗</a></td></tr>
-  `).join("");
+  tbody.innerHTML = filtered.map(item => `<tr data-property-id="${escapeHtml(item.id)}"><td><strong>${escapeHtml(item.titulo)}</strong><div class="dash-subtitle">${escapeHtml(item.bairro||"")} ${item.cidade?`- ${escapeHtml(item.cidade)}`:""}</div></td><td>${escapeHtml(item.finalidade)}</td><td>${money(item.preco)}</td><td>${statusPill(item.status)}</td><td><a href="/detalhes.html?id=${encodeURIComponent(item.id)}" class="small-btn light" target="_blank">Ver no site ↗</a> <label class="small-btn light" style="display:inline-block;cursor:pointer">Adicionar fotos<input class="broker-add-photos" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden></label><label style="display:inline-flex;align-items:center;gap:5px;margin-left:6px;font-size:12px"><input class="broker-mcmv" type="checkbox" ${item.minhaCasaMinhaVida===true?"checked":""}> MCMV</label></td></tr>`).join("");
+  tbody.querySelectorAll(".broker-add-photos").forEach(input=>input.addEventListener("change",async()=>{
+    const id=input.closest("tr")?.dataset.propertyId, files=Array.from(input.files||[]); if(!id||!files.length)return;
+    if(files.length>40||files.some(file=>file.size>50*1024*1024)){alert("Selecione até 40 imagens, com no máximo 50 MB cada.");input.value="";return;}
+    input.disabled=true;
+    try{const token=await currentUser.getIdToken();for(const file of files){const form=new FormData();form.append("arquivos",file);const response=await fetch("/api/admin/imoveis/"+encodeURIComponent(id)+"/arquivos",{method:"POST",headers:{Authorization:"Bearer "+token},body:form});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||"Falha ao enviar foto.");}alert("Fotos adicionadas ao imóvel.");await loadDashboard();}
+    catch(error){alert(error.message);}finally{input.disabled=false;input.value="";}
+  }));
+  tbody.querySelectorAll(".broker-mcmv").forEach(input=>input.addEventListener("change",async()=>{
+    const id=input.closest("tr")?.dataset.propertyId, checked=input.checked;input.disabled=true;
+    try{await api("/api/admin/imoveis/"+encodeURIComponent(id),{method:"PATCH",body:JSON.stringify({minhaCasaMinhaVida:checked})});const item=brokerProperties.find(p=>p.id===id);if(item)item.minhaCasaMinhaVida=checked;}
+    catch(error){input.checked=!checked;alert(error.message);}finally{input.disabled=false;}
+  }));
+}
+
+function renderBrokerLeads() {
+  const tbody=$("#leads-lista"), norm=value=>String(value??"").toLocaleLowerCase("pt-BR").normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+  const q=norm(brokerLeadSearchTerm.trim()), filtered=q?brokerLeads.filter(x=>norm([x.nome,x.telefone,x.email,x.imovelId,x.mensagem,x.status].join(" ")).includes(q)):brokerLeads.slice(0,100);
+  if(!brokerLeads.length){tbody.innerHTML='<tr><td colspan="4">Nenhum lead recebido ainda.</td></tr>';return;}
+  if(!filtered.length){tbody.innerHTML='<tr><td colspan="4">Nenhum lead encontrado para essa busca.</td></tr>';return;}
+  tbody.innerHTML=filtered.map(x=>`<tr><td><strong>${escapeHtml(x.nome)}</strong><div class="dash-subtitle">${escapeHtml(x.mensagem||"")}</div></td><td><a href="https://wa.me/55${String(x.telefone||"").replace(/\D/g,"")}" target="_blank" rel="noopener noreferrer">${escapeHtml(x.telefone||"—")} ↗</a></td><td>${escapeHtml(x.imovelId||"—")}</td><td>${formatDate(x.criadoEm)}</td></tr>`).join("");
 }
 
 // Carregar Dados
@@ -88,13 +108,14 @@ async function loadDashboard() {
     const allImoveis = data.imoveis || [];
     const myImoveis = currentProfile.papel === "administrador" 
       ? allImoveis 
-      : allImoveis.filter(i => i.responsavelUid === currentUser.uid);
+      : allImoveis.filter(i => i.responsavelUid === currentUser.uid || i.responsavelTipo === "todos");
 
     $("#stat-total").textContent = myImoveis.length;
     $("#stat-publicados").textContent = myImoveis.filter(i => i.status === "publicado").length;
     $("#stat-pendentes").textContent = myImoveis.filter(i => i.status === "aguardando_aprovacao").length;
     
     const leads = data.leads || [];
+    brokerLeads = leads;
     $("#stat-leads").textContent = leads.length;
 
     // --- RENDERIZAR TABELA DE IMÓVEIS ---
@@ -133,26 +154,7 @@ async function loadDashboard() {
     }
 
     // --- RENDERIZAR TABELA DE LEADS ---
-    const tbodyLeads = $("#leads-lista");
-    if (leads.length === 0) {
-      tbodyLeads.innerHTML = '<tr><td colspan="4">Nenhum lead recebido ainda.</td></tr>';
-    } else {
-      tbodyLeads.innerHTML = leads.slice(0, 10).map(lead => `
-        <tr>
-          <td>
-            <strong>${escapeHtml(lead.nome)}</strong>
-            <div class="dash-subtitle">${escapeHtml(lead.mensagem || "")}</div>
-          </td>
-          <td>
-            <a href="https://wa.me/55${lead.telefone.replace(/\D/g, '')}" target="_blank" style="color:var(--gold-2);">
-              ${escapeHtml(lead.telefone)} ↗
-            </a>
-          </td>
-          <td>${escapeHtml(lead.imovelId || "—")}</td>
-          <td>${formatDate(lead.criadoEm)}</td>
-        </tr>
-      `).join("");
-    }
+    renderBrokerLeads();
 
     $("#dash-feedback").textContent = "Carteira atualizada com sucesso.";
     $("#dash-feedback").style.color = "var(--text-soft)";
@@ -234,6 +236,10 @@ $("#agenda-lista").addEventListener("click", (event) => {
 $("#broker-property-search")?.addEventListener("input", event => {
   brokerSearchTerm = event.target.value || "";
   renderBrokerProperties();
+});
+$("#broker-lead-search")?.addEventListener("input", event => {
+  brokerLeadSearchTerm = event.target.value || "";
+  renderBrokerLeads();
 });
 
 $("#btn-refresh").addEventListener("click", loadDashboard);
