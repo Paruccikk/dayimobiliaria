@@ -1328,6 +1328,8 @@ app.get(
           visitasRealizadas: visitasAll.filter(item => ["realizada", "concluido"].includes(item.status)).length,
           propostas: leads.filter(item => item.status === "proposta_enviada").length,
           fechados: leads.filter(item => item.status === "fechado").length,
+          visitasRegistros: visitasAll.map(item => ({ ...item, corretorNome: usuarios.find(user => user.uid === item.corretorUid)?.nome || "—" })),
+          propostasRegistros: leads.filter(item => item.status === "proposta_enviada").map(item => ({ ...item, responsavelNome: usuarios.find(user => user.uid === item.responsavelUid)?.nome || "—" })),
           gerentes: managerStats, corretores: corretorStats
         },
       });
