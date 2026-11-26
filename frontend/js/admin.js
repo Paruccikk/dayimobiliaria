@@ -254,7 +254,9 @@ function renderProperties(properties) {
     const actionLabel = status === "publicado" ? "Desativar" : "Publicar";
     const nextStatus = status === "publicado" ? "inativo" : "publicado";
     const responsible = property.responsavelNome || property.responsavelEmail ||
-      (property.responsavelUid ? `UID ${property.responsavelUid}` : "—");
+      (property.responsavelTipo === "todos" ? "Todos os corretores" : (property.responsavelUid ? `UID ${property.responsavelUid}` : "Sem responsável"));
+    const activeBrokers = (dashboardData?.usuarios || []).filter(user => user.papel === "corretor" && user.ativo === true && user.status === "ativo");
+    const assignmentOptions = `<option value="todos" ${property.responsavelTipo === "todos" ? "selected" : ""}>Todos os corretores</option><option value="" ${!property.responsavelUid && property.responsavelTipo !== "todos" ? "selected" : ""}>Sem responsável</option>` + activeBrokers.map(user => `<option value="${escapeHtml(user.uid)}" ${property.responsavelTipo !== "todos" && property.responsavelUid === user.uid ? "selected" : ""}>${escapeHtml(user.nome || user.email || user.uid)}</option>`).join("");
 
     return `
       <tr data-property-id="${escapeHtml(property.id)}">
@@ -267,6 +269,8 @@ function renderProperties(properties) {
         <td>${escapeHtml(responsible)}</td>
         <td>${statusPill(status)}</td>
         <td>
+          <select class="property-assignee" aria-label="Corretor responsável" style="max-width:180px">${assignmentOptions}</select>
+          <button type="button" class="small-btn save-assignee">Salvar responsável</button>
           <button type="button" class="small-btn property-edit">Editar</button>
           <button type="button" class="small-btn gold property-status"
             data-status="${nextStatus}">
@@ -279,6 +283,19 @@ function renderProperties(properties) {
     `;
   }).join("");
 
+  tbody.querySelectorAll(".save-assignee").forEach(button => {
+    button.addEventListener("click", async () => {
+      const row=button.closest("tr"), id=row.dataset.propertyId, value=row.querySelector(".property-assignee").value;
+      button.disabled=true;
+      try {
+        const body=value==="todos"?{responsavelTipo:"todos"}:{responsavelTipo:"individual",responsavelUid:value||null};
+        await api("/api/admin/imoveis/"+encodeURIComponent(id)+"/gestao",{method:"PATCH",body:JSON.stringify(body)});
+        setMessage(dashboardFeedback,value==="todos"?"Imóvel disponível para todos os corretores.":"Responsável do imóvel atualizado.");
+        await carregarDashboard();
+      } catch(error){setMessage(dashboardFeedback,error.message);}
+      finally{button.disabled=false;}
+    });
+  });
   tbody.querySelectorAll(".property-edit").forEach(button => {
     button.addEventListener("click", () => {
       const row = button.closest("tr");
@@ -535,6 +552,10 @@ function renderProductivity(productivity = {}) {
   num("#prod-visitas", productivity.visitasRealizadas);
   num("#prod-propostas", productivity.propostas);
   num("#prod-fechados", productivity.fechados);
+  const visitsBody=$("#admin-visits-list");
+  if(visitsBody){const visits=productivity.visitasRegistros||[];visitsBody.innerHTML=visits.length?visits.map(item=>"<tr><td>"+escapeHtml(item.clienteNome||item.cliente||"—")+"</td><td>"+escapeHtml(item.imovelId||"—")+"</td><td>"+escapeHtml(formatDate(item.inicio||item.data||item.criadoEm))+"</td><td>"+escapeHtml(item.corretorNome||"—")+"</td><td>"+escapeHtml(item.status||"—")+"</td></tr>").join(""):'<tr><td colspan="5">Nenhuma visita registrada.</td></tr>';}
+  const proposalsBody=$("#admin-proposals-list");
+  if(proposalsBody){const proposals=productivity.propostasRegistros||[];proposalsBody.innerHTML=proposals.length?proposals.map(item=>"<tr><td>"+escapeHtml(item.nome||"—")+"</td><td>"+escapeHtml(item.telefone||"—")+"</td><td>"+escapeHtml(item.imovelId||"—")+"</td><td>"+escapeHtml(item.responsavelNome||"—")+"</td><td>"+escapeHtml(formatDate(item.atualizadoEm||item.criadoEm))+"</td></tr>").join(""):'<tr><td colspan="5">Nenhuma proposta enviada registrada.</td></tr>';}
   const managerNames = Object.fromEntries(managers.map(item => [item.uid, item.nome]));
   const managerBody = $("#prod-gerentes-lista");
   managerBody.innerHTML = managers.length ? managers.map(item =>

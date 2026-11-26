@@ -1279,7 +1279,7 @@ app.get(
           gerenteUid: user.gerenteUid || null,
           leads: ownLeads.length,
           leadsNovos: ownLeads.filter(item => !item.status || item.status === "novo").length,
-          propostas: ownLeads.filter(item => ["proposta_enviada", "em_analise_contrato"].includes(item.status)).length,
+          propostas: ownLeads.filter(item => item.status === "proposta_enviada").length,
           fechados: ownLeads.filter(item => item.status === "fechado").length,
           imoveis: ownProperties.length, visitas: ownVisits.length,
           visitasRealizadas: ownVisits.filter(item => ["realizada", "concluido"].includes(item.status)).length
@@ -1326,8 +1326,10 @@ app.get(
         produtividade: {
           visitas: visitasAll.length,
           visitasRealizadas: visitasAll.filter(item => ["realizada", "concluido"].includes(item.status)).length,
-          propostas: leads.filter(item => ["proposta_enviada", "em_analise_contrato"].includes(item.status)).length,
+          propostas: leads.filter(item => item.status === "proposta_enviada").length,
           fechados: leads.filter(item => item.status === "fechado").length,
+          visitasRegistros: visitasAll.map(item => ({ ...item, corretorNome: usuarios.find(user => user.uid === item.corretorUid)?.nome || "—" })),
+          propostasRegistros: leads.filter(item => item.status === "proposta_enviada").map(item => ({ ...item, responsavelNome: usuarios.find(user => user.uid === item.responsavelUid)?.nome || "—" })),
           gerentes: managerStats, corretores: corretorStats
         },
       });
@@ -1356,7 +1358,7 @@ app.get("/api/gerente/dashboard", requireFirebase, allowRoles("administrador", "
     const teamUids = new Set(equipe.map(user => user.uid));
     const byTeam = (raw, key) => Object.entries(raw || {}).map(([id, item]) => ({ id, ...item }))
       .filter(item => teamUids.has(item[key]));
-    const imoveis = byTeam(propertiesSnap.val(), "responsavelUid");
+    const imoveis = Object.entries(propertiesSnap.val() || {}).map(([id, item]) => ({ id, ...item })).filter(item => teamUids.has(item.responsavelUid) || item.responsavelTipo === "todos");
     const leads = byTeam(leadsSnap.val(), "responsavelUid");
     const visitas = byTeam(visitsSnap.val(), "corretorUid");
     const agendamentos = byTeam(bookingsSnap.val(), "corretorUid");
@@ -1370,7 +1372,7 @@ app.get("/api/gerente/dashboard", requireFirebase, allowRoles("administrador", "
         uid: user.uid, nome: user.nome, email: user.email,
         imoveis: ownProperties.length, leads: ownLeads.length,
         leadsNovos: ownLeads.filter(item => !item.status || item.status === "novo").length,
-        propostas: ownLeads.filter(item => ["proposta_enviada", "em_analise_contrato"].includes(item.status)).length,
+        propostas: ownLeads.filter(item => item.status === "proposta_enviada").length,
         fechados: ownLeads.filter(item => item.status === "fechado").length,
         visitas: ownVisits.length,
         visitasRealizadas: ownVisits.filter(item => ["realizada", "concluido"].includes(item.status || item.statusOperacional)).length
@@ -1398,12 +1400,12 @@ app.get("/api/corretor/dashboard", requireFirebase, allowRoles("administrador", 
     let imoveis = Object.entries(propertiesSnapshot.val() || {}).map(([id, item]) => ({ id, ...item }));
     let leads = Object.entries(leadsSnapshot.val() || {}).map(([id, item]) => ({ id, ...item }));
     if (req.profile.papel === "corretor") {
-      imoveis = imoveis.filter(item => item.responsavelUid === req.user.uid);
+      imoveis = imoveis.filter(item => item.responsavelUid === req.user.uid || item.responsavelTipo === "todos");
       leads = leads.filter(item => item.responsavelUid === req.user.uid);
     } else if (req.profile.papel === "gerente") {
       const users = (await db.ref("usuarios").get()).val() || {};
       const team = new Set(Object.entries(users).filter(([,u]) => u.papel === "corretor" && u.ativo === true && u.status === "ativo" && u.gerenteUid === req.user.uid).map(([uid]) => uid));
-      imoveis = imoveis.filter(item => team.has(item.responsavelUid));
+      imoveis = imoveis.filter(item => team.has(item.responsavelUid) || item.responsavelTipo === "todos");
       leads = leads.filter(item => team.has(item.responsavelUid));
     }
     imoveis.sort((a, b) => String(b.criadoEm || "").localeCompare(String(a.criadoEm || "")));
@@ -1624,7 +1626,7 @@ app.post(
 
       if (
         req.profile.papel === "corretor" &&
-        property.responsavelUid !== req.user.uid
+        property.responsavelUid !== req.user.uid && property.responsavelTipo !== "todos"
       ) {
         return res.status(403).json({
           error: "Você só pode alterar fotos dos imóveis da sua carteira.",
@@ -1700,7 +1702,7 @@ app.post(
       if (!snap.exists()) return res.status(404).json({ error: "Imóvel não encontrado." });
 
       const property = snap.val();
-      if (req.profile.papel === "corretor" && property.responsavelUid !== req.user.uid) {
+      if (req.profile.papel === "corretor" && property.responsavelUid !== req.user.uid && property.responsavelTipo !== "todos") {
         return res.status(403).json({ error: "Você só pode anexar arquivos aos imóveis da sua carteira." });
       }
 
@@ -1907,10 +1909,19 @@ app.post(
 
 
 /* Edição dos dados dos imóveis existentes: somente administrador. */
-app.patch("/api/admin/imoveis/:id", requireFirebase, allowRoles("administrador"), async (req, res) => {
+app.patch("/api/admin/imoveis/:id", requireFirebase, allowRoles("administrador", "corretor"), async (req, res) => {
   const id = cleanString(req.params.id, 100);
   if (!id || id.includes("/")) return res.status(400).json({ error: "ID de imóvel inválido." });
   const body = req.body || {};
+  if (req.profile.papel === "corretor") {
+    const snap = await db.ref("imoveis/" + id).get();
+    if (!snap.exists()) return res.status(404).json({ error: "Imóvel não encontrado." });
+    const property = snap.val();
+    if (property.responsavelUid !== req.user.uid && property.responsavelTipo !== "todos") return res.status(403).json({ error: "Este imóvel não pertence à sua carteira." });
+    if (Object.keys(body).some(key => key !== "minhaCasaMinhaVida") || !Object.hasOwn(body, "minhaCasaMinhaVida")) return res.status(403).json({ error: "O corretor pode alterar somente a marcação Minha Casa, Minha Vida." });
+    await db.ref("imoveis/" + id).update({ minhaCasaMinhaVida: body.minhaCasaMinhaVida === true, atualizadoEm: new Date().toISOString() });
+    return res.json({ ok: true, id, updates: { minhaCasaMinhaVida: body.minhaCasaMinhaVida === true } });
+  }
   const updates = { atualizadoEm: new Date().toISOString() };
 
   if (Object.hasOwn(body, "titulo")) {
@@ -2183,9 +2194,14 @@ app.patch("/api/admin/imoveis/:id/gestao", requireFirebase, allowRoles("administ
     if(!["disponivel","reservado","vendido"].includes(body.disponibilidade)) return res.status(400).json({error:"Disponibilidade inválida."});
     updates.disponibilidade=body.disponibilidade;
   }
+  if(Object.hasOwn(body,"responsavelTipo")) {
+    if(!["individual","todos"].includes(body.responsavelTipo)) return res.status(400).json({error:"Tipo de responsabilidade inválido."});
+    updates.responsavelTipo=body.responsavelTipo;
+    if(body.responsavelTipo==="todos") updates.responsavelUid=null;
+  }
   if(Object.hasOwn(body,"responsavelUid")) {
     const uid=body.responsavelUid ? cleanString(body.responsavelUid,128) : null;
-    if(uid) { const u=(await db.ref("usuarios/"+uid).get()).val(); if(!u || u.papel!=="corretor" || u.ativo!==true || u.status!=="ativo") return res.status(400).json({error:"Selecione um corretor ativo."}); }
+    if(uid) { const u=(await db.ref("usuarios/"+uid).get()).val(); if(!u || u.papel!=="corretor" || u.ativo!==true || u.status!=="ativo") return res.status(400).json({error:"Selecione um corretor ativo."}); updates.responsavelTipo="individual"; }
     updates.responsavelUid=uid;
   }
   try {
