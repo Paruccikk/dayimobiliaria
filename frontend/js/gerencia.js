@@ -39,7 +39,7 @@ function renderManagerTeam() {
   const q = normalizeSearch(brokerSearchTerm.trim());
   const filtered = q ? managerTeam.filter(user => normalizeSearch([user.nome, user.email, user.telefone, user.uid].join(" ")).includes(q)) : managerTeam;
   rows("#manager-team", filtered, "Nenhum corretor encontrado para essa busca.", user => {
-    const ownProperties = managerProperties.filter(item => item.responsavelUid === user.uid).length;
+    const ownProperties = managerProperties.filter(item => item.responsavelUid === user.uid || item.responsavelTipo === "todos").length;
     const ownLeads = managerLeads.filter(item => item.responsavelUid === user.uid).length;
     return '<tr><td><strong>' + esc(user.nome) + '</strong></td><td>' + esc(user.email || "—") + '</td><td>' + ownProperties + '</td><td>' + ownLeads + '</td></tr>';
   }, 4);
